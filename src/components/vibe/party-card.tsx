@@ -16,11 +16,13 @@ import {
   formatTime,
   parseVibes,
   pickGuestAvatars,
+  partyLiveStatus,
   slotsLeft,
   type Party,
 } from "@/lib/types";
 import { VibeBadge } from "./vibe-badge";
 import { GuestAvatars } from "./guest-avatars";
+import { LiveCountdown } from "./live-countdown";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 
@@ -35,6 +37,9 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
   const left = slotsLeft(party.maxGuests, party.guestCount);
   const isLow = left > 0 && left <= 5;
   const isFull = left === 0;
+  const status = partyLiveStatus(party.date, party.time);
+  const isLive = status === "live";
+  const isStartingSoon = status === "starting-soon";
 
   const saved = useAppStore((s) => s.savedPartyIds.includes(party.id));
   const toggleSaved = useAppStore((s) => s.toggleSaved);
@@ -61,13 +66,19 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
         }
       }}
       className={cn(
-        "group relative w-full cursor-pointer overflow-hidden rounded-3xl text-left transition-all duration-300",
+        "group relative w-full cursor-pointer overflow-hidden rounded-3xl text-left transition-all duration-300 press-feedback",
         "border border-border bg-card/80 backdrop-blur-sm",
         "hover:border-pink/40 hover:shadow-[0_12px_44px_-14px_rgba(236,72,153,0.45)] hover:-translate-y-0.5",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-pink/60",
+        isLive && "border-rose-500/40 shadow-[0_0_30px_-8px_rgba(244,63,94,0.45)]",
         className,
       )}
     >
+      {/* Live now accent strip on top edge */}
+      {isLive && (
+        <div className="absolute inset-x-0 top-0 z-10 h-0.5 vibe-gradient-bg animate-pulse" />
+      )}
+
       {/* Cover */}
       <div className="relative aspect-[16/10] w-full overflow-hidden">
         {party.coverUrl ? (
@@ -84,18 +95,23 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
 
         {/* Top chips */}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md",
-              isFull
-                ? "bg-rose-500/25 text-rose-100 border border-rose-400/40"
-                : isLow
-                  ? "bg-amber-500/25 text-amber-100 border border-amber-400/40"
-                  : "bg-emerald-500/20 text-emerald-100 border border-emerald-400/30",
+          <div className="flex flex-col gap-1.5">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md",
+                isFull
+                  ? "bg-rose-500/25 text-rose-100 border border-rose-400/40"
+                  : isLow
+                    ? "bg-amber-500/25 text-amber-100 border border-amber-400/40"
+                    : "bg-emerald-500/20 text-emerald-100 border border-emerald-400/30",
+              )}
+            >
+              {isFull ? "Sold out" : isLow ? `Only ${left} left` : `${left} slots`}
+            </span>
+            {(isLive || isStartingSoon) && (
+              <LiveCountdown date={party.date} time={party.time} />
             )}
-          >
-            {isFull ? "Sold out" : isLow ? `Only ${left} left` : `${left} slots`}
-          </span>
+          </div>
           <button
             onClick={onSave}
             aria-label={saved ? "Unsave" : "Save"}

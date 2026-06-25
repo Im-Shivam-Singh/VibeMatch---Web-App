@@ -28,10 +28,13 @@ export function OnboardingScreen() {
     );
 
   const finish = async () => {
-    // persist city to the user's profile
+    // persist city + vibe preferences to the user's profile
     if (currentUser) {
       try {
-        await api.updateUser(currentUser.id, { city });
+        await api.updateUser(currentUser.id, {
+          city,
+          vibePrefs: picks.join(","),
+        });
       } catch {
         /* non-blocking */
       }

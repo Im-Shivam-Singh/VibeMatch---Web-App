@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -33,6 +33,8 @@ import { VibeBadge } from "@/components/vibe/vibe-badge";
 import { UserAvatar } from "@/components/vibe/user-avatar";
 import { RatingPill } from "@/components/vibe/rating-pill";
 import { GuestAvatars } from "@/components/vibe/guest-avatars";
+import { LiveCountdown } from "@/components/vibe/live-countdown";
+import { ReviewsSection } from "@/components/vibe/reviews-section";
 import {
   Drawer,
   DrawerContent,
@@ -66,6 +68,14 @@ export function DetailScreen() {
     queryFn: () => api.getParty(id!),
     enabled: !!id,
   });
+
+  // Record a view once per party detail mount (for host analytics)
+  useEffect(() => {
+    if (!id) return;
+    api.recordView(id, currentUser?.id).catch(() => {
+      /* non-blocking */
+    });
+  }, [id, currentUser?.id]);
 
   const requestMutation = useMutation({
     mutationFn: () =>
@@ -206,9 +216,16 @@ export function DetailScreen() {
         <div className="space-y-6 p-4">
           {/* Title + vibes */}
           <section className="space-y-3">
-            <h1 className="font-display text-2xl font-extrabold leading-tight">
-              {party.title}
-            </h1>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h1 className="flex-1 font-display text-2xl font-extrabold leading-tight">
+                {party.title}
+              </h1>
+              <LiveCountdown
+                date={party.date}
+                time={party.time}
+                size="md"
+              />
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {vibes.map((v) => (
                 <VibeBadge key={v} vibe={v} size="md" />
@@ -368,6 +385,9 @@ export function DetailScreen() {
               ))}
             </ul>
           </section>
+
+          {/* Reviews */}
+          {party.id && <ReviewsSection partyId={party.id} />}
         </div>
       </div>
 

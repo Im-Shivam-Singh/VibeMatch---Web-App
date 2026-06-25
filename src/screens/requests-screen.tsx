@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Inbox as InboxIcon, Check, X, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -15,6 +15,7 @@ export function RequestsScreen() {
   const goBack = useAppStore((s) => s.goBack);
   const currentUser = useAppStore((s) => s.currentUser);
   const setScreen = useAppStore((s) => s.setScreen);
+  const qc = useQueryClient();
 
   const [tab, setTab] = useState<"all" | "pending" | "accepted">("all");
 
@@ -43,21 +44,34 @@ export function RequestsScreen() {
     refetchInterval: 12_000,
   });
 
+  const actMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "accepted" | "rejected" }) =>
+      api.updateRequest(id, status),
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.status === "accepted" ? "Request accepted ✅" : "Request rejected",
+        {
+          description:
+            vars.status === "accepted"
+              ? "A chat thread has been opened with this guest."
+              : "The slot has been released.",
+        },
+      );
+      // invalidate requests + parties (guest counts may have changed)
+      qc.invalidateQueries({ queryKey: ["requests", activePartyId] });
+      qc.invalidateQueries({ queryKey: ["parties"] });
+      qc.invalidateQueries({ queryKey: ["analytics", currentUser?.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Action failed"),
+  });
+
   const requests = (data?.requests ?? []).filter((r) =>
     tab === "all" ? true : r.status === tab,
   );
 
   const act = (id: string, status: "accepted" | "rejected") => {
-    toast.success(
-      status === "accepted" ? "Request accepted ✅" : "Request rejected",
-      {
-        description:
-          status === "accepted"
-            ? "A chat thread has been opened with this guest."
-            : undefined,
-      },
-    );
-    refetch();
+    actMutation.mutate({ id, status });
   };
 
   return (

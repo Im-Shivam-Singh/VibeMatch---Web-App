@@ -101,6 +101,7 @@ export interface VibeUser {
   avatarUrl?: string | null;
   city?: string | null;
   instagram?: string | null;
+  vibePrefs?: string; // comma-separated vibe tag prefs (from onboarding)
   vibes: number;
   hosted: number;
   rating: number;
@@ -130,6 +131,53 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+// Party review — submitted by guests after attending
+export interface PartyReview {
+  id: string;
+  partyId: string;
+  userId: string;
+  rating: number; // 1..5
+  comment: string;
+  createdAt: string;
+  // joined for UI
+  user?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
+}
+
+// Host analytics summary
+export interface HostAnalytics {
+  hostId: string;
+  totalViews: number;
+  partyCount: number;
+  totalGuests: number;
+  totalCapacity: number;
+  totalRequests: number;
+  acceptedRequests: number;
+  pendingRequests: number;
+  rejectedRequests: number;
+  acceptanceRate: number; // 0..100
+  avgRating: number; // 0..5
+  reviewCount: number;
+  topParties: {
+    partyId: string;
+    title: string;
+    views: number;
+    requests: number;
+    guests: number;
+    capacity: number;
+  }[];
+}
+
+// Map cluster summary — for the map view
+export interface PartyCluster {
+  city: string;
+  count: number;
+  parties: Party[];
+}
+
 export type Screen =
   | "login"
   | "onboarding"
@@ -142,7 +190,8 @@ export type Screen =
   | "edit-profile"
   | "my-parties"
   | "requests"
-  | "saved";
+  | "saved"
+  | "map";
 
 export function parseVibes(vibes: string): string[] {
   if (!vibes) return [];
@@ -199,6 +248,71 @@ export function relativeTime(iso: string): string {
 
 export function slotsLeft(maxGuests: number, guestCount: number): number {
   return Math.max(0, maxGuests - guestCount);
+}
+
+// Status of a party relative to now: live / upcoming / today / past
+export type PartyLiveStatus = "live" | "starting-soon" | "today" | "upcoming" | "past";
+
+export function partyLiveStatus(date: string, time: string, durationHours = 4): PartyLiveStatus {
+  // date: yyyy-mm-dd, time: HH:mm
+  const start = new Date(`${date}T${time || "00:00"}:00`);
+  const end = new Date(start.getTime() + durationHours * 3_600_000);
+  const now = new Date();
+
+  const d = new Date(date + "T00:00:00");
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+
+  if (now >= start && now <= end) return "live";
+  if (dayDiff < 0 || now > end) return "past";
+  if (dayDiff === 0) {
+    // today: starting soon if within 2h
+    const msToStart = start.getTime() - now.getTime();
+    if (msToStart > 0 && msToStart <= 2 * 3_600_000) return "starting-soon";
+    return "today";
+  }
+  return "upcoming";
+}
+
+// Returns a humanized countdown string e.g. "in 2h 15m", "starts in 3d", "Live now"
+export function countdownTo(date: string, time: string, durationHours = 4): string {
+  const start = new Date(`${date}T${time || "00:00"}:00`);
+  const end = new Date(start.getTime() + durationHours * 3_600_000);
+  const now = new Date();
+
+  if (now >= start && now <= end) return "Live now";
+  if (now > end) return "Ended";
+
+  const ms = start.getTime() - now.getTime();
+  const totalMin = Math.floor(ms / 60_000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  const mins = totalMin % 60;
+
+  if (days > 0) return `in ${days}d ${hours}h`;
+  if (hours > 0) return `in ${hours}h ${mins}m`;
+  if (mins > 0) return `in ${mins}m`;
+  return "starting";
+}
+
+// Map a city name to approximate lat/lng for the stylized map view.
+export const CITY_COORDS: Record<string, { x: number; y: number }> = {
+  Delhi: { x: 0.42, y: 0.28 },
+  Mumbai: { x: 0.22, y: 0.62 },
+  Bangalore: { x: 0.36, y: 0.85 },
+  Goa: { x: 0.18, y: 0.78 },
+  Pune: { x: 0.26, y: 0.68 },
+};
+
+// Deterministic small jitter per party id so pins don't perfectly overlap
+export function partyPinOffset(seed: string, city: string): { x: number; y: number } {
+  const base = CITY_COORDS[city] || { x: 0.5, y: 0.5 };
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const jx = ((h % 60) - 30) / 600; // -0.05..+0.05
+  const jy = (((h >> 4) % 60) - 30) / 600;
+  return { x: base.x + jx, y: base.y + jy };
 }
 
 // Demo guest avatars used for the "who's going" social-proof stack.

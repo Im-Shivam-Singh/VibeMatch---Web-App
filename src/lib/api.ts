@@ -6,6 +6,8 @@ import type {
   ChatThread,
   ChatMessage,
   VibeUser,
+  PartyReview,
+  HostAnalytics,
 } from "@/lib/types";
 
 async function jfetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -117,5 +119,45 @@ export const api = {
     jfetch<{ saved: boolean; partyId: string }>(`/api/saved`, {
       method: "POST",
       body: JSON.stringify({ userId, partyId }),
+    }),
+
+  // party views
+  recordView: (partyId: string, userId?: string) =>
+    jfetch<{ recorded: boolean }>(`/api/views`, {
+      method: "POST",
+      body: JSON.stringify({ partyId, userId }),
+    }),
+
+  // host analytics
+  getHostAnalytics: (hostId: string) =>
+    jfetch<HostAnalytics>(`/api/analytics?hostId=${hostId}`),
+
+  // reviews
+  listReviews: (partyId: string) =>
+    jfetch<{ reviews: PartyReview[]; avgRating: number; count: number }>(
+      `/api/reviews?partyId=${partyId}`,
+    ),
+  submitReview: (input: {
+    partyId: string;
+    userId: string;
+    rating: number;
+    comment: string;
+  }) =>
+    jfetch<{ review: PartyReview }>(`/api/reviews`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  // "For You" personalized feed
+  forYou: (userId: string) =>
+    jfetch<{ parties: Party[]; matchedVibes: string[] }>(
+      `/api/parties/for-you?userId=${userId}`,
+    ),
+
+  // accept/reject a join request
+  updateRequest: (id: string, status: "accepted" | "rejected") =>
+    jfetch<{ id: string; status: string }>(`/api/requests/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
     }),
 };

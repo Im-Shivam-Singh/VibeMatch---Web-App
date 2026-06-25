@@ -56,6 +56,7 @@ export async function GET(
           avatarUrl: other.avatarUrl,
           city: other.city,
           instagram: other.instagram,
+          vibePrefs: other.vibePrefs,
           vibes: other.vibes,
           hosted: other.hosted,
           rating: other.rating,

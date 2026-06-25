@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { PartyCard } from "@/components/vibe/party-card";
 import { EmptyState } from "@/components/vibe/empty-state";
+import { HostAnalytics as HostAnalyticsCard } from "@/components/vibe/host-analytics";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function MyPartiesScreen() {
@@ -43,6 +44,12 @@ export function MyPartiesScreen() {
       </header>
 
       <div className="fancy-scrollbar flex-1 space-y-3 overflow-y-auto p-4">
+        {currentUser && (
+          <section className="mb-1">
+            <HostAnalyticsCard hostId={currentUser.id} />
+          </section>
+        )}
+
         {isLoading && (
           <div className="space-y-3">
             {[0, 1].map((i) => (

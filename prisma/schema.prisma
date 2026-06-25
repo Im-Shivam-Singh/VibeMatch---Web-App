@@ -21,6 +21,8 @@ model User {
   city      String?
   // social handles (UI-only for now, but stored)
   instagram String?
+  // vibe preferences saved from onboarding (comma-separated tags) — powers "For You" feed
+  vibePrefs String   @default("")
   // stats
   vibes     Int      @default(0)
   hosted    Int      @default(0)
@@ -38,6 +40,7 @@ model User {
   threadsA      ChatThread[] @relation("ThreadUserA")
   threadsB      ChatThread[] @relation("ThreadUserB")
   savedParties  SavedParty[]
+  reviews       Review[]
 }
 
 model Party {
@@ -63,6 +66,7 @@ model Party {
   requests JoinRequest[]
   savedBy   SavedParty[]
   views     PartyView[]
+  reviews   Review[]
 }
 
 model JoinRequest {
@@ -128,4 +132,19 @@ model PartyView {
   createdAt DateTime @default(now())
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+// Party reviews — submitted by guests after attending
+model Review {
+  id        String   @id @default(cuid())
+  partyId   String
+  userId    String
+  rating    Int      // 1..5
+  comment   String   @default("")
+  createdAt DateTime @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId]) // one review per user per party
 }

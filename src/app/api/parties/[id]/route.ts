@@ -37,7 +37,22 @@ export async function GET(
   }
   return NextResponse.json({
     party: serialize(party),
-    host: party.host,
+    host: party.host
+      ? {
+          id: party.host.id,
+          name: party.host.name,
+          username: party.host.username,
+          bio: party.host.bio,
+          avatarUrl: party.host.avatarUrl,
+          city: party.host.city,
+          instagram: party.host.instagram,
+          vibePrefs: party.host.vibePrefs,
+          vibes: party.host.vibes,
+          hosted: party.host.hosted,
+          rating: party.host.rating,
+          ratingCount: party.host.ratingCount,
+        }
+      : null,
     requests: party.requests.map((r: any) => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
