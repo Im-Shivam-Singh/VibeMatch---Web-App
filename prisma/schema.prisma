@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// VibeMatch user (guests + hosts)
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String
+  username  String?  @unique
+  bio       String?
+  avatarUrl String?
+  city      String?
+  // social handles (UI-only for now, but stored)
+  instagram String?
+  // stats
+  vibes     Int      @default(0)
+  hosted    Int      @default(0)
+  rating    Float    @default(5.0)
+  ratingCount Int    @default(0)
+  // moderation
+  blocked   String   @default("") // comma-separated user ids
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parties       Party[]      @relation("HostedParties")
+  joinRequests  JoinRequest[]
+  sentMessages  Message[]    @relation("SentMessages")
+  recvMessages  Message[]    @relation("RecvMessages")
+  threadsA      ChatThread[] @relation("ThreadUserA")
+  threadsB      ChatThread[] @relation("ThreadUserB")
+}
+
+model Party {
+  id          String   @id @default(cuid())
+  title       String
+  city        String
+  area        String
+  date        String   // ISO date yyyy-mm-dd
+  time        String   // HH:mm
+  fee         Int      @default(0) // in INR
+  maxGuests   Int      @default(10)
+  vibes       String   @default("") // comma-separated vibe tags
+  description String   @default("")
+  hostName    String
+  hostId      String?
+  coverUrl    String?
+  // denormalized stats for fast reads
+  guestCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  host    User?         @relation("HostedParties", fields: [hostId], references: [id])
+  requests JoinRequest[]
+}
+
+model JoinRequest {
+  id            String   @id @default(cuid())
+  partyId       String
+  requesterName String
+  introMessage  String
+  status        String   @default("pending") // pending | accepted | rejected
+  requesterId   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  party     Party @relation(fields: [partyId], references: [id])
+  requester User? @relation(fields: [requesterId], references: [id])
+}
+
+// 1-on-1 chat thread between two users (typically host <-> guest after a request is accepted)
+model ChatThread {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  partyId   String?  // optional context: which party sparked the chat
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userA    User      @relation("ThreadUserA", fields: [userAId], references: [id])
+  userB    User      @relation("ThreadUserB", fields: [userBId], references: [id])
+  messages Message[]
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  threadId   String
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  thread   ChatThread @relation(fields: [threadId], references: [id])
+  sender   User       @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User       @relation("RecvMessages", fields: [receiverId], references: [id])
+}
