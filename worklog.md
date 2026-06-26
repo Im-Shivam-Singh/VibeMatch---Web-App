@@ -744,3 +744,57 @@ Stage Summary:
 - **Fun-score differentiation is now motion-only** (size + animation). At a glance, all pins look yellow; the tier only reads on closer inspection of size/animation. If users want tier color back, reintroduce a SECOND muted accent (e.g. yellow for low/warm, white for lively/lit) — but that breaks the strict Bumble monochrome. Recommend keeping monochrome and letting size/motion carry the signal.
 - **Carryover TODOs from prior rounds** (still open): RSVP persistence for real attendee lists + real fun-score data; public host profile screen; LLM-powered smart quick replies in chat; notifications screen + bell badge; message reactions (`Reaction` model + `/api/messages/[id]/react`); geolocation permission-denied UX toast; saved-parties persistence (`SavedParty` model + `/api/saved`).
 - **Map projection** still equirectangular (good for 1–25 km). The "India" city-dot at country scale still renders meaningless rings. Next: hide rings when radius > 50 km, or adopt Leaflet/MapLibre for true pan-zoom.
+
+---
+Task ID: MAP-REALISTIC
+Agent: orchestrator (Google Maps realistic round)
+Task: Make the map section use realistic Google Maps instead of the custom SVG dot-grid radar background.
+
+Work Log:
+- Read prior worklog: VibeMatch map was a custom SVG with concentric yellow dashed rings on a black dot-grid background. User requested "make map section use google maps realistic".
+- Investigated embedding options:
+  - Google Maps iframe embed (`https://www.google.com/maps?q=...&output=embed`): tested via curl → HTTP 404 + `x-frame-options: SAMEORIGIN`. Google blocks no-API-key embeds from external origins.
+  - Google Maps Embed API with key: not available in this sandbox.
+  - Decided on **Leaflet + CARTO Voyager tiles** — a free, no-API-key raster tile layer that renders a clean Google-Maps-style basemap (roads, streets, neighborhoods, water, parks, labels) served from Carto's public CDN. Visually closest to Google Maps default style.
+- Installed `leaflet@1.9.4` + `@types/leaflet@1.9.21` via `bun add`.
+- Rewrote `src/screens/map-screen.tsx`:
+  - Added Web Mercator projection helper `latLngToContainerPixel(lat, lng, centerLat, centerLng, zoom)` so overlay pins align EXACTLY with Leaflet's tile grid (replacing the old haversine-based projection).
+  - Added `RADIUS_ZOOM` mapping (1km→z15, 2km→z14, 5km→z13, 10km→z12, 25km→z10) so the active radius fills the viewport.
+  - Added `CARTO_VOYAGER_URL` + `CARTO_ATTRIBUTION` constants for the tile layer.
+  - Leaflet is imported LAZILY inside useEffect (`import("leaflet")`) because Leaflet's runtime touches `window` at module load → would crash Next.js SSR with "ReferenceError: window is not defined". The CSS (`import "leaflet/dist/leaflet.css"`) is SSR-safe and stays at top-level. Type-only import (`import type * as LType from "leaflet"`) gives compile-time types without runtime impact.
+  - First useEffect mounts Leaflet ONCE: deferred to `requestAnimationFrame` so the container has its final computed size before Leaflet reads it (without this, Leaflet initializes with size=0 and silently loads no tiles). After `whenReady`, calls `map.invalidateSize()` as a belt-and-braces measure, then `setMapReady(true)`.
+  - Second useEffect syncs center/zoom changes: `map.setView(...)` + deferred `map.invalidateSize()` so radius/city/GPS changes correctly re-render tiles for the new viewport.
+  - All Leaflet interactions disabled (`dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false`) so the map is a pure visual tile layer — overlay pins stay perfectly aligned with the tile grid.
+  - Canvas div changed from `bg-black` to `bg-[#e8eaed]` (matches CARTO's background) + `min-h-[360px]` safety net for flex-1 height propagation.
+  - Added subtle yellow brand vignette over the tiles (radial gradient: transparent center → faint yellow edge → darkened corners) — keeps Bumble aesthetic without obscuring map detail.
+  - Added "Open Maps" floating button (top-right) linking to `https://www.google.com/maps?q=LAT,LNG&z=ZOOM` so users can open REAL Google Maps in a new tab for pan/zoom/directions.
+  - Kept ALL existing overlay UI unchanged: header, radius pills, Live filter, "You" marker with pulse rings, party pins (tier-sized yellow discs with vibe emoji + distance chip + tooltip), loading shimmer, error/empty states, bottom sheet, city switcher.
+- Iterative debugging during this round:
+  - First attempt used `<iframe src="https://www.google.com/maps?q=...&output=embed">` → blocked by Google's SAMEORIGIN frame-options. Pivoted to Leaflet.
+  - First Leaflet version had `import * as L from "leaflet"` at top-level → SSR crashed with "window is not defined". Fixed with lazy `import("leaflet")` inside useEffect.
+  - Map container had 0 height initially (flex-1 didn't propagate) → added `min-h-[360px]`.
+  - Tiles didn't render on first mount (Leaflet read container size before layout settled) → deferred init to `requestAnimationFrame` + `invalidateSize()` after `whenReady`.
+  - City switch didn't load new tiles → added `invalidateSize()` after `setView` in the center-change effect.
+- Verification (agent-browser + VLM glm-4.6v):
+  - `bun run lint` → 0 errors, 0 warnings. `npx tsc --noEmit` → 0 errors in `src/`.
+  - Fresh browser session: login → OTP 43874 → onboarding (Delhi + Techno/BYOB/Retro) → "Tonight in Delhi" → tap map icon → map screen.
+  - At 5km radius: realistic CARTO Voyager map renders with roads (yellow lines), neighborhoods (beige blocks), water (light blue), "DELHI" map label, "Leaflet © OpenStreetMap © CARTO" attribution. "No parties nearby" empty-state overlay shows (correct — Delhi parties are 5.4km+ away).
+  - At 25km radius: 2 yellow pins render on the realistic map — 📼 Retro Cassette Lounge (5.4km) and 🍾 BYOB Garage Sessions Vol. 7 (7.0km). Yellow "You" marker visible in center with pulse rings. Surrounding city labels visible: Delhi, Ghaziabad, Noida, Gurgaon, Greater Noida, Ahadurgarh.
+  - City switch to Mumbai: header updates to "within 5km of Mumbai", map re-centers and renders Mumbai tiles with "MUMBAI" label, water (Arabian Sea visible). Yellow "You" marker in center.
+  - Pin click → navigates to party detail screen ("Retro Cassette Lounge" with host info, attendance, "Get directions" button). 
+  - "Open Maps" link href correctly set to `https://www.google.com/maps?q=28.613900,77.209000&z=10` (opens real Google Maps in new tab).
+  - No console errors, no runtime errors, no hydration mismatches.
+
+Stage Summary:
+- The VibeMatch map section now uses a **realistic Google-Maps-style basemap** via Leaflet + CARTO Voyager tiles (free, no API key). Users see actual roads, streets, neighborhood blocks, water, parks, and city labels instead of the previous custom SVG dot-grid radar.
+- All Bumble-style yellow overlay UI is preserved: tier-sized party pins with vibe emojis, "You are here" pulse marker, distance chips, hover tooltips, radius pills, Live filter, bottom sheet, city switcher.
+- Added an "Open Maps" button that opens REAL Google Maps in a new tab at the same center+zoom, so users can pan/zoom/get-directions on actual Google Maps.
+- Pin positioning uses true Web Mercator projection → overlay pins align pixel-perfectly with the underlying tile grid (a party at 5.4km appears at the correct street in Delhi, not just "somewhere on the canvas").
+- Files changed: `src/screens/map-screen.tsx` (full rewrite of the map canvas section). New dependency: `leaflet@1.9.4` + `@types/leaflet@1.9.21`.
+- Services: Next.js dev server on :3000 (HTTP 200, clean compile), chat socket.io on :3003.
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **CARTO Voyager rate limits**: The free CARTO tile endpoint has generous but not unlimited rate limits. For production scale, consider: (a) signing up for a free CARTO API key for higher limits, (b) falling back to OSM Standard tiles (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) on CARTO failure, or (c) self-hosting a tile server. Current setup is fine for dev/demo.
+- **Map is non-interactive** (dragging/zoom disabled) to keep overlay pins aligned with the tile grid. If users want pan/zoom, the "Open Maps" button opens real Google Maps in a new tab. If in-app interactivity is needed later, switch to react-leaflet with native L.circleMarker/L.divIcon pins (loses our rich React tier animations) OR sync overlay pins to map move events (complex).
+- **Tile loading flash**: On slow connections, the brief `bg-[#e8eaed]` placeholder shows before tiles render. Could add a skeleton shimmer pattern matching the map style.
+- **Carryover TODOs from prior rounds** (still open): RSVP persistence, public host profile, LLM smart quick replies, notifications screen, message reactions, saved-parties persistence.

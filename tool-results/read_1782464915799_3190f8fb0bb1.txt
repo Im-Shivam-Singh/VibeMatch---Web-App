@@ -1,0 +1,862 @@
+     1→"use client";
+     2→
+     3→import { useMemo, useState } from "react";
+     4→import { useQuery } from "@tanstack/react-query";
+     5→import {
+     6→  ChevronLeft,
+     7→  List,
+     8→  MapPin,
+     9→  Sparkles,
+    10→  Crosshair,
+    11→  Flame,
+    12→  Navigation,
+    13→} from "lucide-react";
+    14→import { api } from "@/lib/api";
+    15→import { useAppStore } from "@/lib/store";
+    16→import {
+    17→  CITIES,
+    18→  CITY_CENTERS,
+    19→  VIBE_EMOJI,
+    20→  FUN_TIER_META,
+    21→  haversineKm,
+    22→  partyCoords,
+    23→  partyLiveStatus,
+    24→  parseVibes,
+    25→  funScore,
+    26→  funTier,
+    27→  projectLatLng,
+    28→  type Party,
+    29→  type FunTier,
+    30→} from "@/lib/types";
+    31→import { EmptyState } from "@/components/vibe/empty-state";
+    32→import { cn } from "@/lib/utils";
+    33→
+    34→const RADII = [1, 2, 5, 10, 25] as const;
+    35→type Radius = (typeof RADII)[number];
+    36→
+    37→// Uniform yellow distance rings — Bumble uses one accent only.
+    38→// Each ring has the same yellow stroke + a soft matching glow.
+    39→const RING_COLORS = [
+    40→  {
+    41→    stroke: "rgba(255,203,5,0.30)",
+    42→    glow: "rgba(255,203,5,0.40)",
+    43→    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
+    44→  },
+    45→  {
+    46→    stroke: "rgba(255,203,5,0.30)",
+    47→    glow: "rgba(255,203,5,0.40)",
+    48→    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
+    49→  },
+    50→  {
+    51→    stroke: "rgba(255,203,5,0.30)",
+    52→    glow: "rgba(255,203,5,0.40)",
+    53→    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
+    54→  },
+    55→  {
+    56→    stroke: "rgba(255,203,5,0.30)",
+    57→    glow: "rgba(255,203,5,0.40)",
+    58→    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
+    59→  },
+    60→];
+    61→
+    62→// Solid yellow bar for the tooltip's fun-score progress (Bumble = single accent).
+    63→const TIER_BAR: Record<FunTier, string> = {
+    64→  low: "bg-yellow-400",
+    65→  warm: "bg-yellow-400",
+    66→  lively: "bg-yellow-400",
+    67→  lit: "bg-yellow-400",
+    68→};
+    69→
+    70→// Projected party ready to render on the map.
+    71→interface ProjectedParty {
+    72→  party: Party;
+    73→  coords: { lat: number; lng: number };
+    74→  dist: number;
+    75→  score: number;
+    76→  tier: FunTier;
+    77→  isLive: boolean;
+    78→  dimmed: boolean;
+    79→  cx: number;
+    80→  cy: number;
+    81→}
+    82→
+    83→export function MapScreen() {
+    84→  const goBack = useAppStore((s) => s.goBack);
+    85→  const setScreen = useAppStore((s) => s.setScreen);
+    86→  const setSelectedPartyId = useAppStore((s) => s.setSelectedPartyId);
+    87→  const setCityFilter = useAppStore((s) => s.setCityFilter);
+    88→  const cityFilter = useAppStore((s) => s.cityFilter);
+    89→  const userLocation = useAppStore((s) => s.userLocation);
+    90→  const setUserLocation = useAppStore((s) => s.setUserLocation);
+    91→
+    92→  // Local state — radius (km) + live-only filter (now DIMS instead of hides).
+    93→  const [radius, setRadius] = useState<Radius>(5);
+    94→  const [liveOnly, setLiveOnly] = useState(false);
+    95→  const [hoveredId, setHoveredId] = useState<string | null>(null);
+    96→  const [locating, setLocating] = useState(false);
+    97→
+    98→  // Resolve the map center: stored user location > city center > India mid.
+    99→  const center = useMemo<{ lat: number; lng: number; label: string }>(() => {
+   100→    if (userLocation) return userLocation;
+   101→    if (cityFilter && CITY_CENTERS[cityFilter]) {
+   102→      return { ...CITY_CENTERS[cityFilter], label: cityFilter };
+   103→    }
+   104→    return { lat: 20.5937, lng: 78.9629, label: "India" };
+   105→  }, [userLocation, cityFilter]);
+   106→
+   107→  // Proximity query — fetches all parties within `radius` km of `center`.
+   108→  const { data, isLoading, isError, refetch } = useQuery({
+   109→    queryKey: ["parties", "near", center.lat, center.lng, radius, cityFilter],
+   110→    queryFn: () =>
+   111→      api.listPartiesNear({
+   112→        lat: center.lat,
+   113→        lng: center.lng,
+   114→        radiusKm: radius,
+   115→        city: cityFilter ?? undefined,
+   116→      }),
+   117→    staleTime: 30_000,
+   118→  });
+   119→
+   120→  const allParties = data?.parties ?? [];
+   121→
+   122→  // Compute distance + fun score for each party. We KEEP non-live parties
+   123→  // in the list (rather than filtering them out) so the live-only toggle
+   124→  // can DIM them to 40% opacity instead of hiding them — this implements
+   125→  // the open recommendation from the worklog. Live parties bubble to the
+   126→  // top of the bottom sheet when liveOnly is on; everything stays sorted
+   127→  // by distance otherwise.
+   128→  const parties = useMemo<ProjectedParty[]>(() => {
+   129→    const withMeta: ProjectedParty[] = allParties.map((p) => {
+   130→      const coords = partyCoords(p);
+   131→      const dist = haversineKm(center, coords);
+   132→      const score = funScore(p);
+   133→      const tier = funTier(score);
+   134→      const isLive = partyLiveStatus(p.date, p.time) === "live";
+   135→      return {
+   136→        party: p,
+   137→        coords,
+   138→        dist,
+   139→        score,
+   140→        tier,
+   141→        isLive,
+   142→        dimmed: false,
+   143→        cx: 0,
+   144→        cy: 0,
+   145→      };
+   146→    });
+   147→    if (liveOnly) {
+   148→      // Live first, then dimmed — each group sorted by distance.
+   149→      return withMeta.sort((a, b) => {
+   150→        if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+   151→        return a.dist - b.dist;
+   152→      });
+   153→    }
+   154→    return withMeta.sort((a, b) => a.dist - b.dist);
+   155→  }, [allParties, center, liveOnly]);
+   156→
+   157→  // Map projection — convert each party's lat/lng to a viewport pixel offset
+   158→  // from the center. Scale chosen so the active radius spans ~45% of canvas.
+   159→  const CANVAS_W = 360;
+   160→  const CANVAS_H = 380;
+   161→  const pixelsPerKm = (Math.min(CANVAS_W, CANVAS_H) * 0.45) / radius;
+   162→
+   163→  // Apply projection + collision-aware jitter so dense clusters don't overlap.
+   164→  // O(n²) over the projected pins with a few relaxation passes — fine for
+   165→  // the small N (~30 pins) this map ever shows.
+   166→  const projectedParties = useMemo<ProjectedParty[]>(() => {
+   167→    const out = parties.map((m) => {
+   168→      const { x, y } = projectLatLng(m.coords, center, pixelsPerKm);
+   169→      const cx = Math.max(24, Math.min(CANVAS_W - 24, CANVAS_W / 2 + x));
+   170→      const cy = Math.max(30, Math.min(CANVAS_H - 30, CANVAS_H / 2 + y));
+   171→      return {
+   172→        ...m,
+   173→        cx,
+   174→        cy,
+   175→        dimmed: liveOnly && !m.isLive,
+   176→      };
+   177→    });
+   178→    const MIN_DIST = 12; // px — minimum separation between pin centers
+   179→    for (let pass = 0; pass < 3; pass++) {
+   180→      for (let i = 0; i < out.length; i++) {
+   181→        for (let j = i + 1; j < out.length; j++) {
+   182→          const dx = out[j].cx - out[i].cx;
+   183→          const dy = out[j].cy - out[i].cy;
+   184→          const d = Math.hypot(dx, dy);
+   185→          if (d < MIN_DIST) {
+   186→            if (d < 0.001) {
+   187→              // Exact overlap (same venue) — pick a deterministic offset.
+   188→              out[j].cx += MIN_DIST;
+   189→              out[j].cy += MIN_DIST * 0.4;
+   190→            } else {
+   191→              const overlap = (MIN_DIST - d) / 2 + 1;
+   192→              const nx = dx / d;
+   193→              const ny = dy / d;
+   194→              out[i].cx -= nx * overlap;
+   195→              out[i].cy -= ny * overlap;
+   196→              out[j].cx += nx * overlap;
+   197→              out[j].cy += ny * overlap;
+   198→            }
+   199→          }
+   200→        }
+   201→      }
+   202→    }
+   203→    // Re-clamp so jittered pins stay inside the canvas.
+   204→    return out.map((m) => ({
+   205→      ...m,
+   206→      cx: Math.max(24, Math.min(CANVAS_W - 24, m.cx)),
+   207→      cy: Math.max(30, Math.min(CANVAS_H - 30, m.cy)),
+   208→    }));
+   209→  }, [parties, center, pixelsPerKm, liveOnly]);
+   210→
+   211→  const openParty = (id: string) => {
+   212→    setSelectedPartyId(id);
+   213→    setScreen("detail");
+   214→  };
+   215→
+   216→  const handleListToggle = () => {
+   217→    setCityFilter(cityFilter);
+   218→    setScreen("home");
+   219→  };
+   220→
+   221→  // Best-effort browser geolocation — silent on failure.
+   222→  const useMyLocation = () => {
+   223→    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+   224→    setLocating(true);
+   225→    navigator.geolocation.getCurrentPosition(
+   226→      (pos) => {
+   227→        setUserLocation({
+   228→          lat: pos.coords.latitude,
+   229→          lng: pos.coords.longitude,
+   230→          label: "Your location",
+   231→        });
+   232→        setLocating(false);
+   233→      },
+   234→      () => setLocating(false),
+   235→      { enableHighAccuracy: false, timeout: 6000, maximumAge: 300_000 },
+   236→    );
+   237→  };
+   238→
+   239→  // City switch — syncs the explore cityFilter so the proximity query
+   240→  // doesn't double-filter by an old city.
+   241→  const switchCity = (city: string | null) => {
+   242→    setCityFilter(city);
+   243→    if (city) {
+   244→      const c = CITY_CENTERS[city];
+   245→      setUserLocation({ ...c, label: city });
+   246→    } else {
+   247→      setUserLocation(null);
+   248→    }
+   249→  };
+   250→
+   251→  const liveCount = parties.filter((m) => m.isLive).length;
+   252→  const ringFractions = [0.25, 0.5, 0.75, 1];
+   253→  const radiusLabel = radius < 1 ? `${radius * 1000}m` : `${radius}km`;
+   254→
+   255→  return (
+   256→    <div className="flex h-full flex-col bg-black">
+   257→      {/* Header — slim glass with yellow title + radius summary */}
+   258→      <header className="sticky top-0 z-30 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-2.5 pt-[max(env(safe-area-inset-top),12px)]">
+   259→        <button
+   260→          onClick={goBack}
+   261→          className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+   262→          aria-label="Back"
+   263→        >
+   264→          <ChevronLeft className="h-5 w-5" />
+   265→        </button>
+   266→        <div className="min-w-0 flex-1">
+   267→          <h1 className="font-display text-lg font-extrabold leading-tight text-yellow-400">
+   268→            Map
+   269→          </h1>
+   270→          <p className="truncate text-[11px] text-white/50">
+   271→            <Navigation className="mr-0.5 inline h-3 w-3 text-yellow-400" />
+   272→            within {radiusLabel} of {center.label}
+   273→            {liveOnly && (
+   274→              <>
+   275→                {" · "}
+   276→                <span className="text-yellow-400">
+   277→                  {liveCount} live
+   278→                </span>
+   279→              </>
+   280→            )}
+   281→          </p>
+   282→        </div>
+   283→        <button
+   284→          onClick={handleListToggle}
+   285→          className="flex h-9 items-center gap-1.5 rounded-full glass border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:border-yellow-400/50 hover:text-yellow-300"
+   286→          aria-label="Switch to list view"
+   287→        >
+   288→          <List className="h-4 w-4" />
+   289→          List
+   290→        </button>
+   291→      </header>
+   292→
+   293→      {/* Radius + Live filter row */}
+   294→      <div className="z-20 -mt-px flex items-center gap-2 glass border-b border-white/10 px-3 py-2">
+   295→        <div className="no-scrollbar flex flex-1 items-center gap-1.5 overflow-x-auto">
+   296→          <span className="shrink-0 pr-1 text-[10px] uppercase tracking-wider text-white/50">
+   297→            Radius
+   298→          </span>
+   299→          {RADII.map((r) => {
+   300→            const active = radius === r;
+   301→            return (
+   302→              <button
+   303→                key={r}
+   304→                onClick={() => setRadius(r)}
+   305→                aria-pressed={active}
+   306→                className={cn(
+   307→                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold transition",
+   308→                  active
+   309→                    ? "bg-yellow-400 scale-105 text-black"
+   310→                    : "glass border border-white/10 text-white/70 hover:border-yellow-400/50 hover:text-yellow-300",
+   311→                )}
+   312→              >
+   313→                {r < 1 ? `${r * 1000}m` : `${r}km`}
+   314→              </button>
+   315→            );
+   316→          })}
+   317→        </div>
+   318→        <button
+   319→          onClick={() => setLiveOnly((v) => !v)}
+   320→          aria-pressed={liveOnly}
+   321→          className={cn(
+   322→            "flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold transition",
+   323→            liveOnly
+   324→              ? "bg-yellow-400 vibe-live-ring scale-105 text-black"
+   325→              : "glass border border-white/10 text-white/70 hover:border-yellow-400/50 hover:text-yellow-300",
+   326→          )}
+   327→        >
+   328→          <Flame
+   329→            className={cn(
+   330→              "h-3 w-3",
+   331→              liveOnly && "drop-shadow-[0_0_6px_rgba(255,203,5,0.9)]",
+   332→            )}
+   333→          />
+   334→          Live
+   335→        </button>
+   336→      </div>
+   337→
+   338→      {/* Map canvas */}
+   339→      <div className="relative flex-1 overflow-hidden bg-black">
+   340→        {/* Subtle white dot-grid texture for the "tech map" feel */}
+   341→        <div
+   342→          className="pointer-events-none absolute inset-0 opacity-50"
+   343→          style={{
+   344→            backgroundImage:
+   345→              "radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)",
+   346→            backgroundSize: "16px 16px",
+   347→            maskImage:
+   348→              "radial-gradient(ellipse at center, black 55%, transparent 95%)",
+   349→            WebkitMaskImage:
+   350→              "radial-gradient(ellipse at center, black 55%, transparent 95%)",
+   351→          }}
+   352→        />
+   353→
+   354→        {/* Canvas wrapper — centers the projection */}
+   355→        <div className="relative mx-auto flex h-full w-full max-w-[420px] items-center justify-center px-2">
+   356→          <div
+   357→            className="relative"
+   358→            style={{ width: CANVAS_W, height: CANVAS_H, maxWidth: "100%" }}
+   359→          >
+   360→            {/* Concentric uniform-yellow distance rings */}
+   361→            <svg
+   362→              viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+   363→              className="absolute inset-0 h-full w-full"
+   364→              aria-hidden
+   365→            >
+   366→              {/* Per-ring uniform yellow dashed circles with soft glow */}
+   367→              {ringFractions.map((f, i) => {
+   368→                const r = Math.max(2, pixelsPerKm * radius * f);
+   369→                const c = RING_COLORS[i];
+   370→                return (
+   371→                  <circle
+   372→                    key={`ring-${i}`}
+   373→                    cx={CANVAS_W / 2}
+   374→                    cy={CANVAS_H / 2}
+   375→                    r={r}
+   376→                    fill="none"
+   377→                    stroke={c.stroke}
+   378→                    strokeWidth={1.4}
+   379→                    strokeDasharray="3 5"
+   380→                    style={{ filter: `drop-shadow(0 0 4px ${c.glow})` }}
+   381→                  />
+   382→                );
+   383→              })}
+   384→              {/* Faint crosshair */}
+   385→              <line
+   386→                x1={CANVAS_W / 2}
+   387→                y1={0}
+   388→                x2={CANVAS_W / 2}
+   389→                y2={CANVAS_H}
+   390→                stroke="rgba(255,255,255,0.06)"
+   391→                strokeWidth={1}
+   392→              />
+   393→              <line
+   394→                x1={0}
+   395→                y1={CANVAS_H / 2}
+   396→                x2={CANVAS_W}
+   397→                y2={CANVAS_H / 2}
+   398→                stroke="rgba(255,255,255,0.06)"
+   399→                strokeWidth={1}
+   400→              />
+   401→            </svg>
+   402→
+   403→            {/* Distance labels per ring (uniform yellow) */}
+   404→            {ringFractions.map((f, i) => {
+   405→              const r = pixelsPerKm * radius * f;
+   406→              const dist = radius * f;
+   407→              if (r < 22) return null;
+   408→              const c = RING_COLORS[i];
+   409→              return (
+   410→                <span
+   411→                  key={`label-${i}`}
+   412→                  className={cn(
+   413→                    "absolute left-1/2 top-1/2 -translate-x-1/2 rounded-full border px-1.5 py-0.5 text-[8px] font-bold backdrop-blur-sm",
+   414→                    c.chip,
+   415→                  )}
+   416→                  style={{ transform: `translate(-50%, calc(-50% - ${r}px))` }}
+   417→                >
+   418→                  {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist}km`}
+   419→                </span>
+   420→              );
+   421→            })}
+   422→
+   423→            {/* "You are here" marker — yellow disc + here-pulse rings */}
+   424→            <button
+   425→              onClick={useMyLocation}
+   426→              className="absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+   427→              aria-label="Use my location"
+   428→            >
+   429→              {/* pulsing rings — pointer-events-none so they don't block pin clicks */}
+   430→              <span className="pointer-events-none absolute h-6 w-6 rounded-full bg-yellow-400/40 here-pulse" />
+   431→              <span
+   432→                className="pointer-events-none absolute h-10 w-10 rounded-full bg-yellow-400/25 here-pulse"
+   433→                style={{ animationDelay: "0.4s" }}
+   434→              />
+   435→              {/* solid yellow disc + white center dot */}
+   436→              <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 ring-2 ring-black/60 shadow-[0_0_18px_-2px_rgba(255,203,5,0.85)]">
+   437→                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+   438→              </span>
+   439→              <span className="pointer-events-none mt-1.5 whitespace-nowrap rounded-full border border-yellow-400/30 bg-black/70 px-2 py-0.5 text-[9px] font-bold text-yellow-400 backdrop-blur-sm">
+   440→                {locating ? "Locating…" : "You"}
+   441→              </span>
+   442→            </button>
+   443→
+   444→            {/* Party pins — projected + collision-jittered */}
+   445→            {projectedParties.map((m) => {
+   446→              const tier = FUN_TIER_META[m.tier];
+   447→              const vibes = parseVibes(m.party.vibes);
+   448→              const emoji = vibes[0] ? (VIBE_EMOJI[vibes[0]] ?? "✨") : "✨";
+   449→              const isHovered = hoveredId === m.party.id;
+   450→              const sizePx =
+   451→                m.tier === "lit"
+   452→                  ? 44
+   453→                  : m.tier === "lively"
+   454→                    ? 40
+   455→                    : m.tier === "warm"
+   456→                      ? 36
+   457→                      : 32;
+   458→
+   459→              return (
+   460→                <button
+   461→                  key={m.party.id}
+   462→                  onClick={() => openParty(m.party.id)}
+   463→                  onMouseEnter={() => setHoveredId(m.party.id)}
+   464→                  onMouseLeave={() => setHoveredId(null)}
+   465→                  onFocus={() => setHoveredId(m.party.id)}
+   466→                  onBlur={() => setHoveredId(null)}
+   467→                  className={cn(
+   468→                    "group absolute z-10 flex flex-col items-center transition-opacity",
+   469→                    m.dimmed && "opacity-40",
+   470→                  )}
+   471→                  style={{
+   472→                    left: `${(m.cx / CANVAS_W) * 100}%`,
+   473→                    top: `${(m.cy / CANVAS_H) * 100}%`,
+   474→                    transform: "translate(-50%, -100%)",
+   475→                  }}
+   476→                  aria-label={`${m.party.title} — ${m.dist.toFixed(1)}km — ${tier.label}${m.isLive ? " — live now" : ""}`}
+   477→                >
+   478→                  {/* Lit-tier rotating sparkle ring — uniform yellow */}
+   479→                  {m.tier === "lit" && (
+   480→                    <span
+   481→                      className="pointer-events-none absolute -top-1 h-14 w-14 rounded-full border border-yellow-300/40 fun-sparkle-ring"
+   482→                      style={{
+   483→                        background:
+   484→                          "conic-gradient(from 0deg, transparent 0%, rgba(255,203,5,0.40) 25%, transparent 50%, rgba(255,203,5,0.40) 75%, transparent 100%)",
+   485→                      }}
+   486→                    />
+   487→                  )}
+   488→
+   489→                  {/* Lit-tier floating spark particles using tier sparkClass */}
+   490→                  {m.tier === "lit" && (
+   491→                    <>
+   492→                      <span
+   493→                        className={cn(
+   494→                          "pointer-events-none absolute -top-2 left-1 h-1 w-1 rounded-full fun-spark",
+   495→                          tier.sparkClass,
+   496→                        )}
+   497→                        style={
+   498→                          {
+   499→                            "--dx": "-6px",
+   500→                            "--dy": "-14px",
+   501→                          } as React.CSSProperties
+   502→                        }
+   503→                      />
+   504→                      <span
+   505→                        className={cn(
+   506→                          "pointer-events-none absolute -top-1 right-1 h-1 w-1 rounded-full fun-spark",
+   507→                          tier.sparkClass,
+   508→                        )}
+   509→                        style={
+   510→                          {
+   511→                            "--dx": "6px",
+   512→                            "--dy": "-12px",
+   513→                            animationDelay: "0.3s",
+   514→                          } as React.CSSProperties
+   515→                        }
+   516→                      />
+   517→                      <span
+   518→                        className={cn(
+   519→                          "pointer-events-none absolute top-2 left-3 h-0.5 w-0.5 rounded-full fun-spark",
+   520→                          tier.sparkClass,
+   521→                        )}
+   522→                        style={
+   523→                          {
+   524→                            "--dx": "0px",
+   525→                            "--dy": "-18px",
+   526→                            animationDelay: "0.6s",
+   527→                          } as React.CSSProperties
+   528→                        }
+   529→                      />
+   530→                    </>
+   531→                  )}
+   532→
+   533→                  {/* The pin itself — solid yellow disc with vibe emoji */}
+   534→                  <span
+   535→                    className={cn(
+   536→                      "relative flex items-center justify-center rounded-full border-2 bg-yellow-400",
+   537→                      tier.ringClass,
+   538→                      tier.animClass,
+   539→                      tier.glowClass,
+   540→                      m.isLive && "ring-2 ring-yellow-400",
+   541→                    )}
+   542→                    style={{ height: sizePx, width: sizePx }}
+   543→                  >
+   544→                    {/* inner highlight */}
+   545→                    <span className="pointer-events-none absolute inset-1 rounded-full bg-white/20" />
+   546→                    <span className="relative text-base leading-none drop-shadow">
+   547→                      {emoji}
+   548→                    </span>
+   549→                    {/* distance chip in tier color */}
+   550→                    <span
+   551→                      className={cn(
+   552→                        "absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-1 py-0 text-[8px] font-bold backdrop-blur-sm",
+   553→                        tier.chipClass,
+   554→                      )}
+   555→                    >
+   556→                      {m.dist < 1
+   557→                        ? `${Math.round(m.dist * 1000)}m`
+   558→                        : `${m.dist.toFixed(1)}k`}
+   559→                    </span>
+   560→                  </span>
+   561→
+   562→                  {/* Hovered/focused tooltip — title + tier label + score bar + distance */}
+   563→                  {isHovered && (
+   564→                    <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-3 w-44 -translate-x-1/2 rounded-xl glass-strong border border-yellow-400/30 px-2.5 py-2 shadow-lg animate-pop-in">
+   565→                      <span className="block max-w-[160px] truncate font-display text-[11px] font-bold text-white">
+   566→                        {m.party.title}
+   567→                      </span>
+   568→                      <span
+   569→                        className={cn(
+   570→                          "mt-0.5 flex items-center gap-1 text-[9px] font-bold",
+   571→                          tier.textClass,
+   572→                        )}
+   573→                      >
+   574→                        <span
+   575→                          className={cn(
+   576→                            "inline-block h-1.5 w-1.5 rounded-full",
+   577→                            tier.dotClass,
+   578→                          )}
+   579→                        />
+   580→                        {tier.label} · {m.score}/100
+   581→                      </span>
+   582→                      {/* fun-score progress bar — solid yellow on white/10 track */}
+   583→                      <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-white/10">
+   584→                        <span
+   585→                          className={cn(
+   586→                            "block h-full rounded-full",
+   587→                            TIER_BAR[m.tier],
+   588→                          )}
+   589→                          style={{ width: `${m.score}%` }}
+   590→                        />
+   591→                      </span>
+   592→                      <span className="mt-1 block text-[9px] text-white/50">
+   593→                        {m.dist < 1
+   594→                          ? `${Math.round(m.dist * 1000)}m away`
+   595→                          : `${m.dist.toFixed(1)}km away`}
+   596→                        {m.isLive && (
+   597→                          <span className="ml-1 text-yellow-300">· Live</span>
+   598→                        )}
+   599→                      </span>
+   600→                    </span>
+   601→                  )}
+   602→
+   603→                  {/* Pin tail — tier-colored diamond pointing at the exact spot */}
+   604→                  <span
+   605→                    className={cn(
+   606→                      "block -mt-1 h-2 w-2 rotate-45 border-r-2 border-b-2",
+   607→                      tier.dotClass,
+   608→                      tier.ringClass,
+   609→                    )}
+   610→                    aria-hidden
+   611→                  />
+   612→                </button>
+   613→              );
+   614→            })}
+   615→
+   616→            {/* Loading overlay — vibe-pulse on the scanner chip */}
+   617→            {isLoading && (
+   618→              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+   619→                <div className="flex items-center gap-2 rounded-full glass border border-yellow-400/30 px-4 py-2 text-xs text-yellow-300">
+   620→                  <Sparkles className="h-3.5 w-3.5 vibe-pulse text-yellow-400" />
+   621→                  Scanning the area…
+   622→                </div>
+   623→              </div>
+   624→            )}
+   625→
+   626→            {/* Error overlay */}
+   627→            {isError && !isLoading && (
+   628→              <div className="absolute inset-0 flex items-center justify-center px-6">
+   629→                <EmptyState
+   630→                  icon={MapPin}
+   631→                  title="Couldn't scan the area"
+   632→                  description="Something went wrong fetching nearby parties."
+   633→                  action={
+   634→                    <button
+   635→                      onClick={() => refetch()}
+   636→                      className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition active:scale-95"
+   637→                    >
+   638→                      Retry
+   639→                    </button>
+   640→                  }
+   641→                />
+   642→              </div>
+   643→            )}
+   644→
+   645→            {/* Empty state — floating 🗺️ + yellow title + hint to widen radius */}
+   646→            {!isLoading && !isError && parties.length === 0 && (
+   647→              <div className="absolute inset-0 flex items-center justify-center px-6">
+   648→                <div className="flex flex-col items-center gap-3 rounded-3xl glass border border-yellow-400/30 px-6 py-8 text-center">
+   649→                  <span className="text-4xl vibe-float" aria-hidden>
+   650→                    🗺️
+   651→                  </span>
+   652→                  <h3 className="font-display text-base font-extrabold text-yellow-400">
+   653→                    No parties nearby
+   654→                  </h3>
+   655→                  <p className="max-w-[220px] text-xs text-muted-foreground">
+   656→                    {radius <= 2
+   657→                      ? "Try widening the radius — your scene is just out of frame."
+   658→                      : liveOnly
+   659→                        ? "Toggle off Live to see all upcoming parties on the radar."
+   660→                        : "Be the first — launch a vibe and it'll pop up on the radar."}
+   661→                  </p>
+   662→                  <button
+   663→                    onClick={() =>
+   664→                      liveOnly ? setLiveOnly(false) : setScreen("create")
+   665→                    }
+   666→                    className="rounded-full bg-yellow-400 px-4 py-2 text-xs font-bold text-black transition active:scale-95"
+   667→                  >
+   668→                    {liveOnly ? "Show all parties" : "Launch a vibe"}
+   669→                  </button>
+   670→                </div>
+   671→              </div>
+   672→            )}
+   673→          </div>
+   674→        </div>
+   675→
+   676→        {/* Floating "use my location" + city switcher */}
+   677→        <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
+   678→          <button
+   679→            onClick={useMyLocation}
+   680→            disabled={locating}
+   681→            className="flex h-11 w-11 items-center justify-center rounded-full glass-strong border border-white/10 text-yellow-400 transition hover:border-yellow-400/50 disabled:opacity-70"
+   682→            aria-label="Use my GPS location"
+   683→          >
+   684→            {locating ? (
+   685→              <span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-yellow-400 vibe-pulse animate-spin" />
+   686→            ) : (
+   687→              <Crosshair className="h-4 w-4" />
+   688→            )}
+   689→          </button>
+   690→          <div className="no-scrollbar flex max-w-[260px] items-center gap-1.5 overflow-x-auto">
+   691→            <CityDot
+   692→              label="India"
+   693→              active={!userLocation && !cityFilter}
+   694→              onClick={() => switchCity(null)}
+   695→            />
+   696→            {CITIES.map((c) => (
+   697→              <CityDot
+   698→                key={c}
+   699→                label={c}
+   700→                active={userLocation?.label === c || cityFilter === c}
+   701→                onClick={() => switchCity(c)}
+   702→              />
+   703→            ))}
+   704→          </div>
+   705→        </div>
+   706→      </div>
+   707→
+   708→      {/* Bottom sheet — glass-strong with solid yellow top accent + drag handle */}
+   709→      <section className="glass-strong relative z-10 mb-20 flex max-h-[34vh] flex-col border-t border-white/10">
+   710→        {/* Solid yellow top accent line */}
+   711→        <div className="absolute -top-px left-0 right-0 h-px bg-yellow-400" aria-hidden />
+   712→        {/* Drag handle — short solid bar */}
+   713→        <div className="mx-auto my-2 h-1.5 w-12 rounded-full bg-white/30" />
+   714→
+   715→        <div className="flex items-center justify-between px-4 pb-1">
+   716→          <div className="flex items-center gap-2">
+   717→            <h2 className="font-display text-sm font-extrabold text-yellow-400">
+   718→              Nearby parties
+   719→            </h2>
+   720→            <span className="rounded-full bg-yellow-400 px-1.5 py-0.5 text-[10px] font-bold text-black">
+   721→              {parties.length}
+   722→            </span>
+   723→          </div>
+   724→          <span className="text-[11px] text-muted-foreground">
+   725→            sorted by distance
+   726→          </span>
+   727→        </div>
+   728→
+   729→        <div className="fancy-scrollbar flex-1 space-y-2 overflow-y-auto px-3 pb-6">
+   730→          {/* Loading skeleton rows */}
+   731→          {isLoading && (
+   732→            <div className="space-y-2">
+   733→              {[0, 1, 2].map((i) => (
+   734→                <div
+   735→                  key={i}
+   736→                  className="h-16 rounded-2xl border border-white/10 vibe-skeleton"
+   737→                />
+   738→              ))}
+   739→            </div>
+   740→          )}
+   741→
+   742→          {!isLoading && parties.length === 0 && (
+   743→            <p className="py-6 text-center text-xs text-muted-foreground">
+   744→              No parties to list — try widening the radius.
+   745→            </p>
+   746→          )}
+   747→
+   748→          {!isLoading &&
+   749→            parties.length > 0 &&
+   750→            projectedParties.map((m) => {
+   751→              const tier = FUN_TIER_META[m.tier];
+   752→              const vibes = parseVibes(m.party.vibes);
+   753→              const emoji = vibes[0] ? (VIBE_EMOJI[vibes[0]] ?? "✨") : "✨";
+   754→              const isHovered = hoveredId === m.party.id;
+   755→              return (
+   756→                <button
+   757→                  key={m.party.id}
+   758→                  onClick={() => openParty(m.party.id)}
+   759→                  onMouseEnter={() => setHoveredId(m.party.id)}
+   760→                  onMouseLeave={() => setHoveredId(null)}
+   761→                  className={cn(
+   762→                    "relative flex w-full items-center gap-3 overflow-hidden rounded-2xl glass border px-3 py-2.5 text-left transition",
+   763→                    "border-white/10 hover:border-yellow-400/50",
+   764→                    isHovered && "border-yellow-400/50",
+   765→                    m.dimmed && "opacity-40",
+   766→                  )}
+   767→                  aria-label={`${m.party.title} — ${m.dist.toFixed(1)}km — ${tier.label}`}
+   768→                >
+   769→                  {/* left yellow accent bar on hover */}
+   770→                  <span
+   771→                    className={cn(
+   772→                      "absolute left-0 top-0 h-full w-1 bg-yellow-400 transition-opacity",
+   773→                      isHovered ? "opacity-100" : "opacity-0",
+   774→                    )}
+   775→                    aria-hidden
+   776→                  />
+   777→                  {/* vibe emoji in tier-colored ring */}
+   778→                  <span
+   779→                    className={cn(
+   780→                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-card/60 text-lg",
+   781→                      tier.ringClass,
+   782→                      tier.glowClass,
+   783→                    )}
+   784→                  >
+   785→                    {emoji}
+   786→                  </span>
+   787→                  {/* title + meta */}
+   788→                  <span className="min-w-0 flex-1">
+   789→                    <span className="block truncate font-display text-sm font-bold text-white">
+   790→                      {m.party.title}
+   791→                    </span>
+   792→                    <span className="mt-0.5 flex items-center gap-1.5 text-[10px]">
+   793→                      <span
+   794→                        className={cn(
+   795→                          "rounded-full border px-1.5 py-0.5 font-bold",
+   796→                          tier.chipClass,
+   797→                        )}
+   798→                      >
+   799→                        {tier.label}
+   800→                      </span>
+   801→                      {m.isLive && (
+   802→                        <span className="flex items-center gap-0.5 font-bold text-yellow-300">
+   803→                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-yellow-400 vibe-pulse" />
+   804→                          Live
+   805→                        </span>
+   806→                      )}
+   807→                    </span>
+   808→                  </span>
+   809→                  {/* distance chip */}
+   810→                  <span
+   811→                    className={cn(
+   812→                      "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+   813→                      tier.chipClass,
+   814→                    )}
+   815→                  >
+   816→                    {m.dist < 1
+   817→                      ? `${Math.round(m.dist * 1000)}m`
+   818→                      : `${m.dist.toFixed(1)}km`}
+   819→                  </span>
+   820→                </button>
+   821→              );
+   822→            })}
+   823→        </div>
+   824→      </section>
+   825→    </div>
+   826→  );
+   827→}
+   828→
+   829→// City switcher — small dot with yellow fill + label appearing when active.
+   830→function CityDot({
+   831→  label,
+   832→  active,
+   833→  onClick,
+   834→}: {
+   835→  label: string;
+   836→  active?: boolean;
+   837→  onClick: () => void;
+   838→}) {
+   839→  return (
+   840→    <button
+   841→      onClick={onClick}
+   842→      aria-pressed={active}
+   843→      aria-label={label}
+   844→      className="flex shrink-0 items-center gap-1.5"
+   845→    >
+   846→      <span
+   847→        className={cn(
+   848→          "h-3 w-3 rounded-full transition",
+   849→          active
+   850→            ? "bg-yellow-400 scale-110"
+   851→            : "glass border border-white/20",
+   852→        )}
+   853→      />
+   854→      {active && (
+   855→        <span className="text-[10px] font-bold text-yellow-400">
+   856→          {label}
+   857→        </span>
+   858→      )}
+   859→    </button>
+   860→  );
+   861→}
+   862→

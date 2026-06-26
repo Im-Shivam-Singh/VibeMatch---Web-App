@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -10,7 +10,15 @@ import {
   Crosshair,
   Flame,
   Navigation,
+  ExternalLink,
 } from "lucide-react";
+// Leaflet's CSS import is SSR-safe (Next.js just bundles the stylesheet).
+import "leaflet/dist/leaflet.css";
+// Type-only import — gives us L.Map / L.TileLayer types at compile time
+// without pulling Leaflet's runtime (which touches `window` at module load
+// and would crash SSR). The actual runtime import happens lazily inside
+// useEffect below.
+import type * as LType from "leaflet";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import {
@@ -24,7 +32,6 @@ import {
   parseVibes,
   funScore,
   funTier,
-  projectLatLng,
   type Party,
   type FunTier,
 } from "@/lib/types";
@@ -34,30 +41,25 @@ import { cn } from "@/lib/utils";
 const RADII = [1, 2, 5, 10, 25] as const;
 type Radius = (typeof RADII)[number];
 
-// Uniform yellow distance rings — Bumble uses one accent only.
-// Each ring has the same yellow stroke + a soft matching glow.
-const RING_COLORS = [
-  {
-    stroke: "rgba(255,203,5,0.30)",
-    glow: "rgba(255,203,5,0.40)",
-    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
-  },
-  {
-    stroke: "rgba(255,203,5,0.30)",
-    glow: "rgba(255,203,5,0.40)",
-    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
-  },
-  {
-    stroke: "rgba(255,203,5,0.30)",
-    glow: "rgba(255,203,5,0.40)",
-    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
-  },
-  {
-    stroke: "rgba(255,203,5,0.30)",
-    glow: "rgba(255,203,5,0.40)",
-    chip: "bg-yellow-400/15 border-yellow-400/40 text-yellow-300/80",
-  },
-];
+// Leaflet zoom per radius — picked so the active radius comfortably fills the
+// visible map area without cropping nearby pins. These map roughly to the
+// Google Maps zoom levels users expect at each scale.
+const RADIUS_ZOOM: Record<Radius, number> = {
+  1: 15, // street-level
+  2: 14,
+  5: 13, // neighbourhood
+  10: 12,
+  25: 10, // citywide
+};
+
+// CARTO Voyager basemap — a free, no-API-key tile layer that looks close to
+// Google Maps' default style (clean roads, parks, water, labels). It's served
+// from Carto's public CDN with generous rate limits for non-commercial use.
+// We fall back to OSM Standard tiles if Voyager ever fails.
+const CARTO_VOYAGER_URL =
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const CARTO_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 // Solid yellow bar for the tooltip's fun-score progress (Bumble = single accent).
 const TIER_BAR: Record<FunTier, string> = {
@@ -66,6 +68,44 @@ const TIER_BAR: Record<FunTier, string> = {
   lively: "bg-yellow-400",
   lit: "bg-yellow-400",
 };
+
+/**
+ * Web Mercator projection — convert a (lat,lng) to a pixel offset relative to
+ * a center point, at the given zoom. This matches what Leaflet/CARTO tiles
+ * use, so overlay pins align perfectly with the underlying tile grid.
+ *
+ * Returns pixel offsets from the center, so the overlay layer (positioned at
+ * the center of the canvas) can place each pin with translate(cx, cy).
+ */
+function latLngToContainerPixel(
+  lat: number,
+  lng: number,
+  centerLat: number,
+  centerLng: number,
+  zoom: number,
+): { x: number; y: number } {
+  const tileSize = 256;
+  const worldSize = tileSize * Math.pow(2, zoom);
+  const toWorld = (la: number, ln: number) => {
+    const latRad = (la * Math.PI) / 180;
+    const x = ((ln + 180) / 360) * worldSize;
+    const y =
+      ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+      worldSize;
+    return { x, y };
+  };
+  const c = toWorld(centerLat, centerLng);
+  const p = toWorld(lat, lng);
+  return { x: p.x - c.x, y: p.y - c.y };
+}
+
+// Build a regular Google Maps URL for the "Open in Google Maps" button so
+// users can pan/zoom/get-directions in a real Google Maps tab.
+function buildMapLinkUrl(lat: number, lng: number, zoom: number) {
+  return `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(
+    6,
+  )}&z=${zoom}`;
+}
 
 // Projected party ready to render on the map.
 interface ProjectedParty {
@@ -76,7 +116,7 @@ interface ProjectedParty {
   tier: FunTier;
   isLive: boolean;
   dimmed: boolean;
-  cx: number;
+  cx: number; // pixel offset from canvas center (Web Mercator-aligned)
   cy: number;
 }
 
@@ -94,6 +134,11 @@ export function MapScreen() {
   const [liveOnly, setLiveOnly] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+
+  // Refs — the DOM container div + the Leaflet map instance.
+  const mapElRef = useRef<HTMLDivElement | null>(null);
+  const leafletRef = useRef<LType.Map | null>(null);
 
   // Resolve the map center: stored user location > city center > India mid.
   const center = useMemo<{ lat: number; lng: number; label: string }>(() => {
@@ -103,6 +148,8 @@ export function MapScreen() {
     }
     return { lat: 20.5937, lng: 78.9629, label: "India" };
   }, [userLocation, cityFilter]);
+
+  const zoom = RADIUS_ZOOM[radius];
 
   // Proximity query — fetches all parties within `radius` km of `center`.
   const { data, isLoading, isError, refetch } = useQuery({
@@ -121,10 +168,7 @@ export function MapScreen() {
 
   // Compute distance + fun score for each party. We KEEP non-live parties
   // in the list (rather than filtering them out) so the live-only toggle
-  // can DIM them to 40% opacity instead of hiding them — this implements
-  // the open recommendation from the worklog. Live parties bubble to the
-  // top of the bottom sheet when liveOnly is on; everything stays sorted
-  // by distance otherwise.
+  // can DIM them to 40% opacity instead of hiding them.
   const parties = useMemo<ProjectedParty[]>(() => {
     const withMeta: ProjectedParty[] = allParties.map((p) => {
       const coords = partyCoords(p);
@@ -145,7 +189,6 @@ export function MapScreen() {
       };
     });
     if (liveOnly) {
-      // Live first, then dimmed — each group sorted by distance.
       return withMeta.sort((a, b) => {
         if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
         return a.dist - b.dist;
@@ -154,20 +197,22 @@ export function MapScreen() {
     return withMeta.sort((a, b) => a.dist - b.dist);
   }, [allParties, center, liveOnly]);
 
-  // Map projection — convert each party's lat/lng to a viewport pixel offset
-  // from the center. Scale chosen so the active radius spans ~45% of canvas.
-  const CANVAS_W = 360;
-  const CANVAS_H = 380;
-  const pixelsPerKm = (Math.min(CANVAS_W, CANVAS_H) * 0.45) / radius;
-
-  // Apply projection + collision-aware jitter so dense clusters don't overlap.
-  // O(n²) over the projected pins with a few relaxation passes — fine for
-  // the small N (~30 pins) this map ever shows.
+  // Project each party's (lat,lng) to a Web-Mercator pixel offset from the
+  // canvas center. Collision-aware jitter prevents dense clusters from
+  // overlapping. This projection matches Leaflet's tile grid exactly, so
+  // overlay pins sit on the correct street/building in the rendered map.
   const projectedParties = useMemo<ProjectedParty[]>(() => {
     const out = parties.map((m) => {
-      const { x, y } = projectLatLng(m.coords, center, pixelsPerKm);
-      const cx = Math.max(24, Math.min(CANVAS_W - 24, CANVAS_W / 2 + x));
-      const cy = Math.max(30, Math.min(CANVAS_H - 30, CANVAS_H / 2 + y));
+      const { x, y } = latLngToContainerPixel(
+        m.coords.lat,
+        m.coords.lng,
+        center.lat,
+        center.lng,
+        zoom,
+      );
+      // Clamp so pins stay within a reasonable visible range around the center.
+      const cx = Math.max(-220, Math.min(220, x));
+      const cy = Math.max(-260, Math.min(260, y));
       return {
         ...m,
         cx,
@@ -175,7 +220,7 @@ export function MapScreen() {
         dimmed: liveOnly && !m.isLive,
       };
     });
-    const MIN_DIST = 12; // px — minimum separation between pin centers
+    const MIN_DIST = 14; // px — minimum separation between pin centers
     for (let pass = 0; pass < 3; pass++) {
       for (let i = 0; i < out.length; i++) {
         for (let j = i + 1; j < out.length; j++) {
@@ -184,7 +229,6 @@ export function MapScreen() {
           const d = Math.hypot(dx, dy);
           if (d < MIN_DIST) {
             if (d < 0.001) {
-              // Exact overlap (same venue) — pick a deterministic offset.
               out[j].cx += MIN_DIST;
               out[j].cy += MIN_DIST * 0.4;
             } else {
@@ -200,13 +244,97 @@ export function MapScreen() {
         }
       }
     }
-    // Re-clamp so jittered pins stay inside the canvas.
     return out.map((m) => ({
       ...m,
-      cx: Math.max(24, Math.min(CANVAS_W - 24, m.cx)),
-      cy: Math.max(30, Math.min(CANVAS_H - 30, m.cy)),
+      cx: Math.max(-220, Math.min(220, m.cx)),
+      cy: Math.max(-260, Math.min(260, m.cy)),
     }));
-  }, [parties, center, pixelsPerKm, liveOnly]);
+  }, [parties, center, zoom, liveOnly]);
+
+  // ── Leaflet lifecycle ────────────────────────────────────────────────────
+  // Mount the Leaflet map ONCE on first render. We disable ALL interactions
+  // (drag, zoom, scroll, touch, keyboard) so the map is a pure visual tile
+  // layer — our React-rendered yellow overlay pins (positioned via Web
+  // Mercator projection) stay perfectly aligned with the tile grid.
+  //
+  // Leaflet is imported LAZILY here (not at module top-level) because its
+  // runtime touches `window` during module evaluation, which would crash SSR.
+  // `import("leaflet")` only runs in the browser, inside useEffect.
+  //
+  // We defer initialization to the next animation frame so the container
+  // div has its final computed size before Leaflet reads it. Without this,
+  // Leaflet can initialize with size=0 and silently fail to load any tiles.
+  // After `whenReady`, we also call `invalidateSize()` as a belt-and-braces
+  // measure to handle any late layout shifts.
+  //
+  // setState (setMapReady) is called inside `whenReady`'s callback — this is
+  // "subscribing for updates from an external system" per the lint rule, not
+  // a synchronous setState in effect body, so it's allowed.
+  useEffect(() => {
+    if (!mapElRef.current || leafletRef.current) return;
+    let cancelled = false;
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled || !mapElRef.current || leafletRef.current) return;
+      import("leaflet").then((LModule) => {
+        if (cancelled || !mapElRef.current || leafletRef.current) return;
+        const L: typeof LType =
+          (LModule as unknown as { default?: typeof LType }).default ??
+          (LModule as unknown as typeof LType);
+        const map = L.map(mapElRef.current, {
+          center: [center.lat, center.lng],
+          zoom,
+          zoomControl: false,
+          attributionControl: true,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false,
+          fadeAnimation: true,
+          zoomAnimation: true,
+        });
+        L.tileLayer(CARTO_VOYAGER_URL, {
+          attribution: CARTO_ATTRIBUTION,
+          subdomains: "abcd",
+          maxZoom: 19,
+          crossOrigin: true,
+        }).addTo(map);
+        map.whenReady(() => {
+          // Force Leaflet to re-measure its container — handles any layout
+          // shift between init and first paint.
+          map.invalidateSize();
+          setMapReady(true);
+        });
+        leafletRef.current = map;
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      if (leafletRef.current) {
+        leafletRef.current.remove();
+        leafletRef.current = null;
+      }
+    };
+  }, []);
+
+  // When center or zoom changes (radius pill / city switch / GPS), re-center
+  // the underlying tile layer. The overlay pins recompute their positions via
+  // the projectedParties useMemo, so they follow the new view automatically.
+  // We call invalidateSize() after setView to ensure Leaflet re-measures its
+  // container and loads the correct tiles for the new viewport.
+  useEffect(() => {
+    const map = leafletRef.current;
+    if (!map) return;
+    map.setView([center.lat, center.lng], zoom, { animate: false });
+    // Defer invalidateSize to the next frame so it runs after setView's
+    // internal state update completes.
+    const raf = requestAnimationFrame(() => {
+      if (leafletRef.current) leafletRef.current.invalidateSize();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [center.lat, center.lng, zoom]);
 
   const openParty = (id: string) => {
     setSelectedPartyId(id);
@@ -249,8 +377,8 @@ export function MapScreen() {
   };
 
   const liveCount = parties.filter((m) => m.isLive).length;
-  const ringFractions = [0.25, 0.5, 0.75, 1];
   const radiusLabel = radius < 1 ? `${radius * 1000}m` : `${radius}km`;
+  const mapLinkUrl = buildMapLinkUrl(center.lat, center.lng, zoom);
 
   return (
     <div className="flex h-full flex-col bg-black">
@@ -335,95 +463,51 @@ export function MapScreen() {
         </button>
       </div>
 
-      {/* Map canvas */}
-      <div className="relative flex-1 overflow-hidden bg-black">
-        {/* Subtle white dot-grid texture for the "tech map" feel */}
+      {/* Map canvas — Leaflet (CARTO Voyager tiles) + yellow Bumble overlay pins */}
+      <div className="relative flex-1 overflow-hidden bg-[#e8eaed] min-h-[360px]">
+        {/* Leaflet container — fills the canvas. The leaflet-pane elements
+            inside are pointer-events: none by default at the pane level,
+            but tile panes can swallow clicks, so we also set pointer-events:
+            none on the wrapper to be safe. Our yellow pins live in a
+            separate overlay layer with pointer-events: auto. */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-50"
-          style={{
-            backgroundImage:
-              "radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)",
-            backgroundSize: "16px 16px",
-            maskImage:
-              "radial-gradient(ellipse at center, black 55%, transparent 95%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse at center, black 55%, transparent 95%)",
-          }}
+          ref={mapElRef}
+          className="absolute inset-0 z-0 h-full w-full"
+          style={{ pointerEvents: "none" }}
+          aria-hidden="true"
         />
 
-        {/* Canvas wrapper — centers the projection */}
-        <div className="relative mx-auto flex h-full w-full max-w-[420px] items-center justify-center px-2">
-          <div
-            className="relative"
-            style={{ width: CANVAS_W, height: CANVAS_H, maxWidth: "100%" }}
-          >
-            {/* Concentric uniform-yellow distance rings */}
-            <svg
-              viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-              className="absolute inset-0 h-full w-full"
-              aria-hidden
-            >
-              {/* Per-ring uniform yellow dashed circles with soft glow */}
-              {ringFractions.map((f, i) => {
-                const r = Math.max(2, pixelsPerKm * radius * f);
-                const c = RING_COLORS[i];
-                return (
-                  <circle
-                    key={`ring-${i}`}
-                    cx={CANVAS_W / 2}
-                    cy={CANVAS_H / 2}
-                    r={r}
-                    fill="none"
-                    stroke={c.stroke}
-                    strokeWidth={1.4}
-                    strokeDasharray="3 5"
-                    style={{ filter: `drop-shadow(0 0 4px ${c.glow})` }}
-                  />
-                );
-              })}
-              {/* Faint crosshair */}
-              <line
-                x1={CANVAS_W / 2}
-                y1={0}
-                x2={CANVAS_W / 2}
-                y2={CANVAS_H}
-                stroke="rgba(255,255,255,0.06)"
-                strokeWidth={1}
-              />
-              <line
-                x1={0}
-                y1={CANVAS_H / 2}
-                x2={CANVAS_W}
-                y2={CANVAS_H / 2}
-                stroke="rgba(255,255,255,0.06)"
-                strokeWidth={1}
-              />
-            </svg>
+        {/* Subtle yellow brand vignette over the realistic map tiles — keeps
+            the Bumble aesthetic without obscuring roads/labels. */}
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 55%, rgba(255,203,5,0.05) 80%, rgba(0,0,0,0.30) 100%)",
+          }}
+          aria-hidden
+        />
 
-            {/* Distance labels per ring (uniform yellow) */}
-            {ringFractions.map((f, i) => {
-              const r = pixelsPerKm * radius * f;
-              const dist = radius * f;
-              if (r < 22) return null;
-              const c = RING_COLORS[i];
-              return (
-                <span
-                  key={`label-${i}`}
-                  className={cn(
-                    "absolute left-1/2 top-1/2 -translate-x-1/2 rounded-full border px-1.5 py-0.5 text-[8px] font-bold backdrop-blur-sm",
-                    c.chip,
-                  )}
-                  style={{ transform: `translate(-50%, calc(-50% - ${r}px))` }}
-                >
-                  {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist}km`}
-                </span>
-              );
-            })}
+        {/* Tile loading shimmer — shown until Leaflet fires whenReady. */}
+        {!mapReady && (
+          <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#e8eaed]">
+            <div className="flex items-center gap-2 rounded-full border border-yellow-400/40 bg-black/85 px-4 py-2 text-xs font-semibold text-yellow-300 backdrop-blur-sm">
+              <Sparkles className="h-3.5 w-3.5 vibe-pulse text-yellow-400" />
+              Loading map…
+            </div>
+          </div>
+        )}
 
-            {/* "You are here" marker — yellow disc + here-pulse rings */}
+        {/* Centered overlay layer — holds the "You are here" marker + party pins.
+            All pins are positioned relative to canvas center using Web Mercator
+            pixel offsets (cx, cy) so they align with the tile grid underneath. */}
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <div className="relative h-full w-full max-w-[420px]">
+            {/* "You are here" marker — sits at exact canvas center (the lat/lng
+                we asked Leaflet to centre on). */}
             <button
               onClick={useMyLocation}
-              className="absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+              className="pointer-events-auto absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
               aria-label="Use my location"
             >
               {/* pulsing rings — pointer-events-none so they don't block pin clicks */}
@@ -433,15 +517,16 @@ export function MapScreen() {
                 style={{ animationDelay: "0.4s" }}
               />
               {/* solid yellow disc + white center dot */}
-              <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 ring-2 ring-black/60 shadow-[0_0_18px_-2px_rgba(255,203,5,0.85)]">
+              <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 ring-2 ring-black/60 shadow-[0_0_18px_-2px_rgba(255,203,5,0.95)]">
                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
               </span>
-              <span className="pointer-events-none mt-1.5 whitespace-nowrap rounded-full border border-yellow-400/30 bg-black/70 px-2 py-0.5 text-[9px] font-bold text-yellow-400 backdrop-blur-sm">
+              <span className="pointer-events-none mt-1.5 whitespace-nowrap rounded-full border border-yellow-400/40 bg-black/80 px-2 py-0.5 text-[9px] font-bold text-yellow-400 backdrop-blur-sm">
                 {locating ? "Locating…" : "You"}
               </span>
             </button>
 
-            {/* Party pins — projected + collision-jittered */}
+            {/* Party pins — projected (lat,lng)→px + collision-jittered.
+                Each pin is positioned with cx/cy pixel offsets from center. */}
             {projectedParties.map((m) => {
               const tier = FUN_TIER_META[m.tier];
               const vibes = parseVibes(m.party.vibes);
@@ -465,13 +550,11 @@ export function MapScreen() {
                   onFocus={() => setHoveredId(m.party.id)}
                   onBlur={() => setHoveredId(null)}
                   className={cn(
-                    "group absolute z-10 flex flex-col items-center transition-opacity",
+                    "pointer-events-auto group absolute left-1/2 top-1/2 z-10 flex flex-col items-center transition-opacity",
                     m.dimmed && "opacity-40",
                   )}
                   style={{
-                    left: `${(m.cx / CANVAS_W) * 100}%`,
-                    top: `${(m.cy / CANVAS_H) * 100}%`,
-                    transform: "translate(-50%, -100%)",
+                    transform: `translate(calc(-50% + ${m.cx}px), calc(-50% + ${m.cy}px - 100%))`,
                   }}
                   aria-label={`${m.party.title} — ${m.dist.toFixed(1)}km — ${tier.label}${m.isLive ? " — live now" : ""}`}
                 >
@@ -530,19 +613,19 @@ export function MapScreen() {
                     </>
                   )}
 
-                  {/* The pin itself — solid yellow disc with vibe emoji */}
+                  {/* The pin itself — solid yellow disc with vibe emoji.
+                      Black ring + drop shadow helps it pop on the light map tiles. */}
                   <span
                     className={cn(
-                      "relative flex items-center justify-center rounded-full border-2 bg-yellow-400",
-                      tier.ringClass,
+                      "relative flex items-center justify-center rounded-full border-2 border-black/80 bg-yellow-400 shadow-[0_3px_10px_-1px_rgba(0,0,0,0.45)]",
                       tier.animClass,
                       tier.glowClass,
-                      m.isLive && "ring-2 ring-yellow-400",
+                      m.isLive && "ring-2 ring-yellow-400 ring-offset-1 ring-offset-black/40",
                     )}
                     style={{ height: sizePx, width: sizePx }}
                   >
                     {/* inner highlight */}
-                    <span className="pointer-events-none absolute inset-1 rounded-full bg-white/20" />
+                    <span className="pointer-events-none absolute inset-1 rounded-full bg-white/25" />
                     <span className="relative text-base leading-none drop-shadow">
                       {emoji}
                     </span>
@@ -600,13 +683,9 @@ export function MapScreen() {
                     </span>
                   )}
 
-                  {/* Pin tail — tier-colored diamond pointing at the exact spot */}
+                  {/* Pin tail — yellow diamond pointing at the exact spot */}
                   <span
-                    className={cn(
-                      "block -mt-1 h-2 w-2 rotate-45 border-r-2 border-b-2",
-                      tier.dotClass,
-                      tier.ringClass,
-                    )}
+                    className="block -mt-1 h-2 w-2 rotate-45 border-b-2 border-r-2 border-black/80 bg-yellow-400"
                     aria-hidden
                   />
                 </button>
@@ -614,64 +693,78 @@ export function MapScreen() {
             })}
 
             {/* Loading overlay — vibe-pulse on the scanner chip */}
-            {isLoading && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="flex items-center gap-2 rounded-full glass border border-yellow-400/30 px-4 py-2 text-xs text-yellow-300">
-                  <Sparkles className="h-3.5 w-3.5 vibe-pulse text-yellow-400" />
+            {isLoading && mapReady && (
+              <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
+                <div className="flex items-center gap-2 rounded-full glass border border-yellow-400/30 px-3 py-1.5 text-[11px] text-yellow-300">
+                  <Sparkles className="h-3 w-3 vibe-pulse text-yellow-400" />
                   Scanning the area…
-                </div>
-              </div>
-            )}
-
-            {/* Error overlay */}
-            {isError && !isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center px-6">
-                <EmptyState
-                  icon={MapPin}
-                  title="Couldn't scan the area"
-                  description="Something went wrong fetching nearby parties."
-                  action={
-                    <button
-                      onClick={() => refetch()}
-                      className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition active:scale-95"
-                    >
-                      Retry
-                    </button>
-                  }
-                />
-              </div>
-            )}
-
-            {/* Empty state — floating 🗺️ + yellow title + hint to widen radius */}
-            {!isLoading && !isError && parties.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center px-6">
-                <div className="flex flex-col items-center gap-3 rounded-3xl glass border border-yellow-400/30 px-6 py-8 text-center">
-                  <span className="text-4xl vibe-float" aria-hidden>
-                    🗺️
-                  </span>
-                  <h3 className="font-display text-base font-extrabold text-yellow-400">
-                    No parties nearby
-                  </h3>
-                  <p className="max-w-[220px] text-xs text-muted-foreground">
-                    {radius <= 2
-                      ? "Try widening the radius — your scene is just out of frame."
-                      : liveOnly
-                        ? "Toggle off Live to see all upcoming parties on the radar."
-                        : "Be the first — launch a vibe and it'll pop up on the radar."}
-                  </p>
-                  <button
-                    onClick={() =>
-                      liveOnly ? setLiveOnly(false) : setScreen("create")
-                    }
-                    className="rounded-full bg-yellow-400 px-4 py-2 text-xs font-bold text-black transition active:scale-95"
-                  >
-                    {liveOnly ? "Show all parties" : "Launch a vibe"}
-                  </button>
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* "Open in Google Maps" floating button — top-right of map.
+            Opens a real Google Maps tab so users can pan/zoom/get-directions
+            on the same center+zoom the radar is showing. */}
+        <a
+          href={mapLinkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute right-3 top-3 z-20 flex h-9 items-center gap-1.5 rounded-full border border-yellow-400/40 bg-black/85 px-3 text-[11px] font-bold text-yellow-300 backdrop-blur-sm transition hover:border-yellow-400 hover:text-yellow-200"
+          aria-label="Open in Google Maps (full interactive view)"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Open Maps
+        </a>
+
+        {/* Error overlay */}
+        {isError && !isLoading && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center px-6">
+            <EmptyState
+              icon={MapPin}
+              title="Couldn't scan the area"
+              description="Something went wrong fetching nearby parties."
+              action={
+                <button
+                  onClick={() => refetch()}
+                  className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition active:scale-95"
+                >
+                  Retry
+                </button>
+              }
+            />
+          </div>
+        )}
+
+        {/* Empty state — floating 🗺️ + yellow title + hint to widen radius */}
+        {!isLoading && !isError && parties.length === 0 && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center px-6">
+            <div className="flex flex-col items-center gap-3 rounded-3xl glass border border-yellow-400/30 px-6 py-8 text-center">
+              <span className="text-4xl vibe-float" aria-hidden>
+                🗺️
+              </span>
+              <h3 className="font-display text-base font-extrabold text-yellow-400">
+                No parties nearby
+              </h3>
+              <p className="max-w-[220px] text-xs text-muted-foreground">
+                {radius <= 2
+                  ? "Try widening the radius — your scene is just out of frame."
+                  : liveOnly
+                    ? "Toggle off Live to see all upcoming parties on the radar."
+                    : "Be the first — launch a vibe and it'll pop up on the radar."}
+              </p>
+              <button
+                onClick={() =>
+                  liveOnly ? setLiveOnly(false) : setScreen("create")
+                }
+                className="rounded-full bg-yellow-400 px-4 py-2 text-xs font-bold text-black transition active:scale-95"
+              >
+                {liveOnly ? "Show all parties" : "Launch a vibe"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Floating "use my location" + city switcher */}
         <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
