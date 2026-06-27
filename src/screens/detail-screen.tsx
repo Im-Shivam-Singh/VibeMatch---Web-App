@@ -381,7 +381,7 @@ export function DetailScreen() {
                 {feeLabel} entry
               </span>
             </div>
-            <p className="text-xs text-muted-foreground/90">
+            <p className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Pay once · drinks add-on available after
             </p>
           </section>
@@ -401,8 +401,10 @@ export function DetailScreen() {
           <section className="flex flex-wrap gap-1.5">
             {vibes.map((v) => {
               const cls =
-                VIBE_COLORS[v] ||
-                "bg-purple-500/15 text-purple-300 border-purple-500/45";
+                v === "EDM"
+                  ? "bg-purple-500/15 text-purple-300 font-medium border-purple-500/45"
+                  : VIBE_COLORS[v] ||
+                    "bg-purple-500/15 text-purple-300 border-purple-500/45";
               return (
                 <span
                   key={v}
@@ -761,7 +763,7 @@ function MetaCell({ emoji, text }: { emoji: string; text: string }) {
       <span aria-hidden className="text-sm leading-none">
         {emoji}
       </span>
-      <span className="min-w-0 truncate text-foreground/90">{text}</span>
+      <span className="min-w-0 truncate text-foreground/80">{text}</span>
     </div>
   );
 }

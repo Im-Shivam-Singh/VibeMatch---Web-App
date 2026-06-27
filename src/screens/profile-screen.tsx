@@ -172,7 +172,7 @@ export function ProfileScreen() {
         <section className="mt-4 overflow-hidden rounded-3xl glass border border-white/10 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-purple-300 font-semibold">
                 Vibe score
               </p>
               <p className="font-display text-3xl font-extrabold text-amber-400">
@@ -349,13 +349,13 @@ function Stat({
   return (
     <div
       className={cn(
-        "animate-pop-in rounded-2xl glass border border-amber-400/40 p-3 text-center transition",
+        "animate-pop-in flex flex-col items-center gap-1 rounded-2xl glass border border-amber-400/40 p-3 text-center transition",
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex justify-center">{icon}</div>
-      <p className="mt-1 font-display text-xl font-bold text-amber-400">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="font-display text-xl font-bold text-amber-400">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

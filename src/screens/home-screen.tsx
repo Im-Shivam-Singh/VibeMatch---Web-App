@@ -150,7 +150,7 @@ export function HomeScreen() {
             <button
               onClick={() => setScreen("profile")}
               aria-label="Profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-purple-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white ring-2 ring-purple-400/30"
             >
               {currentUser?.name?.[0]?.toUpperCase() ?? "U"}
             </button>
@@ -159,7 +159,7 @@ export function HomeScreen() {
 
         {/* Search */}
         <form onSubmit={onSearchSubmit} className="relative mt-3">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
           <input
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
@@ -194,7 +194,7 @@ export function HomeScreen() {
         {/* Sub-header */}
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="font-display text-base font-bold">Happening near you</h2>
-          <span className="text-xs font-medium text-purple-200">{parties.length} vibes</span>
+          <span className="text-xs font-semibold text-purple-200">{parties.length} vibes</span>
         </div>
 
         {/* City filter chips */}
@@ -389,7 +389,7 @@ function VibeStory({
         className={cn(
           "flex h-14 w-14 items-center justify-center rounded-full border-2 text-2xl transition-all duration-200",
           active
-            ? "border-purple-400 bg-purple-500/20 scale-105 glow-violet"
+            ? "border-purple-400 bg-purple-500/20 glow-violet"
             : "border-border bg-secondary hover:border-purple-500/30 hover:bg-white/5",
         )}
       >
@@ -486,7 +486,7 @@ function PartyCardNew({
             {left} left!
           </span>
         ) : (
-          <span className="absolute bottom-2 right-2 rounded-md bg-purple-500/90 px-2 py-0.5 text-[10px] font-medium text-white">
+          <span className="absolute bottom-2 right-2 rounded-md bg-purple-500 px-2 py-0.5 text-[10px] font-semibold text-white">
             {going} going
           </span>
         )}
@@ -498,7 +498,7 @@ function PartyCardNew({
           className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
         >
           <Heart
-            className={cn("h-3.5 w-3.5", saved && "fill-coral-500 text-coral-500")}
+            className={cn("h-3.5 w-3.5", saved ? "fill-coral-500 text-coral-500" : "fill-transparent")}
           />
         </button>
       </div>

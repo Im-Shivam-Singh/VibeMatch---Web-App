@@ -137,7 +137,7 @@ function NavButton({
         "group relative flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-all duration-200 active:scale-95",
         active
           ? "text-purple-300"
-          : "text-muted-foreground/80 hover:text-foreground",
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {/* Active pill background — fades in behind the icon */}
@@ -216,7 +216,7 @@ function CreateButton({ onClick }: { onClick: () => void }) {
         />
       </span>
       {/* Tiny label under FAB */}
-      <span className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-purple-300/90 transition-colors group-hover:text-purple-200">
+      <span className="mt-1 text-center text-[9px] font-semibold uppercase tracking-wide text-purple-300/90 transition-colors group-hover:text-purple-200">
         Host
       </span>
     </button>
