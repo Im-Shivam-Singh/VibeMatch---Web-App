@@ -23,8 +23,22 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        id: bun-cache
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
+        if: steps.bun-cache.outputs.cache-hit != 'true'
         run: bun install
 
       - name: Generate Prisma client
@@ -34,11 +48,61 @@ jobs:
         run: bun run lint
 
   # ──────────────────────────────────────────────
+  # Build: verify the Next.js app compiles cleanly
+  # ──────────────────────────────────────────────
+  build:
+    name: Build
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./ci-test.db
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:3003
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        id: bun-cache
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+        run: bun install
+
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      - name: Build Next.js application
+        run: bun run build
+
+      - name: Upload build artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: .next/
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
   # Deploy Preview: Vercel preview for PRs
   # ──────────────────────────────────────────────
   deploy-preview:
     name: Deploy Preview
-    needs: lint
+    needs: build
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -47,6 +111,23 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        id: bun-cache
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+        run: bun install
 
       - name: Install Vercel CLI
         run: bun add -g vercel@latest
@@ -66,13 +147,26 @@ jobs:
 
       - name: Comment PR with preview URL
         uses: actions/github-script@v7
+        if: success()
         with:
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `**Vercel Preview:** ${{ steps.deploy.outputs.deploy_url }}`
+              body: `## ✅ Preview Deployment Ready\n\n**URL:** ${{ steps.deploy.outputs.deploy_url }}\n\n_Deployed from commit \`${{ github.sha }}\`_`
+            })
+
+      - name: Comment PR on failure
+        uses: actions/github-script@v7
+        if: failure()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ Preview Deployment Failed\n\n_Deployment from commit \`${{ github.sha }}\` failed. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details._`
             })
 
   # ──────────────────────────────────────────────
@@ -91,7 +185,7 @@ jobs:
   # ──────────────────────────────────────────────
   deploy-production:
     name: Deploy Production
-    needs: lint
+    needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -100,6 +194,23 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        id: bun-cache
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+        run: bun install
 
       - name: Install Vercel CLI
         run: bun add -g vercel@latest
@@ -116,3 +227,13 @@ jobs:
           DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "Production deployed: $DEPLOY_URL"
+
+      - name: Comment commit with deployment status
+        if: success()
+        run: |
+          echo "🚀 Production deployed: ${{ steps.deploy.outputs.deploy_url }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed for commit ${{ github.sha }}"
