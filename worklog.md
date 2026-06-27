@@ -1862,3 +1862,22 @@ Stage Summary:
 - Guest TRUST rating: SHIPPED. Hosts rate guests 1-5 after party, aggregated score shown on guest profile as teal TRUST badge.
 - Bouncer booking: SHIPPED. Hosts can add verified security during party creation (£40-60 UK / ₹800-1500 India, 18% platform fee), badge shown on detail screen as trust signal.
 - `bun run lint` → 0 errors. Dev server running clean.
+
+---
+Task ID: 12 (orchestrator)
+Agent: orchestrator (direct)
+Task: Diagnose & fix "dev server not running" — server kept dying between bash tool calls.
+
+Work Log:
+- Symptom: `next-server (v16.1.3)` process would spawn, serve HTTP 200 for ~5-10 seconds, then vanish with no error in dev.log. Only the chat-service `bun --hot index.ts` (started at boot in a different session) stayed alive.
+- Root cause: Each Bash tool call runs in its own session. When the call completes, the tool kills all processes in that session's process-group / SID. Standard detachment patterns (`nohup ... &`, `setsid bash -c '...' &`, `disown`, subshells) were ALL killed because they remained in the bash call's session.
+- Verified via test: spawned 3 variants of `sleep 600` — only `setsid -f sleep 600` (with `-f` fork flag, no `&`, no shell wrapper, no redirection) survived to the next bash call.
+- Fix: spawn Next.js with `setsid -f sh -c 'exec node /home/z/my-project/node_modules/.bin/next dev -p 3000 > /home/z/my-project/dev.log 2>&1'`. The `setsid -f` forks into a new session leader (PID == SID); when the parent bash exits, tini (PID 1) reparents the orphan and it survives.
+- Verified: `next-server` PID 10536, SID 10523 (different from any bash session) stays alive across multiple subsequent bash calls. HTTP 200 returned consistently. Title `VibeMatch — Find your night out` confirmed.
+
+Stage Summary:
+- Dev server now persists across bash tool calls. Use this exact pattern to restart if it ever dies:
+  `cd /home/z/my-project && pkill -9 -f next; rm -f dev.log; setsid -f sh -c 'exec node /home/z/my-project/node_modules/.bin/next dev -p 3000 > /home/z/my-project/dev.log 2>&1'`
+- Do NOT use `bun run dev` (its `tee` pipe gets killed), `nohup ... &`, or `setsid bash -c '...' &` — they all die with the bash session.
+- Chat mini-service on port 3003 unaffected (started at boot, SID 861/1082, parented to tini).
+- Both services verified running: Next.js HTTP 200, socket.io HTTP 400 (expected for HTTP GET on ws endpoint).
