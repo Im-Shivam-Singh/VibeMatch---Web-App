@@ -2096,3 +2096,85 @@ Stage Summary:
 - All 7 features shipped + browser-verified end-to-end. The purchase flow is now: detail → "Get your spot" sheet (intro + intro video) → 1:1 chat with host (WhatsApp-style, with system approval pills + payment CTA card) → host approves in requests screen → payment CTA appears in chat → guest pays → confirmation → group chat unlocks with 7 referral-offer cards. Security add-on is gated to 15+ guests. Filter screen has place/city search + profession filter. Hosts can edit menu/photos/videos post-creation. Queue limit + re-apply lockout prevent rush/spam applications.
 - Subagents 2-a and 2-b delivered the manage-party + group-chat screens in parallel; orchestrator fixed the shared schema (GroupChatMember.user relation) they both depended on.
 - Ready for the recurring webDevReview cron to iterate on polish + additional features.
+
+---
+Task ID: 3
+Agent: DevOps Agent
+Task: Create GitHub Actions workflow for Vercel deployment
+
+Work Log:
+- Read worklog.md and package.json to understand project context (Next.js 16, Bun, Prisma/SQLite, socket.io mini-service).
+- Created `.github/workflows/deploy.yml` with three jobs: `lint`, `deploy-preview`, `deploy-production`.
+- Created `vercel.json` with framework, build, install, and output directory config.
+- Added SQLite/serverless incompatibility warning as a comment in the workflow.
+- Added socket.io mini-service deployment note as a comment in the workflow.
+- Configured PR preview deployments with automatic comment posting the preview URL.
+- Used `oven-sh/setup-bun@v2` for Bun setup across all jobs.
+
+Stage Summary:
+- `.github/workflows/deploy.yml` created with lint → deploy-preview (PRs) → deploy-production (main push) pipeline using Vercel CLI.
+- `vercel.json` created at project root with Next.js framework, Bun build/install commands.
+- Workflow requires three GitHub secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+- Documented limitations: SQLite won't work on Vercel serverless (needs hosted DB migration); socket.io mini-services need separate deployment to a container platform.
+
+---
+Task ID: 4
+Agent: Documentation Agent
+Task: Write comprehensive README.md
+
+Work Log:
+- Read worklog.md to understand full project context
+- Explored project structure, package.json, Prisma schema, types, store, API routes, and screens
+- Created /home/z/my-project/README.md with all 11 required sections:
+  1. Project Title & Tagline with centered header design
+  2. Badges for Next.js 16, TypeScript 5, Tailwind CSS 4, Prisma, Vercel
+  3. Features section with 13 key features (emojis included)
+  4. Tech Stack table covering all technologies
+  5. Getting Started with bun install/db:push/dev commands + useful scripts table
+  6. Project Structure tree with descriptions
+  7. API Routes table (23 endpoints)
+  8. Screens table (22 screens with descriptions)
+  9. Deployment section with Vercel + chat service notes
+  10. Contributing guidelines with 5-step PR flow
+  11. MIT License section
+
+Stage Summary:
+- README.md created at /home/z/my-project/README.md — professional GitHub-ready documentation
+- Covers all project aspects: features, tech stack, setup, structure, API, screens, deployment, contributing
+- All 22 screens and 23 API routes documented with accurate descriptions from source code
+- Emojis used throughout for visual appeal as requested
+
+---
+Task ID: 2
+Agent: UI Fix Agent
+Task: Fix UI bugs and improve styling
+
+Work Log:
+- Fixed bottom nav bar safe-area padding from 10px min to 14px min to prevent FAB/label cutoff
+- Adjusted FAB CreateButton margin from -mt-7 to -mt-6 to prevent overlap with glass shell
+- Increased FAB "Host" label spacing (mt-0.5→mt-1) and contrast (purple-300/80→purple-300/90)
+- Increased app-shell main content padding-bottom from pb-28 to pb-32 to prevent content hidden behind glass nav
+- Changed muted-foreground opacity from 0.55 to 0.70 in both :root and .dark CSS variables for better contrast
+- Fixed home screen search bar: better vertical alignment (pl-9→pl-10, leading-none), stronger focus ring (ring-1→ring-2)
+- Improved tab styling: added emoji as separate scalable element, active state shadow, hover bg for inactive tabs
+- Improved "N vibes" text contrast: purple-300→purple-200 with font-medium
+- Added gradient overlay on party card covers for better text readability
+- Fixed "going" badge contrast: bg-purple-500/80→bg-purple-500/90, text-purple-foreground→text-white
+- Added micro-interactions: party cards active:scale-[0.98], city chips active:scale-95 + hover border, vibe stories hover effects
+- Fixed detail screen "Pay once" text: text-muted-foreground→text-muted-foreground/90
+- Fixed detail screen host rating text: text-muted-foreground→text-muted-foreground/90
+- Fixed Message button: smaller text (text-xs→text-[11px]), tighter padding, truncate span, hover:bg-purple-500/15
+- Adjusted detail screen sticky CTA bottom position: 84px→88px to account for larger nav
+- Increased detail screen scroll padding: pb-40→pb-44 for content clearance
+- Added nav button active:scale-95 micro-interaction
+
+Stage Summary:
+- Bottom nav no longer clips the FAB or "Host" label; safe area properly respected
+- Content no longer hides behind the glass nav bar (pb-32 in app-shell, pb-44 in detail)
+- Muted foreground text now at 70% opacity instead of 55% — significantly more readable
+- Tabs have visual differentiation with emoji scale animation on active state + shadow
+- Party card covers have gradient overlay for text readability
+- "N vibes" count, "going" badges, "Pay once" text all have improved contrast
+- Message button properly sized and truncated; no text cutoff
+- Micro-interactions (active:scale) added to cards, chips, vibe stories, and nav buttons
+- All changes pass ESLint; dev server running cleanly
