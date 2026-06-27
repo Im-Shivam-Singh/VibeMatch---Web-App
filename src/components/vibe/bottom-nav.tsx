@@ -70,7 +70,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-[480px] items-end justify-around px-3 pb-[max(env(safe-area-inset-bottom),14px)] pt-2"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex items-end justify-around px-3 pb-[max(env(safe-area-inset-bottom),14px)] pt-2 lg:hidden"
       aria-label="Primary"
     >
       {/* Glass shell with purple top edge + glow */}

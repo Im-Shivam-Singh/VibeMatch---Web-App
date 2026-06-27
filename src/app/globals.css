@@ -76,6 +76,9 @@
   /* VibeMatch — multi-color palette on near-black (per app-flow spec) */
   --radius: 0.875rem;
 
+  /* Desktop sidebar width — used for lg:pl-[var] in responsive layout */
+  --sidebar-width: 280px;
+
   /* Brand accent — purple (primary CTAs, FAB, active states) */
   --purple: #534ab7;
   --purple-light: #eeedfe;

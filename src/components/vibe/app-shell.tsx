@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { BottomNav } from "./bottom-nav";
+import { SidebarNav } from "./sidebar-nav";
 import { LoginScreen } from "@/screens/login-screen";
 import { OnboardingScreen } from "@/screens/onboarding-screen";
 import { HomeScreen } from "@/screens/home-screen";
@@ -81,35 +82,45 @@ export function AppShell() {
   const current = !authed ? "login" : screen;
 
   return (
-    <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden">
-      <main className="relative flex-1 overflow-hidden pb-32">
-        {/* keyed by current screen so the transition re-fires on screen change */}
-        <div key={current} className="h-full animate-screen-in">
-          {current === "login" && <LoginScreen />}
-          {current === "onboarding" && <OnboardingScreen />}
-          {current === "home" && <HomeScreen />}
-          {current === "create" && <CreateScreen />}
-          {current === "detail" && <DetailScreen />}
-          {current === "inbox" && <InboxScreen />}
-          {current === "chat" && <ChatScreen />}
-          {current === "profile" && <ProfileScreen />}
-          {current === "edit-profile" && <EditProfileScreen />}
-          {current === "my-parties" && <MyPartiesScreen />}
-          {current === "requests" && <RequestsScreen />}
-          {current === "saved" && <SavedScreen />}
-          {current === "map" && <MapScreen />}
-          {current === "tickets" && <TicketsScreen />}
-          {current === "filter" && <FilterScreen />}
-          {current === "countdown" && <CountdownScreen />}
-          {current === "payment" && <PaymentScreen />}
-          {current === "confirmation" && <ConfirmationScreen />}
-          {current === "host-dashboard" && <HostDashboardScreen />}
-          {current === "manage-party" && <ManagePartyScreen />}
-          {current === "admin" && <AdminScreen />}
-          {current === "group-chat" && <GroupChatScreen />}
-        </div>
-      </main>
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-background">
+      {/* Desktop sidebar — hidden on mobile/tablet */}
+      <SidebarNav />
+
+      {/* Main content area — shifts right on desktop to make room for sidebar */}
+      <div className="lg:pl-[280px]">
+        <main className="relative mx-auto min-h-[100dvh] max-w-6xl flex-col overflow-hidden pb-20 lg:pb-0">
+          {/* keyed by current screen so the transition re-fires on screen change */}
+          <div key={current} className="h-full animate-screen-in">
+            {current === "login" && <LoginScreen />}
+            {current === "onboarding" && <OnboardingScreen />}
+            {current === "home" && <HomeScreen />}
+            {current === "create" && <CreateScreen />}
+            {current === "detail" && <DetailScreen />}
+            {current === "inbox" && <InboxScreen />}
+            {current === "chat" && <ChatScreen />}
+            {current === "profile" && <ProfileScreen />}
+            {current === "edit-profile" && <EditProfileScreen />}
+            {current === "my-parties" && <MyPartiesScreen />}
+            {current === "requests" && <RequestsScreen />}
+            {current === "saved" && <SavedScreen />}
+            {current === "map" && <MapScreen />}
+            {current === "tickets" && <TicketsScreen />}
+            {current === "filter" && <FilterScreen />}
+            {current === "countdown" && <CountdownScreen />}
+            {current === "payment" && <PaymentScreen />}
+            {current === "confirmation" && <ConfirmationScreen />}
+            {current === "host-dashboard" && <HostDashboardScreen />}
+            {current === "manage-party" && <ManagePartyScreen />}
+            {current === "admin" && <AdminScreen />}
+            {current === "group-chat" && <GroupChatScreen />}
+          </div>
+        </main>
+      </div>
+
+      {/* Music player bar */}
       <MusicPlayerBar />
+
+      {/* Mobile bottom nav — hidden on desktop */}
       <BottomNav />
     </div>
   );
