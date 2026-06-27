@@ -30,6 +30,9 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     createdAt: p.createdAt.toISOString(),
+    // Intentionally empty in list payloads to keep the response small.
+    // The full media list is only included on the GET /api/parties/[id] route.
+    media: [],
   };
 }
 
@@ -115,6 +118,7 @@ export async function POST(req: NextRequest) {
     lng,
     securityBooked,
     securityFee,
+    media,
   } = body;
 
   if (!title || !city || !area || !date || !time || !hostName) {
@@ -126,6 +130,12 @@ export async function POST(req: NextRequest) {
 
   // try to associate with a host user by hostName
   const host = await db.user.findFirst({ where: { name: hostName } });
+
+  // If the host didn't pass an explicit coverUrl but added media, the first
+  // media item becomes the cover (keeps legacy party-card rendering working).
+  const mediaList = Array.isArray(media) ? media : [];
+  const resolvedCoverUrl =
+    coverUrl || (mediaList.length > 0 ? mediaList[0].url : null);
 
   const party = await db.party.create({
     data: {
@@ -140,7 +150,7 @@ export async function POST(req: NextRequest) {
       description: description || "",
       hostName,
       hostId: host?.id,
-      coverUrl: coverUrl || null,
+      coverUrl: resolvedCoverUrl,
       lat: typeof lat === "number" ? lat : null,
       lng: typeof lng === "number" ? lng : null,
       guestCount: 0,
@@ -149,6 +159,20 @@ export async function POST(req: NextRequest) {
       securityStatus: securityBooked ? "requested" : "",
     },
   });
+
+  // Persist the media gallery (sorted by position). createMany is more
+  // efficient than per-row create and we don't need the created rows back.
+  if (mediaList.length > 0) {
+    await db.partyMedia.createMany({
+      data: mediaList.slice(0, 12).map((m, index) => ({
+        partyId: party.id,
+        url: m.url,
+        type: m.type === "video" ? "video" : "image",
+        caption: m.caption ?? "",
+        position: index,
+      })),
+    });
+  }
 
   if (host) {
     await db.user.update({

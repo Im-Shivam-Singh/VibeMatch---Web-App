@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -9,6 +9,7 @@ import {
   MessageCircle,
   ShieldCheck,
   Lock,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -22,6 +23,7 @@ import {
   slotsLeft,
   VIBE_COLORS,
   VIBE_EMOJI,
+  type PartyMedia,
 } from "@/lib/types";
 import { ReviewsSection } from "@/components/vibe/reviews-section";
 import { Button } from "@/components/ui/button";
@@ -119,7 +121,7 @@ export function DetailScreen() {
   if (isLoading) {
     return (
       <div className="animate-screen-in space-y-4 p-4">
-        <Skeleton className="h-44 w-full rounded-2xl" />
+        <Skeleton className="h-56 w-full rounded-2xl" />
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
         <div className="grid grid-cols-2 gap-2">
@@ -160,6 +162,29 @@ export function DetailScreen() {
   const isLow = left > 0 && left <= 2;
   const isOwn = !!currentUser && !!host && currentUser.id === host.id;
 
+  // ── Media gallery ───────────────────────────────────────────────────
+  // Build the gallery items list: prefer the party's media array, fall back
+  // to a single cover entry, and finally to an empty list which renders the
+  // vibe-color + emoji fallback.
+  const gallery: PartyMedia[] = (() => {
+    if (party.media && party.media.length > 0) return party.media;
+    if (party.coverUrl) {
+      return [
+        {
+          id: "cover",
+          partyId: party.id,
+          url: party.coverUrl,
+          type: "image",
+          caption: "",
+          position: 0,
+          createdAt: party.createdAt,
+        },
+      ];
+    }
+    return [];
+  })();
+  const hasGallery = gallery.length > 0;
+
   // End time = start + 4h (matches the spec's ~4h default party duration)
   const [hStr, mStr] = party.time.split(":");
   const startH = parseInt(hStr, 10) || 0;
@@ -195,62 +220,22 @@ export function DetailScreen() {
     <div className="flex h-full flex-col animate-screen-in">
       {/* Scrollable content */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto pb-40">
-        {/* ── HERO ─────────────────────────────────────────────────── */}
-        <div
-          className="relative h-44 w-full overflow-hidden"
-          style={{ background: heroBg }}
-        >
-          {/* Subtle sheen for depth */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
-
-          {/* Large emoji centerpiece */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span
-              className="vibe-float text-5xl opacity-90"
-              aria-hidden
-            >
-              {heroEmoji}
-            </span>
-          </div>
-
-          {/* Back button (top-left, 32px round) */}
-          <button
-            onClick={goBack}
-            className="absolute left-3 top-[max(env(safe-area-inset-top),12px)] flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          {/* Share button (top-right, 32px round) */}
-          <button
-            onClick={share}
-            className="absolute right-3 top-[max(env(safe-area-inset-top),12px)] flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
-            aria-label="Share"
-          >
-            <Share2 className="h-4 w-4" />
-          </button>
-
-          {/* Theme pill (bottom-left) */}
-          <span className="absolute bottom-3 left-3 rounded-lg bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-            {firstVibe}
-          </span>
-
-          {/* Spots pill (bottom-right) */}
-          {isFull ? (
-            <span className="absolute bottom-3 right-3 rounded-lg bg-coral px-2.5 py-1 text-xs font-semibold text-white">
-              Sold out
-            </span>
-          ) : isLow ? (
-            <span className="absolute bottom-3 right-3 rounded-lg bg-coral/80 px-2.5 py-1 text-xs font-semibold text-white">
-              {left} left!
-            </span>
-          ) : (
-            <span className="absolute bottom-3 right-3 rounded-lg bg-purple-500/80 px-2.5 py-1 text-xs font-semibold text-white">
-              {going} going · {left} left
-            </span>
-          )}
-        </div>
+        {/* ── HERO / MEDIA GALLERY ───────────────────────────────────── */}
+        <MediaGallery
+          key={party.id}
+          gallery={gallery}
+          hasGallery={hasGallery}
+          heroBg={heroBg}
+          heroEmoji={heroEmoji}
+          coverUrl={party.coverUrl ?? null}
+          goBack={goBack}
+          share={share}
+          firstVibe={firstVibe}
+          isFull={isFull}
+          isLow={isLow}
+          left={left}
+          going={going}
+        />
 
         {/* ── BODY ─────────────────────────────────────────────────── */}
         <div className="space-y-4 p-4">
@@ -514,5 +499,225 @@ function MetaCell({ emoji, text }: { emoji: string; text: string }) {
       </span>
       <span className="min-w-0 truncate text-foreground/90">{text}</span>
     </div>
+  );
+}
+
+// ── Media gallery hero ─────────────────────────────────────────────────
+// Isolated as its own component so we can `key={party.id}` it on the parent
+// and let React unmount/remount when the user navigates between parties —
+// this naturally resets internal carousel state (activeIdx + scroll position)
+// without needing setState-in-effect (which the lint rule disallows).
+interface MediaGalleryProps {
+  gallery: PartyMedia[];
+  hasGallery: boolean;
+  heroBg: string;
+  heroEmoji: string;
+  coverUrl: string | null;
+  goBack: () => void;
+  share: () => void;
+  firstVibe: string;
+  isFull: boolean;
+  isLow: boolean;
+  left: number;
+  going: number;
+}
+
+function MediaGallery({
+  gallery,
+  hasGallery,
+  heroBg,
+  heroEmoji,
+  coverUrl,
+  goBack,
+  share,
+  firstVibe,
+  isFull,
+  isLow,
+  left,
+  going,
+}: MediaGalleryProps) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // Compute the active slide on scroll. requestAnimationFrame-debounced so
+  // we don't churn state on every pixel of scroll movement.
+  const handleScroll = () => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const el = galleryRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollLeft / el.clientWidth);
+      setActiveIdx(Math.max(0, Math.min(gallery.length - 1, idx)));
+    });
+  };
+
+  const scrollToSlide = (idx: number) => {
+    const el = galleryRef.current;
+    if (!el) return;
+    el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+    setActiveIdx(idx);
+  };
+
+  return (
+    <>
+      <div
+        className="relative h-56 w-full overflow-hidden"
+        style={{ background: heroBg }}
+      >
+        {hasGallery ? (
+          <div
+            ref={galleryRef}
+            onScroll={handleScroll}
+            className="no-scrollbar h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
+          >
+            <div className="flex h-full">
+              {gallery.map((m, i) => (
+                <div
+                  key={m.id ?? i}
+                  className="relative h-full w-full shrink-0 snap-center snap-always"
+                >
+                  {m.type === "video" ? (
+                    <video
+                      src={m.url}
+                      poster={i === 0 && coverUrl ? coverUrl : undefined}
+                      controls
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={m.url}
+                      alt={m.caption || `Party photo ${i + 1}`}
+                      className="h-full w-full object-cover"
+                      loading={i === 0 ? "eager" : "lazy"}
+                    />
+                  )}
+                  {/* Gradient sheen only over image slides (videos get a
+                      flat gradient that doesn't fight with native controls) */}
+                  {m.type === "image" && (
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
+                  )}
+                  {m.caption && (
+                    <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-2 py-0.5 text-[11px] text-white/90 backdrop-blur-sm">
+                      {m.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          // Fallback: vibe-color background + large emoji centerpiece
+          // (preserves the original hero look when there's no media).
+          <>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="vibe-float text-5xl opacity-90" aria-hidden>
+                {heroEmoji}
+              </span>
+            </div>
+          </>
+        )}
+
+        {/* Back button (top-left, 32px round) */}
+        <button
+          onClick={goBack}
+          className="absolute left-3 top-[max(env(safe-area-inset-top),12px)] z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
+          aria-label="Back"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {/* Share button (top-right, 32px round) */}
+        <button
+          onClick={share}
+          className="absolute right-3 top-[max(env(safe-area-inset-top),12px)] z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
+          aria-label="Share"
+        >
+          <Share2 className="h-4 w-4" />
+        </button>
+
+        {/* Dot indicator row (only when more than one slide) */}
+        {hasGallery && gallery.length > 1 && (
+          <div className="pointer-events-none absolute left-1/2 top-[max(env(safe-area-inset-top),52px)] z-10 flex -translate-x-1/2 items-center gap-1.5">
+            {gallery.map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-200",
+                  i === activeIdx ? "w-4 bg-white" : "w-1.5 bg-white/45",
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Theme pill (bottom-left) */}
+        <span className="absolute bottom-3 left-3 z-10 rounded-lg bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+          {firstVibe}
+        </span>
+
+        {/* Spots pill (bottom-right) */}
+        {isFull ? (
+          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-coral px-2.5 py-1 text-xs font-semibold text-white">
+            Sold out
+          </span>
+        ) : isLow ? (
+          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-coral/80 px-2.5 py-1 text-xs font-semibold text-white">
+            {left} left!
+          </span>
+        ) : (
+          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-purple-500/80 px-2.5 py-1 text-xs font-semibold text-white">
+            {going} going · {left} left
+          </span>
+        )}
+      </div>
+
+      {/* Thumbnail strip — only show when more than one media item.
+          Lets the user jump directly to a specific slide. */}
+      {hasGallery && gallery.length > 1 && (
+        <div className="no-scrollbar -mt-3 relative z-10 flex gap-2 overflow-x-auto px-4 pb-1">
+          {gallery.map((m, i) => (
+            <button
+              key={m.id ?? `thumb-${i}`}
+              onClick={() => scrollToSlide(i)}
+              aria-label={`View media ${i + 1}`}
+              className={cn(
+                "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition active:scale-95",
+                i === activeIdx
+                  ? "border-purple-400 ring-2 ring-purple-400/60"
+                  : "border-white/10 hover:border-purple-400/40",
+              )}
+            >
+              {m.type === "video" ? (
+                <>
+                  <img
+                    src={i === 0 && coverUrl ? coverUrl : m.url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                    <Play className="h-3.5 w-3.5 fill-white text-white" />
+                  </span>
+                </>
+              ) : (
+                <img
+                  src={m.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

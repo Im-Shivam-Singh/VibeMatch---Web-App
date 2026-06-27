@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { parseVibes, type Party } from "@/lib/types";
+import { parseVibes, type Party, type PartyMedia } from "@/lib/types";
 
 function serialize(p: any): Party {
   return {
@@ -24,6 +24,19 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     createdAt: p.createdAt.toISOString(),
+    media: Array.isArray(p.media)
+      ? (p.media
+          .map((m: any) => ({
+            id: m.id,
+            partyId: m.partyId,
+            url: m.url,
+            type: m.type === "video" ? "video" : "image",
+            caption: m.caption ?? "",
+            position: m.position ?? 0,
+            createdAt: m.createdAt?.toISOString?.() ?? String(m.createdAt ?? ""),
+          }))
+          .sort((a: PartyMedia, b: PartyMedia) => a.position - b.position) as PartyMedia[])
+      : [],
   };
 }
 
@@ -35,7 +48,11 @@ export async function GET(
   const { id } = await params;
   const party = await db.party.findUnique({
     where: { id },
-    include: { host: true, requests: { orderBy: { createdAt: "desc" } } },
+    include: {
+      host: true,
+      requests: { orderBy: { createdAt: "desc" } },
+      media: { orderBy: { position: "asc" } },
+    },
   });
   if (!party) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });

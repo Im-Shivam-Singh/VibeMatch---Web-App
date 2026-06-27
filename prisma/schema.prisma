@@ -95,6 +95,25 @@ model Party {
   orders    Order[]
   tickets   Ticket[]
   trustRatings TrustRating[]
+  media     PartyMedia[]
+}
+
+// ===== Party media gallery — host can attach multiple photos + videos =====
+// Stored as a sorted list per party. type = "image" | "video". coverUrl on
+// Party stays for backwards-compat as the primary cover; PartyMedia holds the
+// full gallery (the cover is usually also media[0]).
+model PartyMedia {
+  id        String   @id @default(cuid())
+  partyId   String
+  url       String   // image or video URL
+  type      String   @default("image") // "image" | "video"
+  caption   String   @default("")
+  position  Int      @default(0) // sort order
+  createdAt DateTime @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@index([partyId])
 }
 
 model JoinRequest {

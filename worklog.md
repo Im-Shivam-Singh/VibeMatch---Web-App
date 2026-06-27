@@ -1881,3 +1881,65 @@ Stage Summary:
 - Do NOT use `bun run dev` (its `tee` pipe gets killed), `nohup ... &`, or `setsid bash -c '...' &` — they all die with the bash session.
 - Chat mini-service on port 3003 unaffected (started at boot, SID 861/1082, parented to tini).
 - Both services verified running: Next.js HTTP 200, socket.io HTTP 400 (expected for HTTP GET on ws endpoint).
+
+---
+Task ID: 13-a
+Agent: subagent (party-media)
+Task: Add images + videos support to party posts (schema, API, create UI, detail gallery)
+
+Work Log:
+- Read worklog tail + prisma/schema.prisma + src/lib/types.ts + src/app/api/parties/route.ts + src/app/api/parties/[id]/route.ts + src/screens/create-screen.tsx + src/screens/detail-screen.tsx + src/components/vibe/party-card.tsx + src/lib/api.ts + src/components/ui/dialog.tsx to map the surface area.
+- prisma/schema.prisma: added `media PartyMedia[]` relation on Party + new `PartyMedia` model (id, partyId, url, type, caption, position, createdAt) with `@@index([partyId])` and `onDelete: Cascade`. Ran `bun run db:push` — schema applied, Prisma Client regenerated cleanly.
+- src/lib/types.ts: added `PartyMedia` interface, added `media?: PartyMedia[]` to `Party`, added `media?: { url; type; caption? }[]` to `PartyCreateInput`.
+- src/app/api/parties/route.ts: serialize() now returns `media: []` (empty for list payloads). POST handler destructures `media` from body, resolves `coverUrl` from `media[0].url` when no explicit coverUrl is given, persists rows via `db.partyMedia.createMany` (capped at 12 items, positions 0..n-1, type coerced to "image"|"video", caption defaulted to "").
+- src/app/api/parties/[id]/route.ts: serialize() now maps + sorts `p.media` (by position asc) into `PartyMedia[]` shape with ISO-date createdAt. `db.party.findUnique` include list extended with `media: { orderBy: { position: "asc" } }`.
+- src/screens/create-screen.tsx: removed the old single-cover-preview section. Added: `VIDEO_PRESETS` (3 Pexels CDN clips with Unsplash posters), `MAX_MEDIA=6`, `MediaItem` type, picker-open state, `media` field on initial form state (pre-seeded with `[{ url: COVER_PRESETS[0], type: "image" }]`). New helpers: `addMedia`, `removeMediaAt`, `makeCoverAt`, `syncCoverFromMedia` (always keeps `coverUrl` === `media[0].url`). Replaced cover section with horizontally-scrollable preview tiles (80×80) showing image thumb or video-poster-with-play-overlay, "COVER" tag on index 0, per-tile X-to-remove + "Use as cover" affordance, dashed "+ Add" tile at the end. Added a shadcn Dialog picker showing COVER_PRESETS as 3-col image grid + VIDEO_PRESETS as 3-col video grid (with play overlay + selected checkmark + disabled state at cap). Live preview section now renders `media[0]` (image OR video-with-poster) before falling back to `coverUrl`. Footer preserved (sticky, pb-28 layout).
+- src/screens/detail-screen.tsx: extracted a `MediaGallery` sub-component (keyed by `party.id` so internal state auto-resets on party change — avoids the `setState-in-effect` lint rule). Replaced the single-emoji h-44 hero with an h-56 (224px) scroll-snap-x mandatory + overflow-x-auto carousel. Image slides use `<img object-cover>`; video slides use `<video controls muted loop playsInline preload="metadata" poster={coverUrl if first slide}>`. Fallback to vibe-color bg + emoji centerpiece when `media.length===0 && !coverUrl`. Back button (32px round, bg-black/40) top-left; Share top-right; theme pill bottom-left; spots pill bottom-right — all preserved with z-10. Dot indicator row (centered, top) shows active slide as a wider white dot. Thumbnail strip (56×56 rounded-lg) appears BELOW the gallery when `gallery.length > 1` — clicking a thumbnail calls `scrollToSlide(idx)` for programmatic smooth-scroll jump. Video thumbnails show a play overlay. Loading skeleton updated h-44 → h-56.
+- src/components/vibe/party-card.tsx: imported `Play` from lucide-react. Cover `<img src>` now uses `party.media?.[0]?.url ?? party.coverUrl` (graceful for the list payload which currently returns `media: []`). Added a "▶ Video" purple pill at top-center of cover when `party.media?.some(m => m.type === "video")` — only renders when media array is non-empty (so feed view stays clean).
+- scripts/seed.ts: appended media gallery insertion (cover + next preset + video for party 0) for the first 4 seeded parties. Wrote scripts/backfill-media.ts as a one-shot to backfill existing parties — ran it, 13 media rows inserted across 6 parties (party_rnb_leith got the video).
+- Restarted dev server (the dev server's Turbopack cache had the stale Prisma client module that doesn't hot-reload on `db:push`; deleting `.next` corrupted the Turbopack internal SST files, so used the orchestrator's documented `pkill -9 -f next; rm -f dev.log; setsid -f sh -c 'exec node ...next dev -p 3000 > dev.log 2>&1'` pattern). Server now serves the new schema correctly.
+
+Stage Summary:
+- Prisma: `PartyMedia` model added (cascade-deletes with parent Party); `Party.media` relation; `db:push` clean.
+- Types: `PartyMedia`, `Party.media?`, `PartyCreateInput.media?` exposed.
+- API: list route returns `media: []` per party (small payload); detail route returns full sorted media array; POST route persists media gallery + auto-fills coverUrl from `media[0].url` when omitted. Verified end-to-end with curl: GET /api/parties → `"media":[]` per party ✓; GET /api/parties/[id] → 3 media items (2 images + 1 video) ✓; POST /api/parties with media[] → 201 + persisted 3 rows with correct positions + caption preserved ✓.
+- Create UI: gallery uploader with up to 6 tiles, picker dialog (Dialog from shadcn/ui), cover-is-index-0 invariant, live preview uses `media[0]` directly. Sticky footer + bottom nav layout preserved.
+- Detail UI: 224px scroll-snap carousel with native `<video>` (controls/muted/loop/playsInline/preload=metadata), dot indicator, thumbnail strip with jump-to-slide, emoji+color fallback when no media. Layout/z-index of back/share/theme/spots pills preserved.
+- Party card: cover src falls back through `media[0] → coverUrl`; video badge shows only when media array is present and contains a video (gracefully hidden in feed view).
+- Lint: 0 errors in modified files (1 pre-existing error in music-player.tsx — out of scope per task instructions). tsc: 0 errors in modified files (pre-existing errors in seed-uk.ts, websocket example, music-player.tsx, and skills/ are unrelated).
+- Dev server: running clean, all routes return 200, no compile errors in dev.log.
+- Artifacts: prisma/schema.prisma, src/lib/types.ts, src/app/api/parties/route.ts, src/app/api/parties/[id]/route.ts, src/screens/create-screen.tsx, src/screens/detail-screen.tsx, src/components/vibe/party-card.tsx, scripts/seed.ts, scripts/backfill-media.ts (new).
+
+---
+Task ID: 13 (orchestrator)
+Agent: orchestrator (direct)
+Task: Fix music player + improve bottom nav UI + add party images/videos support.
+
+Work Log:
+- DIAGNOSED music player: All 5 Pixabay CDN URLs returned HTTP 403 (Pixabay blocks hotlinking from non-pixabay.com referrers). That was the root cause of the "broken music player" — audio.play() rejected with a network error, the catch handler called pause() which silently killed the play state.
+- Replaced all 5 tracks with SoundHelix royalty-free MP3 URLs (verified all 8 return HTTP 200). Updated music-tracks.ts with new titles, mood tags, hex colors, durations, and added `formatTime(seconds)` helper for m:ss display.
+- Rebuilt music-player.tsx end-to-end:
+  * MusicPlayerButton: pulse-ring animation while playing, spinning Disc3 icon, intro popup with animated equalizer bars behind the headphones icon.
+  * MusicPlayerBar: NEW features — top-edge progress bar with buffered + played portions, seekable via invisible range input, spinning disc with SVG progress RING around it (color matches track), time display (current / total), mini animated equalizer (4 bars with staggered animation), skip prev/next buttons (in expanded mode), volume slider with track-color gradient fill + mute toggle, "Now" badge on active track in expanded list, auto-advance to next track on end, loading spinner during buffering, "unavailable" tag on error.
+  * Critical bug fixes: removed `crossOrigin="anonymous"` (SoundHelix doesn't send CORS headers — was blocking the load). Removed the `pause()` call inside `audio.play().catch()` (was silently killing user intent on AbortError when src was just set). Added `onCanPlay` handler that retries `audio.play()` if `isPlaying` is true (handles the AbortError race condition cleanly).
+  * queueMicrotask wrap for `setCurrentTime(0)/setDuration(0)/setBuffered(0)/setLoading(true)` resets — keeps the lint `react-hooks/set-state-in-effect` rule happy.
+- Rewrote bottom-nav.tsx with a much more polished design:
+  * Active state: pill background (purple-500/15, 9×12 rounded-2xl) fades in behind the icon, with a tiny glowing top dot (purple-400, 1px, with drop-shadow glow).
+  * Active icon: scales up 110% with a purple drop-shadow filter.
+  * Inactive icons: fade from muted-foreground/80 to foreground on hover, with a subtle bg-white/5 hover pill.
+  * Inbox unread dot: now has a pulsing ping animation (coral, 2.5s loop) on top of the solid dot.
+  * FAB: full redesign — soft purple glow halo behind the disc (blurred), gradient disc (purple-400 → purple-500 → purple-600), inner white/25 highlight gradient, Plus icon rotates 90° on hover, "Host" label underneath in purple-300/80. Ring-4 ring-background for the cutout effect.
+  * Top accent line: now a gradient (transparent → purple-500/80 → transparent) instead of a solid line. Added subtle inner reflection line (white/15) below it.
+  * Shell shadow: dual shadow with purple tint (0_-10px_50px_-12px_rgba(168,85,247,0.25)).
+- DELEGATED party media feature to subagent (Task 13-a): added PartyMedia Prisma model, API endpoints, create-screen media uploader with preset picker (images + Pexels CDN videos), detail-screen swipeable gallery with dot indicator + thumbnail strip, party-card video badge. Subagent completed and verified independently.
+- VERIFIED end-to-end via agent-browser (using network IP 21.0.15.34 since localhost is unreachable from the browser sandbox):
+  * Login → onboarding → home screen renders with new bottom nav (5 tabs, FAB, Explore active in purple). VLM confirmed: "Bottom navigation bar with 5 tabs and a central floating action button... The active tab (Explore) uses a purple accent color for both the icon and text".
+  * Music player: tap button → intro popup with "Play music and explore our app" + "Use earphones 🎧" → click Play music → mini-bar appears above bottom nav with track "Midnight Lo-fi", "Chill" mood, progress bar showing "0:14 / 6:29" (audio actually playing), purple pause button, equalizer animation. VLM confirmed all elements.
+  * Party detail: opened Kabir's BYOB terrace party → media gallery hero with 2 images, dot indicators (2 dots, 1 active), thumbnail strip with "View media 1" / "View media 2" buttons. VLM confirmed: "horizontal media gallery/carousel at the very top... two smaller thumbnail images below... dot indicators (two small dots, one filled/active, one unfilled)".
+  * Create screen: tapped FAB → "Launch a Vibe" screen shows media uploader with "Remove media 1" (pre-selected cover), "Add photo or video" button, "Pick from presets" button. Opened picker → grid of preset photos + videos with purple theme. VLM confirmed: "media selection interface with 6 media slots... PHOTOS at the top... supports both image and video... purple theme is consistent throughout".
+
+Stage Summary:
+- Music player: FIXED. Root cause was 403 on Pixabay hotlinks + crossOrigin attr blocking load + pause() inside catch silently killing intent. New tracks from SoundHelix (all 200 OK), new player UI with progress ring, seek bar, equalizer, skip controls, auto-advance, volume slider.
+- Bottom nav: IMPROVED. Active pill + glowing top dot + icon scale + FAB with halo + gradient top edge + pulsing unread dot. VLM-verified.
+- Party media: SHIPPED. PartyMedia Prisma model + create-screen uploader (6-item cap, preset picker with images + Pexels videos) + detail-screen swipeable gallery (h-56, scroll-snap, dot indicator, thumbnail strip) + party-card video badge. VLM-verified.
+- `bun run lint` clean. Dev server running healthy on port 3000 (process 10536, SID 10523, persistent across bash sessions via setsid -f).

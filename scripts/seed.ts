@@ -267,6 +267,44 @@ async function seed() {
       },
     });
     partyIds[i] = created.id;
+
+    // Attach a media gallery to the first few seeded parties so the detail
+    // screen has something to show off (cover photo + an extra shot + a
+    // short Pexels clip for variety). Skipped for parties past index 3 to
+    // keep the seed fast and the demo varied.
+    if (i < 4) {
+      const gallery: Array<{
+        url: string;
+        type: "image" | "video";
+        caption: string;
+        position: number;
+      }> = [
+        {
+          url: COVERS[p.coverIndex],
+          type: "image",
+          caption: "",
+          position: 0,
+        },
+        {
+          url: COVERS[(p.coverIndex + 1) % COVERS.length],
+          type: "image",
+          caption: "",
+          position: 1,
+        },
+      ];
+      // Add a video clip to one of the seeded parties (the techno boat one).
+      if (i === 0) {
+        gallery.push({
+          url: "https://videos.pexels.com/video-files/2022395/2022395-uhd_3840_2160_24fps.mp4",
+          type: "video",
+          caption: "Vibe from last session",
+          position: 2,
+        });
+      }
+      await db.partyMedia.createMany({
+        data: gallery.map((m) => ({ ...m, partyId: created.id })),
+      });
+    }
   }
 
   const youId = userIds[5];

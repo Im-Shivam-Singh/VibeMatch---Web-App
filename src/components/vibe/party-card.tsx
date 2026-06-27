@@ -9,6 +9,7 @@ import {
   Sparkles,
   Heart,
   Flame,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -46,6 +47,17 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
   const toggleSaved = useAppStore((s) => s.toggleSaved);
 
   const guests = pickGuestAvatars(party.id, Math.min(5, party.guestCount));
+
+  // Cover src — prefer the first gallery item (in case the list payload ever
+  // includes media), else fall back to the legacy coverUrl. The list API
+  // currently returns `media: []` so this effectively just uses coverUrl.
+  const coverSrc = party.media?.[0]?.url ?? party.coverUrl;
+  // Show a "▶ Video" badge only when the full media array is present and
+  // contains at least one video clip. The list payload omits media entirely,
+  // so this gracefully no-ops on the feed view (badge only shows up after the
+  // user opens detail, when applicable, or if media is later included).
+  const hasVideo =
+    Array.isArray(party.media) && party.media.some((m) => m.type === "video");
 
   const onSave = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -86,15 +98,25 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
 
       {/* Cover */}
       <div className="relative aspect-[16/10] w-full overflow-hidden">
-        {party.coverUrl ? (
+        {coverSrc ? (
           <img
-            src={party.coverUrl}
+            src={coverSrc}
             alt={party.title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
           <div className="h-full w-full bg-amber-400/15" />
+        )}
+
+        {/* Video badge — purple pill at top-center when any media is a video.
+            Only shown when the list payload includes the media array (which
+            it currently doesn't, so this is a forward-looking affordance). */}
+        {hasVideo && (
+          <span className="absolute left-1/2 top-3 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-purple-500/90 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
+            <Play className="h-3 w-3 fill-white" strokeWidth={2.5} />
+            Video
+          </span>
         )}
 
         {/* Top chips */}

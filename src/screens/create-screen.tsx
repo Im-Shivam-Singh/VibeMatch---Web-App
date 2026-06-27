@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ImagePlus, CalendarDays, Clock, IndianRupee, Users, Check, Sparkles, ShieldCheck, Info } from "lucide-react";
+import { ChevronLeft, ImagePlus, Video, Play, X, CalendarDays, Clock, IndianRupee, Users, Check, Sparkles, ShieldCheck, Info } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -19,6 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const COVER_PRESETS = [
@@ -29,6 +36,30 @@ const COVER_PRESETS = [
   "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=800&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1483452389744-eaaf621f05cb?w=800&q=80&auto=format&fit=crop",
 ];
+
+// Preset stock videos from Pexels CDN — used in the media picker so hosts
+// can attach a short clip alongside photos without needing to upload.
+const VIDEO_PRESETS = [
+  {
+    url: "https://videos.pexels.com/video-files/2022395/2022395-uhd_3840_2160_24fps.mp4",
+    poster:
+      "https://images.unsplash.com/photo-1571266028243-d220c9c3b31e?w=400&q=60&auto=format&fit=crop",
+  },
+  {
+    url: "https://videos.pexels.com/video-files/2795750/2795750-uhd_3840_2160_30fps.mp4",
+    poster:
+      "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=60&auto=format&fit=crop",
+  },
+  {
+    url: "https://videos.pexels.com/video-files/4234119/4234119-hd_1920_1080_30fps.mp4",
+    poster:
+      "https://images.unsplash.com/photo-1496337589254-7e19d01cec44?w=400&q=60&auto=format&fit=crop",
+  },
+];
+
+const MAX_MEDIA = 6;
+
+type MediaItem = { url: string; type: "image" | "video"; caption?: string };
 
 const ENTRY_TYPES = [
   { label: "Free", value: 0 },
@@ -55,11 +86,15 @@ export function CreateScreen() {
     description: "",
     hostName: currentUser?.name || "You",
     coverUrl: COVER_PRESETS[0],
+    // Pre-seed the gallery with the first preset so the live preview + the
+    // detail-screen carousel always have something to show.
+    media: [{ url: COVER_PRESETS[0], type: "image" }],
     securityBooked: false,
     securityFee: 0,
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Security fee is city-dependent: £40-60 for UK, ₹800-1500 for India.
   // We pick the midpoint of the range as the default when the host toggles
@@ -83,6 +118,52 @@ export function CreateScreen() {
         ? f.vibes.filter((x) => x !== v)
         : [...f.vibes, v],
     }));
+
+  // ── Media gallery helpers ────────────────────────────────────────────
+  // The first item in `media` is always the cover (drives the legacy
+  // coverUrl field + party-card rendering). Adding/removing reorders and
+  // re-syncs coverUrl so the two never drift.
+  const media: MediaItem[] = form.media ?? [];
+  const mediaFull = media.length;
+
+  const syncCoverFromMedia = (items: MediaItem[]) => ({
+    coverUrl: items.length > 0 ? items[0].url : form.coverUrl,
+    media: items,
+  });
+
+  const addMedia = (item: MediaItem) => {
+    setForm((f) => {
+      const current = f.media ?? [];
+      if (current.length >= MAX_MEDIA) {
+        toast.error(`Up to ${MAX_MEDIA} photos or videos`);
+        return f;
+      }
+      // Skip exact-duplicate URLs (e.g. tapping the same preset twice).
+      if (current.some((m) => m.url === item.url)) return f;
+      const next = [...current, item];
+      return { ...f, ...syncCoverFromMedia(next) };
+    });
+  };
+
+  const removeMediaAt = (index: number) => {
+    setForm((f) => {
+      const current = f.media ?? [];
+      const next = current.filter((_, i) => i !== index);
+      return { ...f, ...syncCoverFromMedia(next) };
+    });
+  };
+
+  const makeCoverAt = (index: number) => {
+    setForm((f) => {
+      const current = f.media ?? [];
+      if (index <= 0 || index >= current.length) return f;
+      const next = [
+        current[index],
+        ...current.filter((_, i) => i !== index),
+      ];
+      return { ...f, ...syncCoverFromMedia(next) };
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: (input: PartyCreateInput) => api.createParty(input),
@@ -140,46 +221,98 @@ export function CreateScreen() {
 
       <div className="fancy-scrollbar flex-1 overflow-y-auto p-4">
         <div className="glass-strong rounded-3xl border border-purple-400/40 p-4 space-y-6">
-          {/* Cover preview */}
+          {/* Photos & videos gallery uploader */}
           <section className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Cover
-            </Label>
-            <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-purple-400/40">
-              {form.coverUrl && (
-                <img
-                  src={form.coverUrl}
-                  alt="Cover preview"
-                  className="h-full w-full object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-purple-400/10" />
-              <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full glass border border-white/10 px-2 py-1 text-[10px] text-foreground backdrop-blur">
-                <ImagePlus className="h-3 w-3 text-purple-300" /> Tap a preset below
-              </div>
+            <div className="flex items-baseline justify-between gap-2">
+              <Label className="text-xs uppercase tracking-wide text-white flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
+                Photos &amp; videos
+              </Label>
+              <span className="text-[10px] text-muted-foreground">
+                {mediaFull}/{MAX_MEDIA} · first one becomes the cover
+              </span>
             </div>
-            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
-              {COVER_PRESETS.map((url) => (
-                <button
-                  key={url}
-                  onClick={() => set("coverUrl", url)}
-                  className={cn(
-                    "relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border transition active:scale-95",
-                    form.coverUrl === url
-                      ? "border-purple-400 ring-2 ring-purple-400/50"
-                      : "border-white/10 hover:border-purple-400/40",
-                  )}
+
+            {/* Preview tiles — horizontally scrollable list with add tile at end */}
+            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {media.map((m, i) => (
+                <div
+                  key={`${m.url}-${i}`}
+                  className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-purple-400/30"
                 >
-                  <img src={url} alt="" className="h-full w-full object-cover" />
-                  {form.coverUrl === url && (
-                    <span className="absolute inset-0 flex items-center justify-center bg-purple-400/30">
-                      <Check className="h-4 w-4 text-white" />
+                  {m.type === "image" ? (
+                    <img
+                      src={m.url}
+                      alt={i === 0 ? "Cover" : `Media ${i + 1}`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <>
+                      <img
+                        src={
+                          VIDEO_PRESETS.find((v) => v.url === m.url)?.poster ||
+                          m.url
+                        }
+                        alt={`Video ${i + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                        <Play className="h-5 w-5 fill-white text-white" />
+                      </span>
+                    </>
+                  )}
+                  {i === 0 && (
+                    <span className="absolute left-1 top-1 rounded-md bg-purple-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      COVER
                     </span>
                   )}
-                </button>
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={() => removeMediaAt(i)}
+                    aria-label={`Remove media ${i + 1}`}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-coral/80 active:scale-90"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  {/* Make-cover button (only for non-first items) */}
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => makeCoverAt(i)}
+                      className="absolute bottom-1 right-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-white/90 transition hover:bg-purple-500/80 active:scale-95"
+                    >
+                      Use as cover
+                    </button>
+                  )}
+                </div>
               ))}
+
+              {/* Add tile */}
+              {mediaFull < MAX_MEDIA && (
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-purple-400/45 bg-purple-400/5 text-purple-300 transition hover:border-purple-400/80 hover:bg-purple-400/10 active:scale-95"
+                  aria-label="Add photo or video"
+                >
+                  <ImagePlus className="h-5 w-5" />
+                  <span className="text-[10px] font-semibold">Add</span>
+                </button>
+              )}
             </div>
+
+            {/* Quick inline picker button (secondary affordance) */}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-400/10 px-3 py-1.5 text-[11px] font-medium text-purple-200 transition hover:bg-purple-400/15 active:scale-95"
+            >
+              <Sparkles className="h-3 w-3" />
+              Pick from presets
+            </button>
           </section>
 
           {/* Title */}
@@ -538,15 +671,50 @@ export function CreateScreen() {
             </Label>
             <div className="overflow-hidden rounded-2xl glass border border-purple-400/40">
               <div className="relative aspect-[16/9] w-full">
-                {form.coverUrl ? (
-                  <img
-                    src={form.coverUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full bg-purple-400 opacity-60" />
-                )}
+                {(() => {
+                  const first = media[0];
+                  if (first?.type === "image" && first.url) {
+                    return (
+                      <img
+                        src={first.url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    );
+                  }
+                  if (first?.type === "video") {
+                    const poster =
+                      VIDEO_PRESETS.find((v) => v.url === first.url)?.poster ||
+                      form.coverUrl ||
+                      "";
+                    return (
+                      <>
+                        {poster ? (
+                          <img
+                            src={poster}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-purple-400/40" />
+                        )}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play className="h-7 w-7 fill-white text-white" />
+                        </span>
+                      </>
+                    );
+                  }
+                  if (form.coverUrl) {
+                    return (
+                      <img
+                        src={form.coverUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    );
+                  }
+                  return <div className="h-full w-full bg-purple-400 opacity-60" />;
+                })()}
                 <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
                 <span className="absolute right-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold text-purple-400 backdrop-blur">
                   {formatFee(form.fee)}
@@ -606,6 +774,122 @@ export function CreateScreen() {
           )}
         </Button>
       </footer>
+
+      {/* Media picker dialog — preset cover images + stock videos */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent
+          showCloseButton
+          className="max-h-[85vh] w-full max-w-[440px] gap-3 rounded-3xl border-purple-400/20 bg-card/95 p-5 backdrop-blur-xl"
+        >
+          <DialogHeader className="text-left">
+            <DialogTitle className="flex items-center gap-2 font-display text-base">
+              <ImagePlus className="h-4 w-4 text-purple-400" />
+              Add photo or video
+            </DialogTitle>
+            <DialogDescription className="text-[11px] text-muted-foreground">
+              Pick from presets · {mediaFull}/{MAX_MEDIA} added
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto fancy-scrollbar pr-1">
+            {/* Preset cover images */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-purple-300">
+                <ImagePlus className="h-3 w-3" /> Photos
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {COVER_PRESETS.map((url) => {
+                  const selected = media.some((m) => m.url === url);
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => {
+                        addMedia({ url, type: "image" });
+                      }}
+                      disabled={selected || mediaFull >= MAX_MEDIA}
+                      className={cn(
+                        "relative aspect-square overflow-hidden rounded-lg border transition active:scale-95",
+                        selected
+                          ? "border-purple-400 ring-2 ring-purple-400/50"
+                          : "border-white/10 hover:border-purple-400/40",
+                        mediaFull >= MAX_MEDIA && !selected && "opacity-40",
+                      )}
+                    >
+                      <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      {selected && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-purple-400/40">
+                          <Check className="h-4 w-4 text-white" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Preset stock videos */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-purple-300">
+                <Video className="h-3 w-3" /> Short clips
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {VIDEO_PRESETS.map((v) => {
+                  const selected = media.some((m) => m.url === v.url);
+                  return (
+                    <button
+                      key={v.url}
+                      type="button"
+                      onClick={() => addMedia({ url: v.url, type: "video" })}
+                      disabled={selected || mediaFull >= MAX_MEDIA}
+                      className={cn(
+                        "relative aspect-square overflow-hidden rounded-lg border transition active:scale-95",
+                        selected
+                          ? "border-purple-400 ring-2 ring-purple-400/50"
+                          : "border-white/10 hover:border-purple-400/40",
+                        mediaFull >= MAX_MEDIA && !selected && "opacity-40",
+                      )}
+                    >
+                      <img
+                        src={v.poster}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                        <Play className="h-5 w-5 fill-white text-white" />
+                      </span>
+                      {selected && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-purple-400/40">
+                          <Check className="h-4 w-4 text-white" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Videos play inline on the party detail screen. First media item
+                becomes the cover photo in the feed.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="text-[11px] text-muted-foreground">
+              {mediaFull} of {MAX_MEDIA} used
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setPickerOpen(false)}
+              className="h-9 rounded-xl bg-purple-400 px-4 text-xs font-semibold text-black hover:bg-purple-300"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <style>{`
         .vibe-slider { -webkit-appearance: none; appearance: none; border-radius: 999px; outline: none; }

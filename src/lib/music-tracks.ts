@@ -1,7 +1,8 @@
 // Ambient, copyright-free music tracks for the VibeMatch in-app music player.
-// All tracks are sourced from Pixabay's royalty-free music collection (CC0),
-// so there are no licensing issues — users can vibe to calm beats while
-// browsing parties, which increases dwell time and booking conversion.
+// All tracks are SoundHelix's royalty-free electronic instrumental cuts
+// (https://www.soundhelix.com) — CC-friendly, hotlink-safe, and reliable.
+// Users can vibe to calm beats while browsing parties, which increases
+// dwell time and booking conversion.
 
 export interface MusicTrack {
   id: string;
@@ -11,7 +12,7 @@ export interface MusicTrack {
   emoji: string;
   color: string; // hex for the track accent
   audioUrl: string; // direct .mp3 URL
-  duration: string; // "3:42" display label
+  duration: string; // "3:42" display label (approximate)
 }
 
 export const MUSIC_TRACKS: MusicTrack[] = [
@@ -21,10 +22,9 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artist: "VibeMatch Radio",
     mood: "Chill",
     emoji: "🌙",
-    color: "#7f77dd",
-    audioUrl:
-      "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3",
-    duration: "2:14",
+    color: "#a78bfa",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+    duration: "5:22",
   },
   {
     id: "deep-house",
@@ -32,10 +32,9 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artist: "VibeMatch Radio",
     mood: "Party",
     emoji: "🎛️",
-    color: "#d85a30",
-    audioUrl:
-      "https://cdn.pixabay.com/download/audio/2022/03/15/audio_1a8ea24dMP3.mp3",
-    duration: "3:05",
+    color: "#f97316",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    duration: "6:10",
   },
   {
     id: "ambient-focus",
@@ -43,10 +42,9 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artist: "VibeMatch Radio",
     mood: "Focus",
     emoji: "✨",
-    color: "#1d9e75",
-    audioUrl:
-      "https://cdn.pixabay.com/download/audio/2022/08/02/audio_884f8da1.mp3",
-    duration: "4:00",
+    color: "#2dd4bf",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
+    duration: "5:15",
   },
   {
     id: "chill-hop",
@@ -54,10 +52,9 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artist: "VibeMatch Radio",
     mood: "Chill",
     emoji: "🎧",
-    color: "#ef9f27",
-    audioUrl:
-      "https://cdn.pixabay.com/download/audio/2023/01/30/audio_946ae1de94.mp3",
-    duration: "2:30",
+    color: "#fbbf24",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+    duration: "5:35",
   },
   {
     id: "party-vibe",
@@ -65,14 +62,21 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artist: "VibeMatch Radio",
     mood: "Party",
     emoji: "🎉",
-    color: "#534ab7",
-    audioUrl:
-      "https://cdn.pixabay.com/download/audio/2022/10/25/audio_946bc6e5.mp3",
-    duration: "2:45",
+    color: "#ec4899",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+    duration: "5:01",
   },
 ];
 
 export function getTrack(id: string | null | undefined): MusicTrack | null {
   if (!id) return MUSIC_TRACKS[0];
   return MUSIC_TRACKS.find((t) => t.id === id) ?? MUSIC_TRACKS[0];
+}
+
+// Pretty-print seconds as m:ss
+export function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }

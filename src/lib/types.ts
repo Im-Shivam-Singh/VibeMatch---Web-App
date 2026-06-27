@@ -77,6 +77,16 @@ export const PROFESSIONS = [
 ] as const;
 export type Profession = (typeof PROFESSIONS)[number];
 
+export interface PartyMedia {
+  id: string;
+  partyId: string;
+  url: string;
+  type: "image" | "video";
+  caption: string;
+  position: number;
+  createdAt: string;
+}
+
 export interface Party {
   id: string;
   title: string;
@@ -104,6 +114,9 @@ export interface Party {
   securityStatus?: string;
   locationRevealAt?: string | null; // ISO datetime when exact address drops
   createdAt: string;
+  // Media gallery — full list (image + video). Empty in list payloads,
+  // populated on the GET /api/parties/[id] route.
+  media?: PartyMedia[];
 }
 
 export interface PartyCreateInput {
@@ -122,6 +135,7 @@ export interface PartyCreateInput {
   lng?: number;
   securityBooked?: boolean;
   securityFee?: number;
+  media?: { url: string; type: "image" | "video"; caption?: string }[];
 }
 
 export interface JoinRequest {
