@@ -100,6 +100,32 @@ export async function POST(req: NextRequest) {
     data: { guestCount: { increment: 1 } },
   });
 
+  // ── Post "Payment confirmed" system message into the 1:1 host↔guest thread
+  // The chat is locked (no messages allowed) between request-creation and
+  // payment. This system message is the unlock signal — it tells both sides
+  // the chat is now open, and the chat UI uses the `paid` flag (computed in
+  // GET /api/threads/[id]) to re-enable the composer.
+  const joinRequest = await db.joinRequest.findFirst({
+    where: { partyId, requesterId: userId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (joinRequest?.threadId && party.hostId) {
+    await db.message.create({
+      data: {
+        threadId: joinRequest.threadId,
+        senderId: party.hostId,
+        receiverId: userId,
+        content: "✅ Payment confirmed — chat unlocked. Say hi to your host 👋",
+        kind: "system",
+        requestId: joinRequest.id,
+      },
+    });
+    await db.chatThread.update({
+      where: { id: joinRequest.threadId },
+      data: { updatedAt: new Date() },
+    });
+  }
+
   // ── Unlock the group chat for this party + add the paying guest ──
   // The group chat is the "active event" room where all paid guests + the
   // host coordinate. It's created on the first payment and the guest is

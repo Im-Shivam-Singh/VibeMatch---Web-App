@@ -88,6 +88,18 @@ export const api = {
       thread: ChatThread;
       otherUser: VibeUser | null;
       messages: ChatMessage[];
+      request?: {
+        id: string;
+        partyId: string;
+        requesterId?: string | null;
+        requesterName: string;
+        status: "pending" | "accepted" | "rejected";
+        threadId?: string | null;
+        introVideoUrl?: string | null;
+        introVideoPoster?: string | null;
+        createdAt: string;
+      } | null;
+      paid?: boolean;
     }>(`/api/threads/${id}?userId=${userId}`),
   ensureThread: (userAId: string, userBId: string, partyId?: string) =>
     jfetch<{ threadId: string; created: boolean }>(`/api/threads`, {

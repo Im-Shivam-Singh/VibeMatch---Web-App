@@ -38,6 +38,46 @@ export async function GET(
     : thread.userBId;
   const other = thread.userAId === otherId ? thread.userA : thread.userB;
 
+  // ── Purchase-flow context ──────────────────────────────────────────
+  // Look up the JoinRequest linked to this thread (if any). The chat UI uses
+  // this to lock the composer until the host approves AND the guest pays —
+  // "no other msg is allowed until payment is processed".
+  let request: any = null;
+  let paid = false;
+  if (thread.partyId) {
+    const req = await db.joinRequest.findFirst({
+      where: { threadId: thread.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (req) {
+      request = {
+        id: req.id,
+        partyId: req.partyId,
+        requesterId: req.requesterId,
+        requesterName: req.requesterName,
+        status: req.status,
+        threadId: req.threadId,
+        introVideoUrl: req.introVideoUrl,
+        introVideoPoster: req.introVideoPoster,
+        createdAt: req.createdAt.toISOString(),
+        updatedAt: req.updatedAt.toISOString(),
+      };
+      // "Paid" = there's a paid Order for this party by the requesting guest.
+      // That's the unlock signal — once true, the 1:1 chat opens for both sides.
+      if (req.requesterId) {
+        const paidOrder = await db.order.findFirst({
+          where: {
+            partyId: req.partyId,
+            userId: req.requesterId,
+            status: "paid",
+          },
+          select: { id: true },
+        });
+        paid = !!paidOrder;
+      }
+    }
+  }
+
   return NextResponse.json({
     thread: {
       id: thread.id,
@@ -67,5 +107,8 @@ export async function GET(
       ...m,
       createdAt: m.createdAt.toISOString(),
     })),
+    // Purchase-flow context — drives the composer lock + status banner.
+    request,
+    paid,
   });
 }

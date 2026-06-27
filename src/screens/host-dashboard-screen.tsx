@@ -11,6 +11,7 @@ import {
   ScanLine,
   Star,
   ShieldCheck,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -49,6 +50,7 @@ export function HostDashboardScreen() {
   const selectedPartyId = useAppStore((s) => s.selectedPartyId);
   const goBack = useAppStore((s) => s.goBack);
   const setScreen = useAppStore((s) => s.setScreen);
+  const setSelectedPartyId = useAppStore((s) => s.setSelectedPartyId);
 
   // ── Data queries ───────────────────────────────────────────────
   const partyQuery = useQuery({
@@ -445,6 +447,22 @@ export function HostDashboardScreen() {
           <ScanLine className="h-5 w-5" strokeWidth={2.5} />
           Scan guests in ▦
         </button>
+
+        {/* ── CTA: Open group chat (only when unlocked) ──────────────
+            Once the first guest pays, the group chat unlocks. The host can
+            jump straight into coordination with all paid guests from here. */}
+        {party.groupChatEnabled && (
+          <button
+            onClick={() => {
+              setSelectedPartyId(party.id);
+              setScreen("group-chat");
+            }}
+            className="press-feedback glass flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white ring-1 ring-teal-500/40 transition hover:bg-teal-500/10 hover:text-teal-200"
+          >
+            <MessageCircle className="h-4 w-4 text-teal-300" />
+            Open group chat · {confirmedGuests} paid
+          </button>
+        )}
       </div>
     </div>
   );

@@ -93,6 +93,42 @@ export function ChatScreen() {
   // to the payment screen with the right party selected.
   const partyId = data?.thread?.partyId ?? null;
 
+  // ── Purchase-flow lock ──────────────────────────────────────────────
+  // "When a person sends a request to the host, no other msg is allowed
+  //  until payment is processed." The composer is locked for BOTH the host
+  // and the guest until the guest pays. The `paid` flag is computed server-
+  // side (GET /api/threads/[id]) by checking for a paid Order on this party
+  // by the requesting guest. Once paid, the lock lifts and a "✅ Payment
+  // confirmed" system message appears in the thread.
+  const request = data?.request ?? null;
+  const paid = data?.paid ?? false;
+  const hasRequest = !!request;
+  const requestStatus = request?.status;
+  const composerLocked = hasRequest && !paid;
+
+  // Contextual lock hint shown above the composer. `null` when unlocked.
+  const lockHint = !hasRequest || paid
+    ? null
+    : requestStatus === "pending"
+      ? {
+          icon: Clock,
+          text: "Waiting for host approval — chat unlocks after payment",
+          tint: "amber" as const,
+        }
+      : requestStatus === "accepted"
+        ? {
+            icon: CreditCard,
+            text: "Pay to unlock chat — tap the payment card above",
+            tint: "teal" as const,
+          }
+        : requestStatus === "rejected"
+          ? {
+              icon: Lock,
+              text: "Request declined — chat locked",
+              tint: "rose" as const,
+            }
+          : null;
+
   // live messages via socket
   useEffect(() => {
     if (!socket) return;
@@ -146,13 +182,14 @@ export function ChatScreen() {
 
   const send = useCallback(
     (content?: string) => {
+      if (composerLocked) return;
       const c = (content ?? text).trim();
       if (!c || !currentUser || !other) return;
       setText("");
       setShowEmoji(false);
       sendMutation.mutate(c);
     },
-    [text, currentUser, other, sendMutation],
+    [text, currentUser, other, sendMutation, composerLocked],
   );
 
   const react = useCallback((messageId: string, emoji: string) => {
@@ -365,6 +402,9 @@ export function ChatScreen() {
 
               // ── Payment CTA: WhatsApp-style "Pay {amount}" card ──────────
               if (kind === "payment") {
+                // Once the guest has paid for this party, render the CTA in a
+                // "✓ Paid" state (non-clickable) so the chat reflects reality.
+                const isPaid = paid && m.requestId === request?.id;
                 return (
                   <div
                     key={m.id}
@@ -373,39 +413,64 @@ export function ChatScreen() {
                       mine ? "justify-start" : "justify-end",
                     )}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!partyId) {
-                          toast.error("Couldn't open payment");
-                          return;
-                        }
-                        setSelectedPartyId(partyId);
-                        setScreen("payment");
-                      }}
-                      className="w-[78%] rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/15 to-purple-500/10 p-3.5 text-left transition active:scale-[0.99] hover:border-teal-400/70"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
-                          <CreditCard className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-teal-300">
-                            Payment approved
-                          </p>
-                          <p className="truncate text-sm font-semibold text-foreground">
-                            {m.content}
-                          </p>
+                    {isPaid ? (
+                      <div className="w-[78%] rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/15 to-purple-500/10 p-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
+                            <Check className="h-4 w-4" strokeWidth={3} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-300">
+                              Payment confirmed
+                            </p>
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {m.content}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
+                            ✓ Paid
+                          </span>
                         </div>
-                        <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
-                          Pay
-                        </span>
+                        <p className="mt-2 flex items-center gap-1 text-[10px] text-teal-300/80">
+                          <Check className="h-2.5 w-2.5" /> Spot locked · group
+                          chat unlocked
+                        </p>
                       </div>
-                      <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Lock className="h-2.5 w-2.5" /> Tap to pay · spot locks
-                        after checkout
-                      </p>
-                    </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!partyId) {
+                            toast.error("Couldn't open payment");
+                            return;
+                          }
+                          setSelectedPartyId(partyId);
+                          setScreen("payment");
+                        }}
+                        className="w-[78%] rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/15 to-purple-500/10 p-3.5 text-left transition active:scale-[0.99] hover:border-teal-400/70"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
+                            <CreditCard className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-300">
+                              Payment approved
+                            </p>
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {m.content}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
+                            Pay
+                          </span>
+                        </div>
+                        <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Lock className="h-2.5 w-2.5" /> Tap to pay · spot locks
+                          after checkout
+                        </p>
+                      </button>
+                    )}
                   </div>
                 );
               }
@@ -557,8 +622,13 @@ export function ChatScreen() {
 
       {/* Composer */}
       <footer className="relative border-t border-white/10 glass-strong px-2 py-2 safe-bottom">
-        {/* Quick reply suggestions (only when input is empty) */}
-        {!text.trim() && messages.length < 6 && (
+        {/* Quick reply suggestions — shown when the conversation is short
+            AND the composer is unlocked. NOTE: we intentionally do NOT tie
+            this to `!text.trim()` — that caused the input to jump up/down
+            as the user typed (the row appeared/disappeared on every
+            keystroke). Keeping it stable fixes the "input moves with text"
+            bug. */}
+        {!composerLocked && messages.length < 6 && (
           <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-1">
             {QUICK_REPLIES.map((q) => (
               <button
@@ -571,7 +641,7 @@ export function ChatScreen() {
             ))}
           </div>
         )}
-        {showEmoji && (
+        {showEmoji && !composerLocked && (
           <div className="absolute inset-x-2 bottom-full mb-2 flex gap-2 rounded-2xl glass-strong p-2 ring-1 ring-white/10">
             {QUICK_EMOJIS.map((e) => (
               <button
@@ -587,14 +657,41 @@ export function ChatScreen() {
             ))}
           </div>
         )}
+
+        {/* Lock hint banner — shown above the input row when the composer
+            is locked (pre-payment). Gives the user a clear reason + next step. */}
+        {lockHint && (
+          <div
+            className={cn(
+              "mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium ring-1",
+              lockHint.tint === "amber" &&
+                "bg-amber-500/10 text-amber-300 ring-amber-500/30",
+              lockHint.tint === "teal" &&
+                "bg-teal-500/10 text-teal-300 ring-teal-500/30",
+              lockHint.tint === "rose" &&
+                "bg-rose-500/10 text-rose-300 ring-rose-500/30",
+            )}
+            role="status"
+          >
+            <lockHint.icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 leading-tight">{lockHint.text}</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowEmoji((s) => !s)}
+            disabled={composerLocked}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full transition",
-              showEmoji ? "bg-purple-500/15 text-purple-300" : "text-muted-foreground hover:bg-white/10 hover:text-white",
+              composerLocked
+                ? "cursor-not-allowed text-muted-foreground/40"
+                : showEmoji
+                  ? "bg-purple-500/15 text-purple-300"
+                  : "text-muted-foreground hover:bg-white/10 hover:text-white",
             )}
             aria-label="Emoji"
+            aria-disabled={composerLocked}
           >
             <Smile className="h-5 w-5" />
           </button>
@@ -607,14 +704,23 @@ export function ChatScreen() {
                 send();
               }
             }}
-            placeholder={`Message ${other.name.split(" ")[0]}…`}
-            className="h-10 flex-1 rounded-full border-white/10 bg-card focus-visible:ring-2 focus-visible:ring-purple-500/60 focus-visible:border-purple-500"
+            disabled={composerLocked}
+            placeholder={
+              composerLocked
+                ? "Chat locked until payment"
+                : `Message ${other.name.split(" ")[0]}…`
+            }
+            className={cn(
+              "h-10 flex-1 rounded-full border-white/10 bg-card focus-visible:ring-2 focus-visible:ring-purple-500/60 focus-visible:border-purple-500",
+              composerLocked && "cursor-not-allowed opacity-60",
+            )}
           />
           <button
             onClick={() => send()}
-            disabled={!text.trim()}
+            disabled={composerLocked || !text.trim()}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500 text-black transition active:scale-90 disabled:opacity-40 disabled:shadow-none"
             aria-label="Send"
+            aria-disabled={composerLocked || !text.trim()}
           >
             <Send className="h-4 w-4" />
           </button>
