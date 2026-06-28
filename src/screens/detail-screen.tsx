@@ -42,7 +42,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { cn, formatLocation } from "@/lib/utils";
 
 // Hero background per first vibe — deep tinted colors from the spec
 // (R&B/purple → #1a1035, Games/teal → #0d1f2d, Bollywood/green → #1a2410).
@@ -395,7 +395,7 @@ export function DetailScreen() {
                 text={`${formatDateLabel(party.date)} · ${formatTime(party.time)}`}
               />
               <MetaCell emoji="🕑" text={`Ends ~${formatTime(endTime)}`} />
-              <MetaCell emoji="📍" text={`${party.area}, ${party.city}`} />
+              <MetaCell emoji="📍" text={formatLocation(party.area, party.city)} />
               <MetaCell emoji="👥" text={`Max ${party.maxGuests} guests`} />
             </section>
 

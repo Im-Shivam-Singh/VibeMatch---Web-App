@@ -31,7 +31,7 @@ import {
 } from "@/lib/types";
 import { EmptyState } from "@/components/vibe/empty-state";
 import { MusicPlayerButton } from "@/components/vibe/music-player";
-import { cn } from "@/lib/utils";
+import { cn, formatLocation } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -513,7 +513,7 @@ function PartyCardNew({
           </span>
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
-          📅 {formatDateLabel(party.date)} · {formatTime(party.time)} · 📍 {party.area}
+          📅 {formatDateLabel(party.date)} · {formatTime(party.time)} · 📍 {formatLocation(party.area, party.city)}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {vibes.map((v) => (

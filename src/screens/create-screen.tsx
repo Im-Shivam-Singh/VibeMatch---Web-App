@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, formatLocation } from "@/lib/utils";
 
 const COVER_PRESETS = [
   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80&auto=format&fit=crop",
@@ -974,7 +974,7 @@ export function CreateScreen() {
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {formatDateLabel(form.date)} · {formatTime(form.time)} ·{" "}
-                  {form.area || "Area"}, {form.city}
+                  {formatLocation(form.area || "Area", form.city)}
                 </p>
                 {form.vibes.length > 0 && (
                   <div className="flex flex-wrap gap-1">
