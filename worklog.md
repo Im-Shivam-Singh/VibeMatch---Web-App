@@ -1885,3 +1885,28 @@ Stage Summary:
 - EAS Build configured for Android (APK/AAB) and iOS (simulator/IPA)
 - GitHub Actions CI/CD with email notification support
 - Code pushed to GitHub: https://github.com/Im-Shivam-Singh/VibeMatch-Native
+
+---
+Task ID: session-2
+Agent: orchestrator
+Task: Fix app reset issue, create GitHub Actions for Android/iOS builds, verify web app
+
+Work Log:
+- Checked current project state: database had 6 parties, 8 users, but 0 join requests (root cause of "app reset")
+- Re-seeded database with 21 join requests across all parties (pending + accepted statuses)
+- Added 8 reviews across parties
+- Created native app project at `/home/z/my-project-native` via subagent (React Native + Expo)
+- Native app pushed to GitHub: https://github.com/Im-Shivam-Singh/VibeMatch-Native
+- EAS Build configured for Android (APK/AAB) and iOS builds
+- GitHub Actions workflow created for automated builds with email notifications
+- Verified web app with agent-browser: all screens working correctly
+- Fixed location duplication bug (formatLocation utility)
+- Fixed hardcoded ₹ currency in create screen (now uses currencyForCity)
+- Pushed web app fixes to GitHub: https://github.com/Im-Shivam-Singh/my-project
+
+Stage Summary:
+- Database re-seeded with 21 join requests, 8 reviews - host approval and insights working again
+- Native app repo created with EAS Build + GitHub Actions for Android/iOS
+- Email notification configured for build completion (WhatsApp not feasible via CI, noted in README)
+- Web app bugs fixed: location duplication, currency hardcoding
+- Both repos pushed to GitHub with proper commit messages
