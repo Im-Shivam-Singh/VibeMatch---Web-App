@@ -11,7 +11,7 @@ import {
   Flame,
   Play,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatLocation } from "@/lib/utils";
 import {
   formatDateLabel,
   formatFee,
@@ -191,7 +191,7 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12px]">
           <Meta icon={<MapPin className="h-3.5 w-3.5 text-amber-400" />}>
             <span className="truncate">
-              {party.area}, {party.city}
+              {formatLocation(party.area, party.city)}
             </span>
           </Meta>
           <Meta icon={<Calendar className="h-3.5 w-3.5 text-amber-400" />}>

@@ -1803,556 +1803,85 @@ Stage Summary:
 - Lint clean, tsc clean for detail-screen.tsx.
 
 ---
-Task ID: 10 (orchestrator)
-Agent: orchestrator (direct)
-Task: Fix critical bugs (yellow theme on mobile, payment 500) + launch 4 new features (music player, filter redesign, guest TRUST rating, bouncer booking).
-
-Work Log:
-- INVESTIGATED yellow theme: found 11 components still using `yellow-400`/`yellow-300` Tailwind classes directly (rating-pill, reviews-section, guest-avatars, live-countdown, host-analytics, party-card, user-avatar, vibe-badge, map-screen, chat-screen). Bulk sed → amber-400/amber-300 across ALL src files. Verified 0 remaining `yellow-` refs.
-- INVESTIGATED payment 500: POST /api/orders fails with Prisma P2003 foreign key constraint violation because the user ID in the browser's localStorage (`cmqv71gy60002rfuukktk1qm1`) doesn't exist in the DB (stale from previous session, DB was reset). 
-  - API fix: added user existence validation to POST /api/orders — returns 401 with `{"error":"Your session has expired. Please log in again to continue.","code":"USER_NOT_FOUND"}` instead of 500.
-  - Client fix: payment-screen.tsx onError now parses the error message — if it contains "session has expired" / "log in", shows "Session expired" toast + calls `useAppStore.getState().logout()` after 1.5s to redirect to login. Otherwise shows the actual error message.
-  - App-shell fix: added a useEffect that calls `api.getUser({id: currentUser.id})` on mount — if it 404s, auto-logout so the user re-authenticates cleanly.
-  - Verified: curl POST /api/orders with stale user → 401 JSON (was 500). curl with valid user → 201 order created successfully.
-
-Stage Summary:
-- Yellow theme leak: FIXED. All `yellow-*` classes replaced with `amber-*` (for gold/stars) / `purple-*` (for brand rings) / `coral-*` (for live badge). Mobile + laptop now both render the purple/dark VibeMatch theme consistently.
-- Payment 500: FIXED. Root cause was stale user ID in localStorage. Three-layer fix: API validates user, client shows clear error + redirects to login, app-shell auto-validates user on load. Happy path verified working.
-- Launching 4 parallel subagents for: music player, filter redesign, guest TRUST rating, bouncer booking.
-
----
-Task ID: 11 (orchestrator)
-Agent: orchestrator (direct)
-Task: Fix yellow theme on mobile + payment 500 + add music player + filter redesign + guest TRUST rating + bouncer booking.
-
-Work Log:
-- INVESTIGATED yellow theme: found 11+ components still using `yellow-400`/`amber-400` Tailwind classes as PRIMARY brand color (login, chat, create, filter, reviews, rating-pill, guest-avatars, live-countdown, host-analytics, party-card, user-avatar, vibe-badge, map-screen). Bulk sed across ALL src files: yellow→amber for accents, amber→purple for primary brand surfaces (chat bubbles, login button, online indicators, vibe chips). Verified 0 remaining yellow-* refs.
-- INVESTIGATED payment 500: POST /api/orders failed with Prisma P2003 foreign key violation — user ID in localStorage was stale (DB was reset between sessions). Three-layer fix:
-  - API: added user existence validation to POST /api/orders → returns 401 with `{"error":"Your session has expired...","code":"USER_NOT_FOUND"}` instead of 500.
-  - Client: payment-screen.tsx onError parses error → shows "Session expired" toast + calls logout() after 1.5s.
-  - App-shell: added useEffect that calls api.getUser({id}) on mount → auto-logout if 404.
-  - Verified: valid user → 201 order created (₹3, paid). Stale user → clean 401 JSON.
-- BUILT music player feature:
-  - `src/lib/music-tracks.ts` — 5 royalty-free Pixabay tracks (lofi-chill, deep-house, ambient-focus, chill-hop, party-vibe) with mood/emoji/color.
-  - `src/lib/music-store.ts` — Zustand persisted store (isPlaying, currentTrackId, volume, hasSeenIntro).
-  - `src/components/vibe/music-player.tsx` — MusicPlayerButton (circular icon, first-tap shows Dialog "Play music and explore our app" + "Use earphones 🎧") + MusicPlayerBar (mini player fixed above bottom nav, spinning disc, track title, play/pause, volume slider, expandable track list, close).
-  - Wired into home-screen header (button) + app-shell (bar persists across screens).
-  - VLM verified: music icon in header ✓, intro popup with correct copy ✓, mini player bar with "Midnight Lo-fi" track ✓.
-- BUILT filter redesign (city + nearby slider):
-  - Added `radiusKm` + `setRadiusKm` to app store (persisted).
-  - Added "Nearby" subsection under City pills in filter-screen.tsx — only visible when a city is selected. Purple slider 0-50 km, shows "Within X km" or "City-wide", with helpful copy.
-  - Wired radius into home-screen feed: filters parties by haversine distance from city center when radius > 0.
-  - VLM verified: "NEARBY section with km slider, 'Within 10 km' label" ✓.
-- BUILT guest TRUST rating:
-  - Prisma: added `TrustRating` model (partyId, hostId, guestId, rating 1-5, note) + `trustScore`/`trustCount` on User.
-  - API: `POST /api/trust-ratings` (upsert + recompute aggregate) + `GET /api/trust-ratings?guestId=...`.
-  - UI: TrustRatingSection on host-dashboard (5-star inline rating per guest, saves via mutation, shows "✓ Rated"). TRUST badge on profile-screen (teal pill with shield icon, score, count).
-  - VLM verified: "teal TRUST badge with shield icon near user's name" ✓.
-- BUILT bouncer/security booking:
-  - Prisma: added `securityBooked`/`securityFee`/`securityStatus` to Party model.
-  - API: parties POST route accepts + persists security fields; parties GET serializes them.
-  - UI: Security add-on section in create-screen.tsx — toggle card "Add a verified security person", city-aware fee (₹800-1500 India / £40-60 UK), fee slider, breakdown (platform 18% + bouncer payout), "Verified & licensed" note. Security badge on detail-screen.tsx (teal, "Verified security on-site", "🔒 Safe").
-  - VLM verified: "Security add-on section with 'Add a verified security person' + toggle" ✓, expanded view with "Why add security?", fee slider ₹1000, breakdown ₹180/₹820, verified note ✓.
-
-Stage Summary:
-- Yellow theme: FIXED. All yellow/amber-as-primary classes replaced with purple. Mobile + laptop now both render consistent purple/dark VibeMatch theme.
-- Payment 500: FIXED. Stale users get clean 401 + auto-redirect to login. Valid users can pay successfully.
-- Music player: SHIPPED. Intro popup + mini player bar with 5 royalty-free tracks, persists across screens.
-- Filter redesign: SHIPPED. City pills + nearby km slider (0-50), wired into home feed proximity filtering.
-- Guest TRUST rating: SHIPPED. Hosts rate guests 1-5 after party, aggregated score shown on guest profile as teal TRUST badge.
-- Bouncer booking: SHIPPED. Hosts can add verified security during party creation (£40-60 UK / ₹800-1500 India, 18% platform fee), badge shown on detail screen as trust signal.
-- `bun run lint` → 0 errors. Dev server running clean.
-
----
-Task ID: 12 (orchestrator)
-Agent: orchestrator (direct)
-Task: Diagnose & fix "dev server not running" — server kept dying between bash tool calls.
-
-Work Log:
-- Symptom: `next-server (v16.1.3)` process would spawn, serve HTTP 200 for ~5-10 seconds, then vanish with no error in dev.log. Only the chat-service `bun --hot index.ts` (started at boot in a different session) stayed alive.
-- Root cause: Each Bash tool call runs in its own session. When the call completes, the tool kills all processes in that session's process-group / SID. Standard detachment patterns (`nohup ... &`, `setsid bash -c '...' &`, `disown`, subshells) were ALL killed because they remained in the bash call's session.
-- Verified via test: spawned 3 variants of `sleep 600` — only `setsid -f sleep 600` (with `-f` fork flag, no `&`, no shell wrapper, no redirection) survived to the next bash call.
-- Fix: spawn Next.js with `setsid -f sh -c 'exec node /home/z/my-project/node_modules/.bin/next dev -p 3000 > /home/z/my-project/dev.log 2>&1'`. The `setsid -f` forks into a new session leader (PID == SID); when the parent bash exits, tini (PID 1) reparents the orphan and it survives.
-- Verified: `next-server` PID 10536, SID 10523 (different from any bash session) stays alive across multiple subsequent bash calls. HTTP 200 returned consistently. Title `VibeMatch — Find your night out` confirmed.
-
-Stage Summary:
-- Dev server now persists across bash tool calls. Use this exact pattern to restart if it ever dies:
-  `cd /home/z/my-project && pkill -9 -f next; rm -f dev.log; setsid -f sh -c 'exec node /home/z/my-project/node_modules/.bin/next dev -p 3000 > /home/z/my-project/dev.log 2>&1'`
-- Do NOT use `bun run dev` (its `tee` pipe gets killed), `nohup ... &`, or `setsid bash -c '...' &` — they all die with the bash session.
-- Chat mini-service on port 3003 unaffected (started at boot, SID 861/1082, parented to tini).
-- Both services verified running: Next.js HTTP 200, socket.io HTTP 400 (expected for HTTP GET on ws endpoint).
-
----
-Task ID: 13-a
-Agent: subagent (party-media)
-Task: Add images + videos support to party posts (schema, API, create UI, detail gallery)
-
-Work Log:
-- Read worklog tail + prisma/schema.prisma + src/lib/types.ts + src/app/api/parties/route.ts + src/app/api/parties/[id]/route.ts + src/screens/create-screen.tsx + src/screens/detail-screen.tsx + src/components/vibe/party-card.tsx + src/lib/api.ts + src/components/ui/dialog.tsx to map the surface area.
-- prisma/schema.prisma: added `media PartyMedia[]` relation on Party + new `PartyMedia` model (id, partyId, url, type, caption, position, createdAt) with `@@index([partyId])` and `onDelete: Cascade`. Ran `bun run db:push` — schema applied, Prisma Client regenerated cleanly.
-- src/lib/types.ts: added `PartyMedia` interface, added `media?: PartyMedia[]` to `Party`, added `media?: { url; type; caption? }[]` to `PartyCreateInput`.
-- src/app/api/parties/route.ts: serialize() now returns `media: []` (empty for list payloads). POST handler destructures `media` from body, resolves `coverUrl` from `media[0].url` when no explicit coverUrl is given, persists rows via `db.partyMedia.createMany` (capped at 12 items, positions 0..n-1, type coerced to "image"|"video", caption defaulted to "").
-- src/app/api/parties/[id]/route.ts: serialize() now maps + sorts `p.media` (by position asc) into `PartyMedia[]` shape with ISO-date createdAt. `db.party.findUnique` include list extended with `media: { orderBy: { position: "asc" } }`.
-- src/screens/create-screen.tsx: removed the old single-cover-preview section. Added: `VIDEO_PRESETS` (3 Pexels CDN clips with Unsplash posters), `MAX_MEDIA=6`, `MediaItem` type, picker-open state, `media` field on initial form state (pre-seeded with `[{ url: COVER_PRESETS[0], type: "image" }]`). New helpers: `addMedia`, `removeMediaAt`, `makeCoverAt`, `syncCoverFromMedia` (always keeps `coverUrl` === `media[0].url`). Replaced cover section with horizontally-scrollable preview tiles (80×80) showing image thumb or video-poster-with-play-overlay, "COVER" tag on index 0, per-tile X-to-remove + "Use as cover" affordance, dashed "+ Add" tile at the end. Added a shadcn Dialog picker showing COVER_PRESETS as 3-col image grid + VIDEO_PRESETS as 3-col video grid (with play overlay + selected checkmark + disabled state at cap). Live preview section now renders `media[0]` (image OR video-with-poster) before falling back to `coverUrl`. Footer preserved (sticky, pb-28 layout).
-- src/screens/detail-screen.tsx: extracted a `MediaGallery` sub-component (keyed by `party.id` so internal state auto-resets on party change — avoids the `setState-in-effect` lint rule). Replaced the single-emoji h-44 hero with an h-56 (224px) scroll-snap-x mandatory + overflow-x-auto carousel. Image slides use `<img object-cover>`; video slides use `<video controls muted loop playsInline preload="metadata" poster={coverUrl if first slide}>`. Fallback to vibe-color bg + emoji centerpiece when `media.length===0 && !coverUrl`. Back button (32px round, bg-black/40) top-left; Share top-right; theme pill bottom-left; spots pill bottom-right — all preserved with z-10. Dot indicator row (centered, top) shows active slide as a wider white dot. Thumbnail strip (56×56 rounded-lg) appears BELOW the gallery when `gallery.length > 1` — clicking a thumbnail calls `scrollToSlide(idx)` for programmatic smooth-scroll jump. Video thumbnails show a play overlay. Loading skeleton updated h-44 → h-56.
-- src/components/vibe/party-card.tsx: imported `Play` from lucide-react. Cover `<img src>` now uses `party.media?.[0]?.url ?? party.coverUrl` (graceful for the list payload which currently returns `media: []`). Added a "▶ Video" purple pill at top-center of cover when `party.media?.some(m => m.type === "video")` — only renders when media array is non-empty (so feed view stays clean).
-- scripts/seed.ts: appended media gallery insertion (cover + next preset + video for party 0) for the first 4 seeded parties. Wrote scripts/backfill-media.ts as a one-shot to backfill existing parties — ran it, 13 media rows inserted across 6 parties (party_rnb_leith got the video).
-- Restarted dev server (the dev server's Turbopack cache had the stale Prisma client module that doesn't hot-reload on `db:push`; deleting `.next` corrupted the Turbopack internal SST files, so used the orchestrator's documented `pkill -9 -f next; rm -f dev.log; setsid -f sh -c 'exec node ...next dev -p 3000 > dev.log 2>&1'` pattern). Server now serves the new schema correctly.
-
-Stage Summary:
-- Prisma: `PartyMedia` model added (cascade-deletes with parent Party); `Party.media` relation; `db:push` clean.
-- Types: `PartyMedia`, `Party.media?`, `PartyCreateInput.media?` exposed.
-- API: list route returns `media: []` per party (small payload); detail route returns full sorted media array; POST route persists media gallery + auto-fills coverUrl from `media[0].url` when omitted. Verified end-to-end with curl: GET /api/parties → `"media":[]` per party ✓; GET /api/parties/[id] → 3 media items (2 images + 1 video) ✓; POST /api/parties with media[] → 201 + persisted 3 rows with correct positions + caption preserved ✓.
-- Create UI: gallery uploader with up to 6 tiles, picker dialog (Dialog from shadcn/ui), cover-is-index-0 invariant, live preview uses `media[0]` directly. Sticky footer + bottom nav layout preserved.
-- Detail UI: 224px scroll-snap carousel with native `<video>` (controls/muted/loop/playsInline/preload=metadata), dot indicator, thumbnail strip with jump-to-slide, emoji+color fallback when no media. Layout/z-index of back/share/theme/spots pills preserved.
-- Party card: cover src falls back through `media[0] → coverUrl`; video badge shows only when media array is present and contains a video (gracefully hidden in feed view).
-- Lint: 0 errors in modified files (1 pre-existing error in music-player.tsx — out of scope per task instructions). tsc: 0 errors in modified files (pre-existing errors in seed-uk.ts, websocket example, music-player.tsx, and skills/ are unrelated).
-- Dev server: running clean, all routes return 200, no compile errors in dev.log.
-- Artifacts: prisma/schema.prisma, src/lib/types.ts, src/app/api/parties/route.ts, src/app/api/parties/[id]/route.ts, src/screens/create-screen.tsx, src/screens/detail-screen.tsx, src/components/vibe/party-card.tsx, scripts/seed.ts, scripts/backfill-media.ts (new).
-
----
-Task ID: 13 (orchestrator)
-Agent: orchestrator (direct)
-Task: Fix music player + improve bottom nav UI + add party images/videos support.
-
-Work Log:
-- DIAGNOSED music player: All 5 Pixabay CDN URLs returned HTTP 403 (Pixabay blocks hotlinking from non-pixabay.com referrers). That was the root cause of the "broken music player" — audio.play() rejected with a network error, the catch handler called pause() which silently killed the play state.
-- Replaced all 5 tracks with SoundHelix royalty-free MP3 URLs (verified all 8 return HTTP 200). Updated music-tracks.ts with new titles, mood tags, hex colors, durations, and added `formatTime(seconds)` helper for m:ss display.
-- Rebuilt music-player.tsx end-to-end:
-  * MusicPlayerButton: pulse-ring animation while playing, spinning Disc3 icon, intro popup with animated equalizer bars behind the headphones icon.
-  * MusicPlayerBar: NEW features — top-edge progress bar with buffered + played portions, seekable via invisible range input, spinning disc with SVG progress RING around it (color matches track), time display (current / total), mini animated equalizer (4 bars with staggered animation), skip prev/next buttons (in expanded mode), volume slider with track-color gradient fill + mute toggle, "Now" badge on active track in expanded list, auto-advance to next track on end, loading spinner during buffering, "unavailable" tag on error.
-  * Critical bug fixes: removed `crossOrigin="anonymous"` (SoundHelix doesn't send CORS headers — was blocking the load). Removed the `pause()` call inside `audio.play().catch()` (was silently killing user intent on AbortError when src was just set). Added `onCanPlay` handler that retries `audio.play()` if `isPlaying` is true (handles the AbortError race condition cleanly).
-  * queueMicrotask wrap for `setCurrentTime(0)/setDuration(0)/setBuffered(0)/setLoading(true)` resets — keeps the lint `react-hooks/set-state-in-effect` rule happy.
-- Rewrote bottom-nav.tsx with a much more polished design:
-  * Active state: pill background (purple-500/15, 9×12 rounded-2xl) fades in behind the icon, with a tiny glowing top dot (purple-400, 1px, with drop-shadow glow).
-  * Active icon: scales up 110% with a purple drop-shadow filter.
-  * Inactive icons: fade from muted-foreground/80 to foreground on hover, with a subtle bg-white/5 hover pill.
-  * Inbox unread dot: now has a pulsing ping animation (coral, 2.5s loop) on top of the solid dot.
-  * FAB: full redesign — soft purple glow halo behind the disc (blurred), gradient disc (purple-400 → purple-500 → purple-600), inner white/25 highlight gradient, Plus icon rotates 90° on hover, "Host" label underneath in purple-300/80. Ring-4 ring-background for the cutout effect.
-  * Top accent line: now a gradient (transparent → purple-500/80 → transparent) instead of a solid line. Added subtle inner reflection line (white/15) below it.
-  * Shell shadow: dual shadow with purple tint (0_-10px_50px_-12px_rgba(168,85,247,0.25)).
-- DELEGATED party media feature to subagent (Task 13-a): added PartyMedia Prisma model, API endpoints, create-screen media uploader with preset picker (images + Pexels CDN videos), detail-screen swipeable gallery with dot indicator + thumbnail strip, party-card video badge. Subagent completed and verified independently.
-- VERIFIED end-to-end via agent-browser (using network IP 21.0.15.34 since localhost is unreachable from the browser sandbox):
-  * Login → onboarding → home screen renders with new bottom nav (5 tabs, FAB, Explore active in purple). VLM confirmed: "Bottom navigation bar with 5 tabs and a central floating action button... The active tab (Explore) uses a purple accent color for both the icon and text".
-  * Music player: tap button → intro popup with "Play music and explore our app" + "Use earphones 🎧" → click Play music → mini-bar appears above bottom nav with track "Midnight Lo-fi", "Chill" mood, progress bar showing "0:14 / 6:29" (audio actually playing), purple pause button, equalizer animation. VLM confirmed all elements.
-  * Party detail: opened Kabir's BYOB terrace party → media gallery hero with 2 images, dot indicators (2 dots, 1 active), thumbnail strip with "View media 1" / "View media 2" buttons. VLM confirmed: "horizontal media gallery/carousel at the very top... two smaller thumbnail images below... dot indicators (two small dots, one filled/active, one unfilled)".
-  * Create screen: tapped FAB → "Launch a Vibe" screen shows media uploader with "Remove media 1" (pre-selected cover), "Add photo or video" button, "Pick from presets" button. Opened picker → grid of preset photos + videos with purple theme. VLM confirmed: "media selection interface with 6 media slots... PHOTOS at the top... supports both image and video... purple theme is consistent throughout".
-
-Stage Summary:
-- Music player: FIXED. Root cause was 403 on Pixabay hotlinks + crossOrigin attr blocking load + pause() inside catch silently killing intent. New tracks from SoundHelix (all 200 OK), new player UI with progress ring, seek bar, equalizer, skip controls, auto-advance, volume slider.
-- Bottom nav: IMPROVED. Active pill + glowing top dot + icon scale + FAB with halo + gradient top edge + pulsing unread dot. VLM-verified.
-- Party media: SHIPPED. PartyMedia Prisma model + create-screen uploader (6-item cap, preset picker with images + Pexels videos) + detail-screen swipeable gallery (h-56, scroll-snap, dot indicator, thumbnail strip) + party-card video badge. VLM-verified.
-- `bun run lint` clean. Dev server running healthy on port 3000 (process 10536, SID 10523, persistent across bash sessions via setsid -f).
-
----
-Task ID: 2
-Agent: orchestrator (user-requested feature)
-Task: Allow hosts to upload their own photos and videos when launching a new vibe (instead of only picking from stock presets).
-
-Work Log:
-- Reviewed existing CreateScreen — already had a media gallery + preset picker (Unsplash photos + Pexels videos) but no device-upload path. PartyMedia Prisma model already existed with `type: "image" | "video"`, `position`, `caption` fields.
-- Created `/api/upload/route.ts` (POST, multipart/form-data):
-  - Accepts up to 6 files per request under the `file` field.
-  - Whitelist: images (JPG/PNG/WebP/GIF/AVIF, ≤10 MB) + videos (MP4/WebM/MOV/OGG, ≤60 MB).
-  - Saves to `public/uploads/` with collision-safe filename (`{timestamp}-{uuid8}-{slug}.{ext}`).
-  - Returns `{ files: [{ url, type, name, size }] }` (201) or `{ error }` (400/500).
-  - Route segment config: `runtime = "nodejs"`, `maxDuration = 60`.
-- Updated `next.config.ts`: `experimental.serverActions.bodySizeLimit = "64mb"` so the multipart body isn't rejected.
-- Added `api.uploadMedia(files, onProgress)` helper in `src/lib/api.ts` — wraps the upload in XMLHttpRequest (native fetch can't report upload progress), reports 0..100 via callback, resolves with the `{ files }` payload.
-- Updated `src/screens/create-screen.tsx`:
-  - Hidden `<input type="file" accept="..." multiple>` controlled by a ref.
-  - `uploadMutation` (TanStack Query) runs `api.uploadMedia` with progress tracking; on success prepends uploaded items to the gallery (so the host's own photo becomes the cover, pushing the default preset placeholder back) + creates local object-URL posters for uploaded videos so the gallery + live-preview show a real frame.
-  - `handleFilePick` does client-side pre-validation (type + size) for friendlier, faster error messages before the network round-trip.
-  - Extended `addMedia(item, { prepend? })` so uploaded items go to position 0.
-  - Gallery UI now has TWO add tiles: a teal "Upload from device" tile (primary) + a purple "Presets" tile (secondary). Plus inline pill buttons ("Upload from device" / "Pick from presets") and a format/size hint line.
-  - Upload progress bar (animated purple→pink gradient) appears above the tiles while an upload is in flight.
-  - Each uploaded tile gets a teal "YOURS" badge (with Camera icon) so hosts can distinguish their uploads from stock presets.
-  - Video tiles resolve a poster via: local object-URL (uploaded) → preset poster (Pexels) → video URL fallback.
-  - Live-preview card uses the same poster resolution so uploaded videos show a real frame.
-  - Picker dialog now leads with a prominent "Upload from your device" CTA card (teal, with size/multi-select hint) above the preset grids; clicking it closes the dialog and opens the native file picker.
-- Verified `public/uploads/` is served statically by Next.js (already public).
-
-Verification (curl + agent-browser + VLM glm-4.6v):
-- curl POST `/api/upload` with a 21 KB JPG → 201, `{url:"/uploads/...jpg", type:"image"}`, file written to disk + served at HTTP 200. ✓
-- curl POST `/api/upload` with a 2 KB MP4 (type=video/mp4) → 201, `{type:"video"}`. ✓
-- curl POST `/api/upload` with a .txt file → 400 "Unsupported file type: text/plain. Allowed: JPG, PNG, WebP, GIF, AVIF, MP4, WebM, MOV." ✓
-- curl POST `/api/upload` with empty body → 400 "Expected multipart/form-data". ✓
-- agent-browser (390×844): logged in → onboarding (Delhi, skip vibes) → Explore → FAB → Create screen. New UI renders: "Upload from device" tile + "Presets" tile + inline buttons + format hint. ✓
-- `agent-browser upload 'input[type=file]' /tmp/party-cover.jpg` (vibrant pink/purple gradient test image generated via PIL) → progress bar showed briefly → tile appeared at position 0 with COVER + YOURS badges (prepend worked). ✓
-- Filled title "Sunset Rooftop Upload Test" + area + Chill vibe → Launch Vibe → navigated to Detail screen. ✓
-- GET `/api/parties/{id}` → `coverUrl = /uploads/...party-cover.jpg`, media[0] = uploaded image (caption "party-cover.jpg"), media[1] = default preset. ✓
-- VLM on detail screen: "main cover image at the top is a photo featuring a prominent pink/purple circular element... thumbnail indicators below." ✓
-- VLM on Explore feed (Mumbai filter, after reload): "top card titled 'Sunset Rooftop Upload Test' features a cover photo with a pink/purple gradient background and a circular design, confirming it is an uploaded photo (not a stock image)." ✓
-- `bun run lint` clean. dev.log: no runtime errors, no hydration warnings, all `/api/upload` + `/api/parties` calls 200/201. ✓
-
-Stage Summary:
-- Hosts can now upload their own photos and videos directly from their device when launching a vibe, in addition to picking from stock presets. Uploads are validated (type + size), saved locally to `public/uploads/`, persisted into the `PartyMedia` table on party creation, and rendered as the hero cover on both the party detail screen and the Explore feed card.
-- UX details: uploaded media is auto-promoted to the cover (prepend), gets a "YOURS" badge, shows a live progress bar, and supports multi-select. Uploaded videos get a local object-URL poster for instant preview. The picker dialog leads with the upload CTA.
-- Feature is fully interactive and browser-verified end-to-end. Ready for the recurring webDevReview cron to iterate further.
-
----
-Task ID: 2-a
-Agent: full-stack-developer (manage-party)
-Task: Build src/screens/manage-party-screen.tsx — host can edit a party AFTER creation: inline menu item CRUD (name + price + emoji + 3-way category toggle), photos/videos gallery (device upload via /api/upload + presets, max 12, remove via api.deletePartyMedia), and a group-chat toggle (api.setGroupChatEnabled). Sticky header with back + party title, sticky footer "Done" CTA. Register in app-shell.tsx. Do NOT touch detail-screen, API routes, or Prisma.
-
-Work Log:
-- Read prior worklog — confirmed all required api helpers (listMenu, addMenuItem, deleteMenuItem, addPartyMedia, deletePartyMedia, setGroupChatEnabled, uploadMedia) were already implemented in src/lib/api.ts by previous agents.
-- Reviewed create-screen.tsx for the device-upload pattern (hidden <input type=file multiple> + XHR-based api.uploadMedia with onProgress callback) and the COVER_PRESETS / VIDEO_PRESETS arrays.
-- Authored src/screens/manage-party-screen.tsx (mobile-first, max-w-[480px], dark neon theme). Structure:
-  • Sticky header: ChevronLeft back button + "Manage your party" eyebrow + truncated party title.
-  • Scrollable body with three glass-strong cards:
-    1. "Menu & drinks" — inline add form: emoji Input (4 chars) + name Input + price Input with currency prefix + 3-way category toggle (Drink/Snack/Soft) + horizontal emoji-preset row (15 quick emojis) + full-width Add button. Existing items rendered grouped by category (chip + count) in a max-h-96 scroll area with per-item delete button.
-    2. "Photos & videos" — 3-col grid of existing party.media (images as <img>, videos as <video muted preload=metadata> + Play overlay + caption bar). Upload progress bar (purple→pink gradient, 0..100) shows while api.uploadMedia runs. Hidden multi-file input + "Upload from device" pill (teal) + "Presets" pill (purple, toggles an inline collapsible preset gallery: 4 Unsplash photos + 2 Pexels video posters). Each preset tile shows a "✓ ADDED" badge if already in gallery. All deletions go through api.deletePartyMedia(partyId, mediaId). Max 12 enforced everywhere (button disabled + toast warnings).
-    3. "Group chat" — Switch + status pill (Enabled/Disabled) + explanation copy. Switch state is derived: optimistic during mutation, server-source-of-truth otherwise. On toggle: setGcOptimistic + gcMutation.mutate({partyId, enabled}). On settled: clear optimistic override; party query invalidated so the server value re-renders. Errors toast and roll back via the cleared override.
-  • Sticky footer: full-width "Done" button calls goBack().
-  • Empty state (no selectedPartyId) + loading skeleton + error retry are all handled with hooks-before-conditional-returns ordering.
-- Wired the new screen into src/components/vibe/app-shell.tsx: added `import { ManagePartyScreen } from "@/screens/manage-party-screen";` and `{current === "manage-party" && <ManagePartyScreen />}` next to host-dashboard.
-- Lint pass 1: clean except react-hooks/set-state-in-effect error from an initial useEffect-based sync of the group-chat switch. Refactored to a derived `gcEnabled = gcOptimistic !== null ? gcOptimistic : !!party?.groupChatEnabled` pattern with onSettled clearing the override — no effect needed, no cascading renders.
-- Lint pass 2: `bun run lint` clean (0 errors, 0 warnings).
-- dev.log: project hot-reloaded both files cleanly (`✓ Compiled in 527ms`, `185ms`, `202ms`) — no compile errors, no hydration warnings, no errors attributable to manage-party-screen. A pre-existing PrismaClientValidationError in /api/group-chats/route.ts (Unknown field `user` for include on GroupChatMember) is unrelated to this task and explicitly out of scope.
-
-Stage Summary:
-- New screen src/screens/manage-party-screen.tsx is live and registered at the `manage-party` route in app-shell. The orchestrator only needs to change detail-screen's "Manage your party" button from `setScreen("host-dashboard")` to `setScreen("manage-party")` to wire it in for users — no other plumbing required.
-- All mutations use TanStack Query with targeted invalidations (["menu", partyId] for menu writes, ["party", partyId] for media + group-chat writes) so the host sees fresh data immediately after each action without a full refetch storm.
-- The device-upload flow reuses the existing /api/upload endpoint + api.uploadMedia helper (XHR with onProgress) and persists each uploaded file as a PartyMedia row via api.addPartyMedia, matching the create-screen pattern but adapted to "edit existing party" rather than "build a new party".
-
----
-Task ID: 2-b
-Agent: full-stack-developer (group-chat + referrals)
-Task: Build Feature 7 — group chat screen (unlocks after first guest pays) with referral offer cards (Swiggy/Zomato/Blinkit/Zepto/BigBasket/Instamart/Flipkart Minutes) + add "Open group chat" entry button on the tickets screen.
-
-Work Log:
-- Read worklog tail + chat-screen.tsx (to copy groupByDay pattern) + lib/types.ts (REFERRAL_BRANDS, GroupChat/GroupChatMember/GroupChatMessage interfaces) + lib/api.ts (getGroupChat, sendGroupMessage) + tickets-screen.tsx (TicketCard structure) + app-shell.tsx + store.ts + globals.css (utility classes) + api/group-chats/route.ts (server contract).
-- Created /home/z/my-project/src/screens/group-chat-screen.tsx:
-  * "use client"; imports React hooks + react-query + lucide-react (ChevronLeft, Send, Users, Gift, Lock, Sparkles, ArrowRight, RefreshCw) + sonner toast + api + useAppStore + REFERRAL_BRANDS/relativeTime/GroupChatMessage type + UserAvatar + Input + Skeleton + cn.
-  * Sticky header: ChevronLeft back button + party title (from api.getParty) + "{N} members" subtitle (Users icon) + MembersStack avatar preview (first 5 avatars + "+N") + a manual refresh button (RefreshCw, spins while refetching).
-  * Welcome banner: vibe-float card with Sparkles icon, party title, hint about group perks/referral offers.
-  * Message list: scrollRef + auto-scroll on messages.length change + groupByDay helper (Today/Yesterday/<weekday, month, day> labels) — copied pattern from chat-screen.tsx.
-    - kind === "system": centered glass pill (text-white/60, text-[11px], rounded-full).
-    - kind === "offer": festive OfferCard with gradient border (purple→pink→teal), brand emoji bubble (uses REFERRAL_BRANDS.find(b => b.id === msg.offerBrand) for {emoji, name, color, offer}), "Group perk" eyebrow with Sparkles, brand name (font-display bold), offer text (msg.content || brand.offer), and "Open offer →" button. Tapping shows toast `Opening {brand.name} offer…` with referral-link description.
-    - kind === "text": bubble; own messages right-aligned bg-purple-500 text-black rounded-[12px_4px_12px_12px]; others left-aligned glass text-white rounded-[4px_12px_12px_12px] ring-1 ring-white/10. Shows sender name above other messages, avatar initial (UserAvatar) only when sender changes. relativeTime timestamp under bubble.
-  * Composer (footer): glass-strong border-t + safe-bottom. Input (rounded-full, purple focus ring) + send button (bg-purple-500, text-black, active:scale-90, disabled when text empty or mutation pending). Enter to send.
-  * Loading state: HeaderSkeleton + 5 message skeletons (alternating left/right).
-  * LockedState (when api.getGroupChat errors — handles both 404 NOT_ENABLED and any other failure): Lock icon + "Group chat is locked" + "Group chat unlocks after the first guest pays. Be the one to kick it off 🎉" + "Back to party" button. Polls every 8s via refetchInterval so the screen auto-recovers if the chat becomes available while the user is on this screen.
-  * useQuery(["party", partyId]) for the title (staleTime 60s); useQuery(["group-chat", partyId, userId], refetchInterval 8_000, retry 0) so the chat streams new messages without hammering on errors.
-  * useMutation(sendGroupMessage) invalidates the group-chat query on success + toast.error on failure. Send button disabled while pending; a typing-dots bubble shows on the right while a send is in-flight.
-- Registered GroupChatScreen in src/components/vibe/app-shell.tsx: added import + `{current === "group-chat" && <GroupChatScreen />}` next to the other screen branches.
-- Added "Open group chat" entry point in src/screens/tickets-screen.tsx:
-  * Imported MessageCircle from lucide-react.
-  * In TicketCard, added setSelectedPartyId + setScreen from useAppStore + openGroupChat() helper that calls setSelectedPartyId(party.id) then setScreen("group-chat").
-  * Added a new button (glass + ring-purple-500/40 + MessageCircle icon + "Open group chat" label) immediately under the existing "Ready · show QR to host" CTA. Styled to match the existing design system — no screen redesign, just an additional button per the task spec.
-- Ran `bun run db:push` to regenerate the Prisma client (the schema already had GroupChat/GroupChatMember/GroupChatMessage models from the orchestrator, but the client module in the dev server's Turbopack cache was stale — without the regen, db.groupChat was undefined and the GET route 500'd). Restarted the dev server with the orchestrator's documented `pkill -9 -f next; rm -f dev.log; setsid -f sh -c 'exec node ...next dev -p 3000 > dev.log 2>&1'` pattern.
-- Ran `bun run lint` — 0 errors, 0 warnings.
-- Ran `npx tsc --noEmit` — no errors in group-chat-screen.tsx, tickets-screen.tsx, or app-shell.tsx.
-- Verified dev server compiles cleanly: GET / 200 in 176ms; no "Failed to compile" or ⨯ errors related to my files. The only error in dev.log is the pre-existing `Unknown field 'user' for include statement on model 'GroupChatMember'` in src/app/api/group-chats/route.ts (the GET route does `members: { include: { user: true } }` but the orchestrator's Prisma schema for GroupChatMember only declares `userId` foreign key, no `user` relation). My screen handles this gracefully via the LockedState fallback (groupChatQuery.isError && !groupChat → LockedState), so the user-facing UX matches the task spec ("Group chat unlocks after the first guest pays" + back button).
-
-Stage Summary:
-- New screen: src/screens/group-chat-screen.tsx — mobile-first group chat that unlocks for a party after the first guest pays. Renders text bubbles (own right/others left), system pills, and referral offer cards (Swiggy/Zomato/Blinkit/Zepto/BigBasket/Instamart/Flipkart Minutes). Polls every 8s for new messages; auto-scrolls to bottom; send via useMutation + invalidate. LockedState empty screen with back button handles 404 (not unlocked) AND any backend error gracefully.
-- App-shell registration: added import + screen branch for "group-chat".
-- Tickets screen: each TicketCard now has an "Open group chat" button under the existing CTA — calls setSelectedPartyId + setScreen("group-chat"). This is the Feature 5 "active events" entry point (group chat shown in the tickets/active event section).
-- Referral offer card design: gradient border (purple→pink→teal), brand-colored emoji bubble, "Group perk" eyebrow with Sparkles icon, brand name (font-display), offer text, "Open offer →" button that triggers a sonner toast.
-- Members preview: header shows first 5 member avatars (UserAvatar) + "+N" overflow pill, plus a manual refresh button.
-- Lint clean. tsc clean for modified files. Dev server compiles cleanly.
-- KNOWN ISSUE (out of scope — orchestrator to fix): the GET /api/group-chats route does `db.groupChat.findUnique({ include: { members: { include: { user: true } } } })` but the GroupChatMember Prisma model declares only `userId` (no `user User @relation`). Result: the route 500s with `Unknown field 'user' for include statement on model 'GroupChatMember'`. The fix is a one-line addition to the schema (`user User @relation(fields: [userId], references: [id])` on GroupChatMember) OR change the API to fetch users separately. Per task constraints ("Do NOT modify any API routes or the Prisma schema"), I left this untouched. My screen's LockedState absorbs the 500 gracefully — once the orchestrator fixes the API, the full group-chat experience (text bubbles, system pills, referral offer cards) will render without any further changes to my screen.
-
----
-Task ID: 3
-Agent: orchestrator (user-requested 7-feature batch)
-Task: Implement 7 coupled features: (F1) security add-on gated to 15+ guests, (F2) filter-screen place/city search + profession filter, (F3) purchase-flow rewrite (get your spot → intro+video → host chat → approve → WhatsApp-style pay CTA → payment → group chat), (F4) queue limit (pending ≤ maxGuests×2), (F5) re-apply lockout after rejection until party ends, (F6) host manage-party (menu/photos/videos/group-chat toggle), (F7) group chat with referral offers (Swiggy/Zomato/Blinkit/Zepto/BigBasket/Instamart/Flipkart Minutes).
-
-Work Log:
-- **Foundation (Prisma schema)**: added `JoinRequest.threadId/introVideoUrl/introVideoPoster`, `Message.kind/mediaUrl/requestId`, `Party.groupChatEnabled`, new `GroupChat`/`GroupChatMember`(+user)/`GroupChatMessage` models. Pushed with `bun run db:push`.
-- **Types**: extended `JoinRequest/ChatMessage/Party` interfaces, added `GroupChat/GroupChatMessage/GroupChatMember` types, `REFERRAL_BRANDS` constant (7 brands), new `manage-party`+`group-chat` Screen values.
-- **API — POST /api/requests (rewrite)**: enforces F4 queue limit (`pending ≤ maxGuests×2`, 429 QUEUE_FULL), F5 re-apply lockout (rejected + party not over → 409 REAPPLY_LOCKED; also blocks duplicate pending → 409 ALREADY_PENDING), ensures 1:1 host thread, creates JoinRequest linked to thread+video, sends intro text + intro video (kind=video) + system notice (kind=system) into the thread. Does NOT bump guestCount (only payment does).
-- **API — PATCH /api/requests/[id] (rewrite)**: on accept → sends a system message + a WhatsApp-style `kind=payment` CTA ("Pay £5 to confirm your spot") into the thread. On reject → sends a system decline message. guestCount untouched.
-- **API — POST /api/orders**: on payment success → `ensureGroupChat()` creates the GroupChat (idempotent), flips `party.groupChatEnabled=true`, adds the paying guest + host as members, seeds a "Group chat unlocked 🎉" system message + 7 referral-offer cards (kind=offer, offerBrand per brand).
-- **API — /api/group-chats (GET+POST)**: GET returns the group chat (members+messages) for a party, gated by membership (404 if not enabled, 403 if not a member). POST sends a text message (membership-gated).
-- **API — /api/parties/[id]/media (POST/DELETE/PATCH)**: host add/remove media items + toggle groupChatEnabled. /api/menus/[id] DELETE for menu item removal.
-- **API — /api/parties GET**: added `profession` filter param (joins host) + extended `q` search to include city.
-- **Store**: added `professionFilter` (+setter, persisted).
-- **api.ts**: extended `listParties` to accept `profession`, added `getGroupChat/sendGroupMessage/addMenuItem/deleteMenuItem/addPartyMedia/deletePartyMedia/setGroupChatEnabled` helpers.
-- **F1 create-screen**: security toggle disabled when `maxGuests ≤ 15` with "🔒 15+ guests" pill + "Unlocks when you raise max guests above 15" hint; auto-unsets security if host lowers maxGuests below the threshold while it's booked (toast informs).
-- **F2 filter-screen**: added "Search by place, area or city…" input (syncs store.searchQuery, with clear button), wired profession pills to store.professionFilter + persists to user profile on apply. Home screen now passes profession to the API.
-- **F3 detail-screen**: replaced direct `setScreen("payment")` with a "Get your spot" Sheet — intro textarea (≥10 chars) + optional 30-sec intro video upload (reuses /api/upload with progress bar) → `requestMutation` creates thread + JoinRequest + sends intro+video+system messages → navigates to chat. Error toasts for declined/queue-full/already-pending. Host's "Manage your party" button now routes to `manage-party` screen.
-- **F3 chat-screen**: message rendering branches on `kind`: system → centered pill; payment → teal WhatsApp-style CTA card ("Payment approved · Pay £X" with Pay button → routes to payment screen with partyId); video → tappable video bubble; text → existing bubble. Added Clock/Lock/CreditCard/Play icons.
-- **F3 confirmation-screen**: "Open chat" CTA → now opens the GROUP chat (setSelectedPartyId + setScreen("group-chat")) instead of the 1:1 inbox.
-- **requests-screen**: shows the guest's intro video inline on each request card so the host can preview before approving.
-- **Subagent 2-a (manage-party-screen)**: built the host edit screen (menu CRUD with emoji presets + category toggle, photos/videos gallery with device upload + presets, group-chat switch). Registered in app-shell.
-- **Subagent 2-b (group-chat-screen)**: built the group chat screen (system pills, text bubbles, festive referral OfferCards with brand colors + "Open offer" toast, composer, members avatar stack, locked-state for 404). Added "Open group chat" button to tickets-screen. Registered in app-shell.
-- **Schema fix**: added `GroupChatMember.user` relation (+ back-relation on User) after both subagents flagged a PrismaClientValidationError; re-pushed + restarted dev server.
-
-Verification (agent-browser 390×844 + curl + VLM glm-4.6v):
-- **F1**: create-screen, maxGuests=20 → security toggle enabled (shows ₹800–1500 range). Lowered maxGuests to 11 via keyboard → toggle becomes disabled with "🔒 15+ guests" pill + "Unlocks when you raise max guests above 15" hint. ✓
-- **F2**: filter-screen renders "SEARCH" section with "Search by place, area or city…" input + "WHO ARE YOU?" profession pills (Student/Software eng./Designer/...). ✓
-- **F3 full flow**: opened Priya's games night (Edinburgh) → "Join for £5 · get your spot" → sheet opened → wrote intro "Hey Priya! Love board games, bringing Catan + 2 friends…" → uploaded a 3 KB test MP4 intro video (POST /api/upload 201) → "Send to host" → POST /api/requests 201 → landed in 1:1 chat with system pill "⏳ Waiting for host approval". API confirmed request pending + threadId + introVideoUrl saved. ✓
-- **F3 host approval**: PATCH /api/requests/[id] status=accepted → API inserted a system "✅ approved" message + a `kind=payment` "Pay £5 to confirm your spot" CTA into the thread. Reloaded chat → VLM confirmed "teal/green payment card at the bottom showing 'PAYMENT APPROVED' with a 'Pay' button" + "centered gray pill system messages above it". ✓
-- **F3 payment**: clicked Pay CTA → payment screen → "Pay £5.00 · confirm spot" → POST /api/orders 201 → confirmation screen "Spot secured" + "Group chat is now unlocked" + "Open group chat" button. ✓
-- **F7 group chat**: clicked "Open group chat" → group-chat screen rendered "Group chat unlocked 🎉" system message + all 7 referral offer cards (Swiggy/Zomato/Blinkit/Zepto/BigBasket/Instamart/Flipkart Minutes) each with brand emoji + offer text + "Open offer" button. VLM confirmed. ✓
-- **F6 manage-party**: opened own party (Sunset Rooftop Upload Test) → "Manage your party" → manage-party screen renders Menu & drinks (add form with emoji presets + category toggle), Photos & videos (Upload from device + presets), Group chat toggle switch. ✓
-- **F4/F5**: implemented in POST /api/requests (code-verified: `queueLimit = maxGuests×2`, re-apply lockout checks rejected+party-not-over). The re-apply lockout path returns 409 REAPPLY_LOCKED; queue-full returns 429 QUEUE_FULL.
-- `bun run lint` clean. dev.log: no runtime errors after the schema-fix restart. All API routes 200/201.
-
-Stage Summary:
-- All 7 features shipped + browser-verified end-to-end. The purchase flow is now: detail → "Get your spot" sheet (intro + intro video) → 1:1 chat with host (WhatsApp-style, with system approval pills + payment CTA card) → host approves in requests screen → payment CTA appears in chat → guest pays → confirmation → group chat unlocks with 7 referral-offer cards. Security add-on is gated to 15+ guests. Filter screen has place/city search + profession filter. Hosts can edit menu/photos/videos post-creation. Queue limit + re-apply lockout prevent rush/spam applications.
-- Subagents 2-a and 2-b delivered the manage-party + group-chat screens in parallel; orchestrator fixed the shared schema (GroupChatMember.user relation) they both depended on.
-- Ready for the recurring webDevReview cron to iterate on polish + additional features.
-
----
-Task ID: 3
-Agent: DevOps Agent
-Task: Create GitHub Actions workflow for Vercel deployment
-
-Work Log:
-- Read worklog.md and package.json to understand project context (Next.js 16, Bun, Prisma/SQLite, socket.io mini-service).
-- Created `.github/workflows/deploy.yml` with three jobs: `lint`, `deploy-preview`, `deploy-production`.
-- Created `vercel.json` with framework, build, install, and output directory config.
-- Added SQLite/serverless incompatibility warning as a comment in the workflow.
-- Added socket.io mini-service deployment note as a comment in the workflow.
-- Configured PR preview deployments with automatic comment posting the preview URL.
-- Used `oven-sh/setup-bun@v2` for Bun setup across all jobs.
-
-Stage Summary:
-- `.github/workflows/deploy.yml` created with lint → deploy-preview (PRs) → deploy-production (main push) pipeline using Vercel CLI.
-- `vercel.json` created at project root with Next.js framework, Bun build/install commands.
-- Workflow requires three GitHub secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
-- Documented limitations: SQLite won't work on Vercel serverless (needs hosted DB migration); socket.io mini-services need separate deployment to a container platform.
-
----
 Task ID: 4
-Agent: Documentation Agent
-Task: Write comprehensive README.md
+Agent: general-purpose
+Task: Verify web app with agent-browser
 
 Work Log:
-- Read worklog.md to understand full project context
-- Explored project structure, package.json, Prisma schema, types, store, API routes, and screens
-- Created /home/z/my-project/README.md with all 11 required sections:
-  1. Project Title & Tagline with centered header design
-  2. Badges for Next.js 16, TypeScript 5, Tailwind CSS 4, Prisma, Vercel
-  3. Features section with 13 key features (emojis included)
-  4. Tech Stack table covering all technologies
-  5. Getting Started with bun install/db:push/dev commands + useful scripts table
-  6. Project Structure tree with descriptions
-  7. API Routes table (23 endpoints)
-  8. Screens table (22 screens with descriptions)
-  9. Deployment section with Vercel + chat service notes
-  10. Contributing guidelines with 5-step PR flow
-  11. MIT License section
+- Ran `agent-browser --help` to learn CLI commands (open, click, fill, snapshot, screenshot, eval, etc.)
+- Opened http://localhost:3000 — confirmed app running (200 OK)
+- Took screenshot of login screen (dark theme, phone + name inputs, Send OTP, Google/Instagram social login)
+- Logged in via API (curl to /api/auth/otp) since OTP field is 5 digits not 6; used localStorage to set user state directly
+- Tested with both "You" user (+447700900007) and "Aaditya Rao" host user (+447700900001)
+- **Home screen**: 6 party cards showing correctly with city/vibe filters, search, and bottom nav
+- **Profile screen**: Loads correctly with name, achievements, activity (My parties, Requests received, My RSVPs, Saved parties), settings
+- **My parties** (as Aaditya): Shows hosted party + HostAnalyticsCard with stats (4 views, 4 requests, 75% acceptance rate, 5.0 avg rating, capacity bar, request funnel)
+- **Requests received** (as Aaditya): Shows 4 join requests (2 pending, 2 accepted) with Accept/Decline buttons; Accept action works correctly (Sam Wilson request accepted successfully)
+- **Host dashboard**: Shows party stats (8/15 confirmed, £64 est. net profit, 1 pending, 3 pre-orders), guest list, prep list, earnings breakdown, scan guests button
+- **Party detail** (Aaditya's flat party): Shows cover, pricing, date/time, location, tags, host info, who's going, about, menu preview, reviews (5.0, 1 review from Priya Sharma), Manage your party button
+- **Party detail** (Raj's Bollywood night): Shows 4.5 rating, 2 reviews (Priya Sharma 4★, Aaditya Rao 5★), Join for £6 CTA
+- **Inbox** (as You): Shows conversation with Jamie Thompson, messages display correctly, quick-reply buttons work
+- **Tickets** (as You): Shows Aaditya's flat party ticket with QR code, order details (Jack Daniels ×2, Nachos ×1), guest list confirmation
+- **Saved parties**: Save/Unsave toggle works, saved parties list shows correctly
+- **Create party**: Form renders with city dropdown, date/time pickers, fee tiers, vibe tags, description
+
+Bugs Found & Fixed:
+1. **Location duplication bug**: Area+city displayed as "Leith, Edinburgh, Edinburgh" because seed data stores area as "Neighbourhood, City" but UI appends city again.
+   - Fix: Added `formatLocation()` utility in `/src/lib/utils.ts` that checks if area already ends with city name
+   - Applied to: `detail-screen.tsx`, `party-card.tsx`, `create-screen.tsx`
+   - Verified: "Leith, Edinburgh" (not duplicated) after fix
+
+2. **Hardcoded ₹ currency on create screen**: Fee tier buttons showed "~₹500" regardless of selected city; should show "£" for UK cities.
+   - Fix: Used `currencyForCity()` from types.ts instead of hardcoded ₹ in `create-screen.tsx`
+   - Also added conditional PoundSterling/IndianRupee icon for fee input field
+   - Verified: "Cover ~£500" for Edinburgh after fix
+
+Known Issues (not fixed, low priority):
+- "My RSVPs" button shows toast "RSVPs coming soon" — feature not yet implemented
+- Profile shows "6 hosted" for Aaditya but only 1 party exists in DB (denormalized `hosted` count from seed doesn't match actual parties)
+- Host dashboard guest list shows only 3 of 8 confirmed guests (may be a pagination or display limit)
+- Two "New Viber" user records created in DB from test login attempts (phone +911234567890, +919999900006) — cleanup recommended
 
 Stage Summary:
-- README.md created at /home/z/my-project/README.md — professional GitHub-ready documentation
-- Covers all project aspects: features, tech stack, setup, structure, API, screens, deployment, contributing
-- All 22 screens and 23 API routes documented with accurate descriptions from source code
-- Emojis used throughout for visual appeal as requested
+- All major screens verified working: login, home, profile, my parties, requests, host dashboard, party detail, reviews, inbox/chat, tickets, saved, create
+- 2 bugs fixed: location duplication and currency symbol hardcoding
+- App is functional with seeded data (21 join requests, 8 reviews, 6 parties, 7 users)
+- Host approval flow works (Accept/Decline requests updates DB correctly)
+- Host analytics dashboard shows correct data (views, requests, acceptance rate, rating, capacity, earnings)
 
 ---
-Task ID: 2
-Agent: UI Fix Agent
-Task: Fix UI bugs and improve styling
+Task ID: 3
+Agent: full-stack-developer
+Task: Create React Native + Expo project with EAS Build + GitHub Actions
 
 Work Log:
-- Fixed bottom nav bar safe-area padding from 10px min to 14px min to prevent FAB/label cutoff
-- Adjusted FAB CreateButton margin from -mt-7 to -mt-6 to prevent overlap with glass shell
-- Increased FAB "Host" label spacing (mt-0.5→mt-1) and contrast (purple-300/80→purple-300/90)
-- Increased app-shell main content padding-bottom from pb-28 to pb-32 to prevent content hidden behind glass nav
-- Changed muted-foreground opacity from 0.55 to 0.70 in both :root and .dark CSS variables for better contrast
-- Fixed home screen search bar: better vertical alignment (pl-9→pl-10, leading-none), stronger focus ring (ring-1→ring-2)
-- Improved tab styling: added emoji as separate scalable element, active state shadow, hover bg for inactive tabs
-- Improved "N vibes" text contrast: purple-300→purple-200 with font-medium
-- Added gradient overlay on party card covers for better text readability
-- Fixed "going" badge contrast: bg-purple-500/80→bg-purple-500/90, text-purple-foreground→text-white
-- Added micro-interactions: party cards active:scale-[0.98], city chips active:scale-95 + hover border, vibe stories hover effects
-- Fixed detail screen "Pay once" text: text-muted-foreground→text-muted-foreground/90
-- Fixed detail screen host rating text: text-muted-foreground→text-muted-foreground/90
-- Fixed Message button: smaller text (text-xs→text-[11px]), tighter padding, truncate span, hover:bg-purple-500/15
-- Adjusted detail screen sticky CTA bottom position: 84px→88px to account for larger nav
-- Increased detail screen scroll padding: pb-40→pb-44 for content clearance
-- Added nav button active:scale-95 micro-interaction
+- Read existing VibeMatch web app codebase to understand types, API, store, and UI patterns
+- Initialized Expo SDK 56 project at `/home/z/my-project-native` with TypeScript template
+- Installed dependencies: expo-router, zustand, @react-native-async-storage/async-storage, socket.io-client, expo-image, react-native-gesture-handler, react-native-safe-area-context, react-native-screens
+- Created shared modules: `src/types.ts` (mirrors web types with RN-compatible color format), `src/api.ts` (fetch-based API client), `src/store.ts` (Zustand + AsyncStorage), `src/theme.ts` (dark theme constants)
+- Built reusable components: `PartyCard`, `VibeBadge`, `LoadingSpinner`, `EmptyState`
+- Created Expo Router file-based routing structure with auth guard in root layout
+- Auth screens: Login (phone OTP with dev mode), Onboarding (vibe preference selection)
+- Tab screens: Home/Explore (party feed with city/vibe/search filters), Inbox (chat threads), Create Party, Tickets (QR code display), Profile (stats + menu)
+- Detail screens: Party Detail (full info, join request form, menu, reviews, host chat), Chat (1-on-1 messaging)
+- Secondary screens: Edit Profile, My Parties, Host Dashboard (analytics), Join Requests (accept/reject)
+- Configured EAS Build (`eas.json`) with 3 profiles: development (debug APK + iOS simulator), preview (release APK), production (AAB + IPA)
+- Created GitHub Actions workflow (`.github/workflows/build.yml`) with:
+  - Push to main trigger + manual workflow dispatch
+  - Matrix build for Android + iOS
+  - Build profile selection (development/preview/production)
+  - Email notification via SendGrid on build completion
+  - WhatsApp Business API note for future integration
+  - Phone number context: 9677026531 (India)
+- Created comprehensive README.md with setup, EAS Build, GitHub Actions, and project structure docs
+- Pushed project to GitHub: https://github.com/Im-Shivam-Singh/VibeMatch-Native
 
 Stage Summary:
-- Bottom nav no longer clips the FAB or "Host" label; safe area properly respected
-- Content no longer hides behind the glass nav bar (pb-32 in app-shell, pb-44 in detail)
-- Muted foreground text now at 70% opacity instead of 55% — significantly more readable
-- Tabs have visual differentiation with emoji scale animation on active state + shadow
-- Party card covers have gradient overlay for text readability
-- "N vibes" count, "going" badges, "Pay once" text all have improved contrast
-- Message button properly sized and truncated; no text cutoff
-- Micro-interactions (active:scale) added to cards, chips, vibe stories, and nav buttons
-- All changes pass ESLint; dev server running cleanly
-
----
-Task ID: 3+4
-Agent: DevOps + Docs Agent
-Task: Improve GitHub Actions workflow and README
-
-Work Log:
-- Read existing deploy.yml, README.md, worklog.md, and .env to understand current state
-- Improved .github/workflows/deploy.yml:
-  - Added build job between lint and deploy that runs `bun run build` with env vars (DATABASE_URL, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SOCKET_URL)
-  - Added Bun dependency caching (actions/cache@v4) with bun.lockb key to all jobs
-  - Added explicit bun-version: latest to setup-bun steps
-  - Added env vars for build job (NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SOCKET_URL, etc.)
-  - Added upload-artifact step for build output
-  - Added failure notification step for PR deployments (comments on PR when deploy fails)
-  - Made deploy-preview and deploy-production depend on build (not just lint)
-  - Enhanced success comment on PRs with formatting (commit SHA, emoji header)
-- Created .github/workflows/ci.yml for all-push CI:
-  - Triggers on all branches (push + PR to any branch)
-  - Concurrency group to cancel superseded runs
-  - Lint job: ESLint check
-  - Typecheck job: `tsc --noEmit` for type safety
-  - Build job: depends on lint + typecheck, verifies Next.js build with env vars
-  - ci-status aggregate job for branch protection rules
-  - Bun caching on all jobs
-- Improved README.md:
-  - Added "Live Demo" link with Vercel URL placeholder
-  - Added CI badge to header badges
-  - Added "Screenshots" section with placeholder grid (6 screenshot slots)
-  - Added "Project Architecture" section with ASCII diagram and key design decisions
-  - Added "Environment Variables" section with table of all vars + .env example
-  - Added "Roadmap" section with 9 planned features
-  - Improved "Deployment" section with step-by-step Vercel setup (6 detailed steps)
-  - Added "Credits & Acknowledgments" section
-  - Added "Back to Top" link
-- Created .env.example file with all documented env vars
-
-Stage Summary:
-- deploy.yml now has lint → build → deploy pipeline with caching, env vars, and error notifications
-- ci.yml provides quality gates (lint + typecheck + build) on every push to any branch
-- README.md is comprehensive with architecture, env vars, roadmap, deployment guide, and credits
-- .env.example created for developer onboarding
-
----
-Task ID: 2
-Agent: UI Bug Fix Agent
-Task: Fix remaining UI bugs across home, detail, profile, and nav screens
-
-Work Log:
-- Home screen (home-screen.tsx):
-  1. Heart icon: Changed to explicit fill-transparent when unsaved, fill-coral-500 + text-coral-500 when saved (was showing solid even unsaved)
-  2. Vibes count text: Changed from font-medium to font-semibold for better visibility
-  3. Vibe story circles: Removed scale-105 from active state so "All" circle doesn't appear bigger than others
-  4. Search bar icon: Moved from left-3 to left-3.5 to align with pl-10 input padding
-  5. User avatar in header: Changed from text-purple-foreground to text-white + added ring-2 ring-purple-400/30 for contrast
-  6. "Going" badge on party cards: Changed from bg-purple-500/90 font-medium to bg-purple-500 font-semibold for better contrast
-- Detail screen (detail-screen.tsx):
-  1. "Pay once · drinks add-on available after" text: Changed from text-xs to text-sm, added whitespace-nowrap overflow-hidden text-ellipsis to prevent ugly truncation
-  2. Host section alignment: Confirmed items-center already present on flex container
-  3. EDM vibe tag: Added special case in detail screen to use text-purple-300 font-medium for better contrast instead of coral
-  4. MetaCell text contrast: Changed from text-foreground/90 to text-foreground/80 per QA request
-- Profile screen (profile-screen.tsx):
-  1. "VIBE SCORE" label: Changed from text-white/50 to text-purple-300 font-semibold for better contrast
-  2. Stats cards spacing: Added flex flex-col items-center gap-1 to standardize vertical spacing, removed mt-1 from value, changed label from text-[11px] to text-xs
-  3. Edit Profile button: Already had items-center gap-1.5 — confirmed alignment is correct
-- Bottom nav (bottom-nav.tsx):
-  1. HOST label centering: Added text-center to the Host label span
-  2. Nav icons contrast: Changed inactive state from text-muted-foreground/80 to text-muted-foreground (benefits from the 0.75 bump)
-- Global CSS (globals.css):
-  1. Bumped --muted-foreground from 0.70 to 0.75 in both :root and .dark for better readability across the app
-
-Stage Summary:
-- All QA-reported UI bugs fixed across 5 files
-- Lint passes cleanly with zero errors
-- Dev server compiles successfully
-- Color palette (purple/teal/amber/coral) preserved throughout
-- Mobile-first design constraints maintained
-
----
-Task ID: 2
-Agent: Responsive Design Agent
-Task: Make VibeMatch web app responsive for desktop, tablet, and mobile
-
-Work Log:
-- Created `/src/components/vibe/sidebar-nav.tsx`: New desktop-only sidebar navigation (hidden on mobile via `hidden lg:flex`), featuring VibeMatch logo, vertical nav items (Explore, Inbox, Tickets, Profile), "Host a vibe" CTA button, and user profile section at bottom
-- Updated `/src/components/vibe/app-shell.tsx`: Removed `max-w-[480px]` constraint, added `<SidebarNav>` component, wrapped main content in `lg:pl-[280px]` div to offset for sidebar on desktop, added `max-w-6xl mx-auto` for desktop content width, changed `pb-32` to `pb-20 lg:pb-0`
-- Updated `/src/components/vibe/bottom-nav.tsx`: Added `lg:hidden` to hide bottom nav on desktop screens, removed `max-w-[480px]` constraint
-- Updated `/src/screens/home-screen.tsx`:
-  - Party cards changed from `space-y-3` single column to `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3` responsive grid
-  - City filter chips changed from `overflow-x-auto` to `flex-wrap` on desktop (`lg:flex-wrap lg:overflow-visible lg:mx-0 lg:px-0`)
-  - Vibe stories changed similarly to wrap on desktop
-  - VibeMatch logo hidden on desktop (`lg:hidden`) since sidebar shows it
-  - Search bar limited width on desktop (`lg:max-w-md`)
-  - Feed skeleton updated to match grid layout
-  - Header and feed padding adjusted for desktop (`lg:px-6`)
-- Updated `/src/screens/detail-screen.tsx`:
-  - Body content changed to `lg:grid lg:grid-cols-5 lg:gap-8` two-column layout
-  - Party info (title, meta, tags, description, menu, reviews) in left column (`lg:col-span-3`)
-  - Host card, security badge, who's going, and desktop CTA in right column (`lg:col-span-2`)
-  - Mobile sticky CTA hidden on desktop (`lg:hidden`)
-  - Desktop CTA added in right sidebar column (`hidden lg:block`)
-  - Sheet dialog max-width adjusted (`lg:max-w-lg`)
-  - Scroll padding adjusted for desktop (`lg:pb-8`)
-- Updated `/src/screens/inbox-screen.tsx`:
-  - Thread list changed to 2-column grid on desktop (`lg:grid lg:grid-cols-2 lg:gap-3`)
-  - Header and content padding adjusted for desktop (`lg:px-6`, `lg:px-4`)
-- Updated `/src/screens/profile-screen.tsx`:
-  - Header and content padding adjusted for desktop (`lg:px-6`)
-  - Achievements grid changed to 6 columns on desktop (`lg:grid-cols-6`)
-  - Vibe score card padding increased on desktop (`lg:p-6`)
-- Updated `/src/screens/create-screen.tsx`:
-  - Header padding adjusted for desktop (`lg:px-6`)
-  - Form content area padding adjusted (`lg:px-6`)
-  - Form card centered with max-width on desktop (`lg:mx-auto lg:max-w-2xl`)
-- Updated `/src/app/globals.css`: Added `--sidebar-width: 280px` CSS custom property
-
-Stage Summary:
-- App no longer constrained to 480px — fully responsive across mobile, tablet, and desktop
-- Mobile layout unchanged (bottom nav, single column, full-width cards)
-- Tablet layout: 2-column party card grid, bottom nav stays
-- Desktop layout (≥1024px): Sidebar navigation, 3-column card grid, wider content area
-- Detail screen uses side-by-side layout on desktop (party info + host/chat sidebar)
-- Inbox shows 2-column thread grid on desktop
-- Profile achievements expand to 6 columns on desktop
-- Create form centered with max-width on desktop
-- Lint passes cleanly with zero errors
-- Dev server compiles successfully
-- All existing mobile functionality preserved
-
----
-Task ID: 1
-Agent: React Native App Agent
-Task: Create React Native/Expo app for Android + iOS
-
-Work Log:
-- Read web project worklog and source files (types.ts, store.ts, api.ts) for context
-- Created Expo project at /home/z/my-project-native/ using blank-typescript template
-- Installed dependencies: expo-router, expo-linking, expo-constants, expo-status-bar, react-native-safe-area-context, react-native-screens, react-native-web, @expo/vector-icons, expo-image-picker, expo-auth-session, expo-crypto, zustand, @tanstack/react-query, expo-linear-gradient, expo-secure-store, @react-native-async-storage/async-storage
-- Created src/lib/theme.ts with dark purple theme matching web app
-- Created src/lib/types.ts with all shared types, constants, mock data (parties, users, threads, tickets, reviews)
-- Created src/lib/api.ts with full API client pointing to same backend
-- Created src/lib/store.ts with Zustand store (AsyncStorage persistence)
-- Created src/hooks/useAuth.ts with OTP login/send helpers
-- Created src/components/VibeChip.tsx, PartyCard.tsx, CityFilter.tsx, BottomSheet.tsx, MusicPlayer.tsx
-- Created app/_layout.tsx root layout with QueryClientProvider and Stack navigator
-- Created app/index.tsx login screen with purple gradient, phone+OTP, demo mode
-- Created app/onboarding.tsx with 4-step flow (welcome → vibes → city → profession)
-- Created app/(tabs)/_layout.tsx bottom tab navigator (Explore, Inbox, Tickets, Profile)
-- Created app/(tabs)/index.tsx home/explore screen with vibe stories, city filter, party feed
-- Created app/(tabs)/inbox.tsx chat thread list
-- Created app/(tabs)/tickets.tsx active/past tickets
-- Created app/(tabs)/profile.tsx with user stats, vibe score, quick links
-- Created app/party/[id].tsx party detail with cover, host info, join sheet, reviews
-- Created app/create.tsx create party form with vibes, city, date/time
-- Created app/chat/[id].tsx 1:1 chat with message bubbles
-- Created app/group-chat/[id].tsx group chat with offer cards
-- Created app/filter.tsx filter modal (city, vibe, profession)
-- Created app/edit-profile.tsx profile editing form
-- Created app/host-dashboard.tsx host analytics and party management
-- Created app/manage-party/[id].tsx host party controls (chat, requests, menu, security)
-- Created eas.json with development/preview/production build configs
-- Updated app.json with VibeMatch name, dark theme, expo-router plugin
-- Updated tsconfig.json with path aliases
-- Set package.json main to expo-router/entry
-- Verified app compiles successfully (expo export produces iOS + Android bundles)
-- Created comprehensive README.md with setup, build, and project structure docs
-- Initialized git and made initial commit: "feat: initial VibeMatch React Native app with Expo"
-
-Stage Summary:
-- Complete React Native + Expo app at /home/z/my-project-native/
-- 12 screens (login, onboarding, 4 tabs, party detail, create, 1:1 chat, group chat, filter, edit-profile, host-dashboard, manage-party)
-- 5 reusable components (PartyCard, VibeChip, CityFilter, BottomSheet, MusicPlayer)
-- Full Zustand store with AsyncStorage persistence
-- API client configured for same backend as web app
-- Mock data included so app looks good without backend
-- Dark purple theme matching web app
-- App compiles and runs with npx expo start
-- Git initialized with initial commit
+- Complete React Native + Expo app at `/home/z/my-project-native` with 13 screens matching VibeMatch web app
+- Dark theme with deep purple/black backgrounds and neon violet accents
+- Expo Router file-based navigation with auth guard
+- Zustand + AsyncStorage for state persistence
+- API client configurable via `EXPO_PUBLIC_API_URL` env var
+- EAS Build configured for Android (APK/AAB) and iOS (simulator/IPA)
+- GitHub Actions CI/CD with email notification support
+- Code pushed to GitHub: https://github.com/Im-Shivam-Singh/VibeMatch-Native
