@@ -112,9 +112,8 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Indexes
-UserSchema.index({ phone: 1 }, { unique: true });
-UserSchema.index({ username: 1 }, { unique: true, sparse: true });
+// Indexes (phone and username already have unique:true in the schema above,
+// so we only add compound indexes or additional ones here)
 
 // Virtual for blocked user IDs array
 UserSchema.virtual('blockedIds').get(function (this: IUser) {

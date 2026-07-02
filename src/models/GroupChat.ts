@@ -90,8 +90,7 @@ const GroupChatSchema = new Schema<IGroupChat>(
   }
 );
 
-// Indexes
-GroupChatSchema.index({ partyId: 1 }, { unique: true });
+// Indexes (partyId already has unique:true in schema)
 
 // Virtual: member count
 GroupChatSchema.virtual('memberCount').get(function (this: IGroupChat) {

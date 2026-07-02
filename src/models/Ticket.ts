@@ -42,9 +42,7 @@ const TicketSchema = new Schema<ITicket>(
   }
 );
 
-// Indexes
-TicketSchema.index({ orderId: 1 }, { unique: true });
-TicketSchema.index({ qrHash: 1 }, { unique: true });
+// Indexes (orderId and qrHash already have unique:true in schema)
 TicketSchema.index({ userId: 1 });
 TicketSchema.index({ partyId: 1 });
 
