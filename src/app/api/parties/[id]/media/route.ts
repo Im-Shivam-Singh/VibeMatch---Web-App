@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { Party, PartyMedia } from "@/models";
+import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/models";
 
 // ── /api/parties/[id]/media ───────────────────────────────────────────
 // Host manage-party endpoints for the live event gallery + group-chat toggle.
@@ -29,10 +29,10 @@ export async function POST(
   await connectDB();
 
   // Position = current count so new items append to the end.
-  const count = await PartyMedia.countDocuments({ partyId });
+  const count = await PartyMediaModel.countDocuments({ partyId });
   // If the party has no cover yet, set it from this first media item.
-  const party = await Party.findById(partyId).lean({ virtuals: true });
-  const media = await PartyMedia.create({
+  const party = await PartyModel.findById(partyId).lean({ virtuals: true });
+  const media = await PartyMediaModel.create({
     partyId,
     url,
     type,
@@ -40,7 +40,7 @@ export async function POST(
     position: count,
   });
   if (party && !party.coverUrl) {
-    await Party.findByIdAndUpdate(partyId, { $set: { coverUrl: url } });
+    await PartyModel.findByIdAndUpdate(partyId, { $set: { coverUrl: url } });
   }
   return NextResponse.json(
     {
@@ -72,20 +72,20 @@ export async function DELETE(
 
   await connectDB();
 
-  const existing = await PartyMedia.findById(mediaId).lean({ virtuals: true });
+  const existing = await PartyMediaModel.findById(mediaId).lean({ virtuals: true });
   if (!existing || existing.partyId !== partyId) {
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
   const wasCoverUrl = existing.url;
-  await PartyMedia.findByIdAndDelete(mediaId);
+  await PartyMediaModel.findByIdAndDelete(mediaId);
   // If we removed the cover, promote the next media item (if any) to cover.
-  const party = await Party.findById(partyId).lean({ virtuals: true });
+  const party = await PartyModel.findById(partyId).lean({ virtuals: true });
   if (party && party.coverUrl === wasCoverUrl) {
-    const next = await PartyMedia.find({ partyId })
+    const next = await PartyMediaModel.find({ partyId })
       .sort({ position: 1 })
       .limit(1)
       .lean({ virtuals: true });
-    await Party.findByIdAndUpdate(partyId, {
+    await PartyModel.findByIdAndUpdate(partyId, {
       $set: { coverUrl: next[0]?.url ?? null },
     });
   }
@@ -114,7 +114,7 @@ export async function PATCH(
 
   await connectDB();
 
-  const party = await Party.findByIdAndUpdate(
+  const party = await PartyModel.findByIdAndUpdate(
     partyId,
     { $set: { groupChatEnabled: body.groupChatEnabled } },
     { new: true },

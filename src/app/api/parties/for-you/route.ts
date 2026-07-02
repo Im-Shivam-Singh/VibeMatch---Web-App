@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { Party, User } from "@/models";
+import { Party as PartyModel, User } from "@/models";
 import { parseVibes, type Party } from "@/lib/types";
 
 function serialize(p: any): Party {
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   // Pull all upcoming/recent parties (cap at 100)
   const filter: Record<string, unknown> = {};
   if (userCity) filter.city = userCity;
-  const all = await Party.find(filter)
+  const all = await PartyModel.find(filter)
     .sort({ createdAt: -1 })
     .limit(100)
     .lean({ virtuals: true });

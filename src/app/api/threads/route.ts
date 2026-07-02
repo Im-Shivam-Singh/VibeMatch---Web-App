@@ -13,6 +13,8 @@ function serializeUser(u: any): VibeUser {
     city: u.city,
     instagram: u.instagram,
     vibePrefs: u.vibePrefs,
+    profession: u.profession,
+    role: u.role,
     vibes: u.vibes,
     hosted: u.hosted,
     rating: u.rating,

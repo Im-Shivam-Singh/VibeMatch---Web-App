@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { Party, User, JoinRequest, PartyMedia } from "@/models";
+import { Party as PartyModel, User, JoinRequest, PartyMedia as PartyMediaModel } from "@/models";
 import { parseVibes, type Party, type PartyMedia } from "@/lib/types";
 
 function serialize(p: any): Party {
@@ -51,7 +51,7 @@ export async function GET(
 
   await connectDB();
 
-  const party = await Party.findById(id).lean({ virtuals: true });
+  const party = await PartyModel.findById(id).lean({ virtuals: true });
   if (!party) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
@@ -60,7 +60,7 @@ export async function GET(
   const [host, requests, media] = await Promise.all([
     party.hostId ? User.findById(party.hostId).lean({ virtuals: true }) : null,
     JoinRequest.find({ partyId: id }).sort({ createdAt: -1 }).lean({ virtuals: true }),
-    PartyMedia.find({ partyId: id }).sort({ position: 1 }).lean({ virtuals: true }),
+    PartyMediaModel.find({ partyId: id }).sort({ position: 1 }).lean({ virtuals: true }),
   ]);
 
   // Attach media to party for serialization
@@ -78,10 +78,14 @@ export async function GET(
           city: host.city,
           instagram: host.instagram,
           vibePrefs: host.vibePrefs,
+          profession: host.profession,
+          role: host.role,
           vibes: host.vibes,
           hosted: host.hosted,
           rating: host.rating,
           ratingCount: host.ratingCount,
+          trustScore: host.trustScore,
+          trustCount: host.trustCount,
         }
       : null,
     requests: requests.map((r: any) => ({

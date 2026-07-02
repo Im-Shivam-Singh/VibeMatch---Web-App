@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 /**
  * MongoDB connection for VibeMatch.
  *
- * In production, set MONGODB_URI to your MongoDB Atlas connection string.
+ * In production (Vercel), set MONGODB_URI to your MongoDB Atlas connection string.
  * In development without a MongoDB URI, we auto-start an in-memory MongoDB
  * server so the app works out of the box.
  */
@@ -32,6 +32,12 @@ if (!global.mongooseCache) {
   global.mongooseCache = cache;
 }
 
+const isPlaceholderUri = (uri: string) =>
+  !uri ||
+  uri.includes("cluster0.example") ||
+  uri.includes("YOUR_MONGODB") ||
+  uri.includes("placeholder");
+
 async function ensureMongoServer(): Promise<string> {
   // If we already have a running server URI, reuse it
   if (global.__mongoUri) {
@@ -39,15 +45,19 @@ async function ensureMongoServer(): Promise<string> {
   }
 
   // If we have a real MONGODB_URI, use it
-  if (
-    MONGODB_URI &&
-    !MONGODB_URI.includes("cluster0.example") &&
-    !MONGODB_URI.includes("YOUR_MONGODB")
-  ) {
+  if (!isPlaceholderUri(MONGODB_URI)) {
     return MONGODB_URI;
   }
 
-  // Start in-memory MongoDB server
+  // In production (Vercel), we MUST have a real MongoDB URI
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "MONGODB_URI environment variable is required in production. " +
+      "Set it to your MongoDB Atlas connection string in Vercel project settings."
+    );
+  }
+
+  // Start in-memory MongoDB server (dev only)
   console.log("🔄 Starting in-memory MongoDB for development...");
   try {
     const { MongoMemoryServer } = await import("mongodb-memory-server");
@@ -92,8 +102,8 @@ async function connectDB(): Promise<typeof mongoose> {
       .connect(uri, opts)
       .then(async (m) => {
         console.log("✅ Connected to MongoDB");
-        // Auto-seed if this is a fresh in-memory DB
-        if (!cache.seeded) {
+        // Auto-seed if this is a fresh in-memory DB (dev only)
+        if (!cache.seeded && process.env.NODE_ENV !== "production") {
           try {
             const { autoSeed } = await import("./auto-seed");
             await autoSeed();

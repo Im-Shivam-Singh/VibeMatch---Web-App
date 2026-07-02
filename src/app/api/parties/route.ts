@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { Party, User, PartyMedia } from "@/models";
+import { Party as PartyModel, User, PartyMedia as PartyMediaModel } from "@/models";
 import {
   parseVibes,
   partyCoords,
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   // When a profession filter is set, include the host so we can filter by
   // host.profession ("who are you" → find parties hosted by your crowd).
-  let parties = await Party.find(filter)
+  let parties = await PartyModel.find(filter)
     .sort({ createdAt: -1 })
     .limit(200)
     .lean({ virtuals: true });
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
   const resolvedCoverUrl =
     coverUrl || (mediaList.length > 0 ? mediaList[0].url : null);
 
-  const party = await Party.create({
+  const party = await PartyModel.create({
     title,
     city,
     area,
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
       caption: m.caption ?? "",
       position: index,
     }));
-    await PartyMedia.insertMany(mediaDocs);
+    await PartyMediaModel.insertMany(mediaDocs);
   }
 
   if (host) {
