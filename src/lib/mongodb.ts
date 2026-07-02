@@ -53,7 +53,8 @@ async function ensureMongoServer(): Promise<string> {
   if (process.env.NODE_ENV === "production") {
     throw new Error(
       "MONGODB_URI environment variable is required in production. " +
-      "Set it to your MongoDB Atlas connection string in Vercel project settings."
+      "Set it to your MongoDB Atlas connection string in Vercel project settings. " +
+      "Get a free cluster at https://www.mongodb.com/atlas"
     );
   }
 
@@ -143,5 +144,55 @@ async function forceReseed(): Promise<void> {
   cache.seeded = true;
 }
 
-export { connectDB, forceReseed };
+/**
+ * Wrapper for API route handlers that ensures MongoDB connection
+ * and returns proper error responses if the connection fails.
+ */
+function withDB(handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
+  return async (req: Request) => {
+    try {
+      await connectDB();
+      return await handler(req);
+    } catch (error: any) {
+      console.error("API Error:", error.message);
+
+      // Check if it's a MongoDB connection error
+      if (
+        error.message.includes("MONGODB_URI") ||
+        error.message.includes("MongoServerSelectionError") ||
+        error.message.includes("MongoNetworkError") ||
+        error.message.includes("connection") ||
+        error.name === "MongooseError" ||
+        error.name === "MongoServerError"
+      ) {
+        return new Response(
+          JSON.stringify({
+            error: "Database connection failed",
+            details: error.message,
+            hint: process.env.NODE_ENV === "production"
+              ? "Make sure MONGODB_URI is set in Vercel environment variables and your MongoDB Atlas allows connections from 0.0.0.0/0"
+              : "Check your MongoDB connection string",
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Other errors
+      return new Response(
+        JSON.stringify({
+          error: error.message || "Internal server error",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  };
+}
+
+export { connectDB, forceReseed, withDB };
 export default mongoose;
