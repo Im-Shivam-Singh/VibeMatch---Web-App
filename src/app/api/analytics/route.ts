@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party, JoinRequest, PartyView, Review } from "@/models";
 import type { HostAnalytics } from "@/lib/types";
 
 // GET /api/analytics?hostId=...
 // Returns aggregate stats across all parties hosted by this user.
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const hostId = searchParams.get("hostId");
   if (!hostId) {
     return NextResponse.json({ error: "hostId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const parties = await Party.find({ hostId }).lean({ virtuals: true });
 
@@ -128,3 +126,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(result);
 }
+
+export const GET = withDB(_GET);

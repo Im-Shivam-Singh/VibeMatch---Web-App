@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Review, User } from "@/models";
 import type { PartyReview } from "@/lib/types";
 
@@ -22,14 +22,12 @@ function serialize(r: any, user?: any): PartyReview {
 }
 
 // GET /api/reviews?partyId=...
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const partyId = searchParams.get("partyId");
   if (!partyId) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const reviews = await Review.find({ partyId })
     .sort({ createdAt: -1 })
@@ -54,7 +52,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/reviews
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: { partyId: string; userId: string; rating: number; comment: string };
   try {
     body = await req.json();
@@ -73,8 +71,6 @@ export async function POST(req: NextRequest) {
   if (rating < 1 || rating > 5) {
     return NextResponse.json({ error: "rating must be 1..5" }, { status: 400 });
   }
-
-  await connectDB();
 
   // upsert: one review per user per party
   const existing = await Review.findOne({ partyId, userId }).lean({ virtuals: true });
@@ -99,3 +95,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ review: serialize(review, user) }, { status: 201 });
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { ChatThread, User, Message } from "@/models";
 import type { VibeUser } from "@/lib/types";
 
@@ -45,14 +45,12 @@ interface ThreadListItem {
 }
 
 // GET /api/threads?userId=...
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const threads = await ChatThread.find({
     $or: [{ userAId: userId }, { userBId: userId }],
@@ -100,7 +98,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/threads
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: { userAId: string; userBId: string; partyId?: string };
   try {
     body = await req.json();
@@ -114,8 +112,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const existing = await ChatThread.findOne({
     $or: [
@@ -135,3 +131,6 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json({ threadId: t.id ?? t._id?.toString(), created: true }, { status: 201 });
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);

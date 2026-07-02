@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 
 // ── PATCH /api/requests/[id]  { status: "accepted" | "rejected" } ─────
@@ -7,7 +7,7 @@ import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 // "Pay {amount}" CTA message into the 1:1 thread so the guest can pay
 // directly from the chat. On reject we post a system message informing the
 // guest. guestCount is untouched here (it only moves on payment).
-export async function PATCH(
+async function _PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -26,8 +26,6 @@ export async function PATCH(
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const existing = await JoinRequest.findById(id).lean({ virtuals: true });
   if (!existing) {
@@ -89,3 +87,5 @@ export async function PATCH(
 
   return NextResponse.json({ id, status });
 }
+
+export const PATCH = withDB(_PATCH as (req: Request) => Promise<Response>);

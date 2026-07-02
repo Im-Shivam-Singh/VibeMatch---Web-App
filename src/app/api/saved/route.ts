@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { SavedParty, Party } from "@/models";
 
 // GET /api/saved?userId=... — list saved party IDs for a user
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const saved = await SavedParty.find({ userId })
     .sort({ createdAt: -1 })
@@ -54,7 +52,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/saved — save a party
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: { userId: string; partyId: string };
   try {
     body = await req.json();
@@ -69,8 +67,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await connectDB();
-
   const existing = await SavedParty.findOne({ userId, partyId }).lean({ virtuals: true });
   if (existing) {
     // toggle: unsave
@@ -83,7 +79,7 @@ export async function POST(req: NextRequest) {
 }
 
 // DELETE /api/saved?userId=...&partyId=... — unsave a party
-export async function DELETE(req: NextRequest) {
+async function _DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   const partyId = searchParams.get("partyId");
@@ -94,8 +90,6 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  await connectDB();
-
   const existing = await SavedParty.findOne({ userId, partyId }).lean({ virtuals: true });
   if (!existing) {
     return NextResponse.json({ error: "Not saved" }, { status: 404 });
@@ -104,3 +98,7 @@ export async function DELETE(req: NextRequest) {
   await SavedParty.findByIdAndDelete(existing.id ?? existing._id);
   return NextResponse.json({ saved: false, partyId });
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);
+export const DELETE = withDB(_DELETE);

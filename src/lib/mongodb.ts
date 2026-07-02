@@ -6,9 +6,11 @@ import mongoose from "mongoose";
  * In production (Vercel), set MONGODB_URI to your MongoDB Atlas connection string.
  * In development without a MongoDB URI, we auto-start an in-memory MongoDB
  * server so the app works out of the box.
+ *
+ * IMPORTANT: MONGODB_URI is read at *runtime* inside ensureMongoServer(), not at
+ * module load time. This ensures that Vercel serverless functions always see the
+ * latest env var value even when the module is cached from a prior invocation.
  */
-
-let MONGODB_URI = process.env.MONGODB_URI || "";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -43,6 +45,11 @@ async function ensureMongoServer(): Promise<string> {
   if (global.__mongoUri) {
     return global.__mongoUri;
   }
+
+  // IMPORTANT: Read MONGODB_URI at *runtime*, not at module load time.
+  // On Vercel (serverless), the env var may not be available during module
+  // caching but is available when the function actually executes.
+  const MONGODB_URI = process.env.MONGODB_URI || "";
 
   // If we have a real MONGODB_URI, use it
   if (!isPlaceholderUri(MONGODB_URI)) {
@@ -147,6 +154,10 @@ async function forceReseed(): Promise<void> {
 /**
  * Wrapper for API route handlers that ensures MongoDB connection
  * and returns proper error responses if the connection fails.
+ *
+ * Usage:
+ *   async function _GET(req: NextRequest) { ... }
+ *   export const GET = withDB(_GET);
  */
 function withDB(handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
   return async (req: Request) => {

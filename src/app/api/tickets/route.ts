@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Ticket, Party, Order } from "@/models";
 
 // GET /api/tickets?userId=...  → list a user's tickets (with party + order)
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json(
@@ -11,8 +11,6 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const tickets = await Ticket.find({ userId })
     .sort({ createdAt: -1 })
@@ -44,3 +42,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ tickets: enriched });
 }
+
+export const GET = withDB(_GET);

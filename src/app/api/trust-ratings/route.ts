@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { TrustRating, User, Party } from "@/models";
 
 // GET /api/trust-ratings?guestId=...  → all trust ratings received by a guest
 // GET /api/trust-ratings?partyId=...  → all trust ratings for a party's guests
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const guestId = req.nextUrl.searchParams.get("guestId");
   const partyId = req.nextUrl.searchParams.get("partyId");
 
@@ -14,8 +14,6 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const filter = guestId ? { guestId } : { partyId: partyId ?? undefined };
   const ratings = await TrustRating.find(filter)
@@ -57,7 +55,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/trust-ratings → host rates a guest after a party
 // Body: { partyId, hostId, guestId, rating (1..5), note? }
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const body = await req.json();
   const { partyId, hostId, guestId, rating, note } = body;
 
@@ -67,8 +65,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const r = Math.max(1, Math.min(5, Math.round(rating)));
 
@@ -113,3 +109,6 @@ export async function POST(req: NextRequest) {
     { status: 201 },
   );
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);

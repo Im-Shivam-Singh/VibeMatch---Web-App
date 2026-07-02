@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Message, ChatThread } from "@/models";
 
 // POST /api/messages — persist a message (used as fallback when WS unavailable)
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: {
     threadId: string;
     senderId: string;
@@ -23,8 +23,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const msg = await Message.create({
     threadId,
@@ -51,3 +49,5 @@ export async function POST(req: NextRequest) {
     { status: 201 },
   );
 }
+
+export const POST = withDB(_POST);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party as PartyModel, User, JoinRequest, PartyMedia as PartyMediaModel } from "@/models";
 import { parseVibes, type Party, type PartyMedia } from "@/lib/types";
 
@@ -43,13 +43,11 @@ function serialize(p: any): Party {
 }
 
 // GET /api/parties/[id]
-export async function GET(
+async function _GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-
-  await connectDB();
 
   const party = await PartyModel.findById(id).lean({ virtuals: true });
   if (!party) {
@@ -97,3 +95,5 @@ export async function GET(
     vibes: parseVibes(party.vibes),
   });
 }
+
+export const GET = withDB(_GET as (req: Request) => Promise<Response>);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 import type { JoinRequestInput } from "@/lib/types";
 
@@ -33,7 +33,7 @@ function partyIsOver(date: string, time: string): boolean {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: JoinRequestInput;
   try {
     body = await req.json();
@@ -57,8 +57,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const party = await Party.findById(partyId).lean({ virtuals: true });
   if (!party) {
@@ -217,14 +215,12 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/requests?partyId=...  — list requests for a party (host view)
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const partyId = searchParams.get("partyId");
   if (!partyId) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const requests = await JoinRequest.find({ partyId })
     .sort({ createdAt: -1 })
@@ -239,3 +235,6 @@ export async function GET(req: NextRequest) {
     })),
   });
 }
+
+export const POST = withDB(_POST);
+export const GET = withDB(_GET);

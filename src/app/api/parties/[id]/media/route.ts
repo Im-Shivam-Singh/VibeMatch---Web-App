@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/models";
 
 // ── /api/parties/[id]/media ───────────────────────────────────────────
@@ -7,7 +7,7 @@ import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/models";
 
 // POST — add a media item (image/video URL) to the party's gallery.
 // Body: { url, type: "image"|"video", caption? }
-export async function POST(
+async function _POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -25,8 +25,6 @@ export async function POST(
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   // Position = current count so new items append to the end.
   const count = await PartyMediaModel.countDocuments({ partyId });
@@ -60,7 +58,7 @@ export async function POST(
 
 // DELETE — remove a media item by id (?id=...). Re-syncs the cover if the
 // removed item was the cover.
-export async function DELETE(
+async function _DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -69,8 +67,6 @@ export async function DELETE(
   if (!mediaId) {
     return NextResponse.json({ error: "id query param required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const existing = await PartyMediaModel.findById(mediaId).lean({ virtuals: true });
   if (!existing || existing.partyId !== partyId) {
@@ -94,7 +90,7 @@ export async function DELETE(
 
 // PATCH — toggle the group-chat-enabled flag (host manual control).
 // Body: { groupChatEnabled: boolean }
-export async function PATCH(
+async function _PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -112,8 +108,6 @@ export async function PATCH(
     );
   }
 
-  await connectDB();
-
   const party = await PartyModel.findByIdAndUpdate(
     partyId,
     { $set: { groupChatEnabled: body.groupChatEnabled } },
@@ -126,3 +120,7 @@ export async function PATCH(
     },
   });
 }
+
+export const POST = withDB(_POST as (req: Request) => Promise<Response>);
+export const DELETE = withDB(_DELETE as (req: Request) => Promise<Response>);
+export const PATCH = withDB(_PATCH as (req: Request) => Promise<Response>);

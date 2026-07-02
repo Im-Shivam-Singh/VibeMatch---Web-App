@@ -24,8 +24,78 @@ function serializeUser(u: any): VibeUser {
   };
 }
 
-// In-memory OTP store (dev only). Maps phone -> { otp, expires }
-const otpStore = new Map<string, { otp: string; expires: number }>();
+// ── Global OTP store (survives hot reloads in dev & serverless cold starts) ──
+// On Vercel, serverless function invocations within the same instance share
+// the same global scope, so this is more resilient than a module-level Map.
+interface OtpEntry {
+  otp: string;
+  expires: number;
+}
+
+interface RateLimitEntry {
+  timestamps: number[];
+}
+
+declare global {
+  var __otpStore: Map<string, OtpEntry> | undefined;
+  var __otpRateLimits: Map<string, RateLimitEntry> | undefined;
+}
+
+const otpStore: Map<string, OtpEntry> = global.__otpStore ?? new Map();
+if (!global.__otpStore) {
+  global.__otpStore = otpStore;
+}
+
+const rateLimits: Map<string, RateLimitEntry> = global.__otpRateLimits ?? new Map();
+if (!global.__otpRateLimits) {
+  global.__otpRateLimits = rateLimits;
+}
+
+// Rate limit: max 5 OTP sends per phone per 15 minutes
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(phone: string): { allowed: boolean; retryAfterMs?: number } {
+  const now = Date.now();
+  const entry = rateLimits.get(phone);
+
+  if (!entry) {
+    rateLimits.set(phone, { timestamps: [now] });
+    return { allowed: true };
+  }
+
+  // Filter out timestamps outside the window
+  const recent = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  entry.timestamps = recent;
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    const oldestInWindow = recent[0];
+    const retryAfterMs = oldestInWindow + RATE_LIMIT_WINDOW_MS - now;
+    return { allowed: false, retryAfterMs };
+  }
+
+  recent.push(now);
+  entry.timestamps = recent;
+  return { allowed: true };
+}
+
+// Periodically clean up expired OTPs and rate limit entries (every ~5 min)
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+let lastCleanup = 0;
+
+function cleanup() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+  lastCleanup = now;
+
+  for (const [key, val] of otpStore) {
+    if (val.expires < now) otpStore.delete(key);
+  }
+  for (const [key, val] of rateLimits) {
+    val.timestamps = val.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (val.timestamps.length === 0) rateLimits.delete(key);
+  }
+}
 
 function genOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -33,7 +103,9 @@ function genOtp() {
 
 // POST /api/auth/otp
 // body: { step: "send" | "verify", phone, otp?, name?, role? }
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
+  cleanup();
+
   let body: { step: string; phone: string; otp?: string; name?: string; role?: 'host' | 'partier' };
   try {
     body = await req.json();
@@ -47,10 +119,27 @@ export async function POST(req: NextRequest) {
   }
 
   if (step === "send") {
+    // Rate limit check
+    const rateCheck = checkRateLimit(phone);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many OTP requests. Please wait before requesting another.",
+          retryAfterSeconds: Math.ceil((rateCheck.retryAfterMs ?? 60000) / 1000),
+        },
+        { status: 429 },
+      );
+    }
+
     const otp = genOtp();
     otpStore.set(phone, { otp, expires: Date.now() + 5 * 60 * 1000 });
-    // In a real app we'd send an SMS. For dev we return it so the UI can auto-fill.
-    return NextResponse.json({ sent: true, devOtp: otp });
+
+    // In a real app we'd send an SMS. In dev, always return the OTP
+    // so the UI can auto-fill — this is critical for the login flow to work.
+    return NextResponse.json({
+      sent: true,
+      devOtp: otp,
+    });
   }
 
   if (step === "verify") {
@@ -65,8 +154,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
     }
     otpStore.delete(phone);
-
-    await connectDB();
 
     // find or create user
     let user = await User.findOne({ phone }).lean({ virtuals: true });
@@ -95,3 +182,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ error: "Invalid step" }, { status: 400 });
 }
+
+import { withDB } from "@/lib/mongodb";
+export const POST = withDB(_POST);

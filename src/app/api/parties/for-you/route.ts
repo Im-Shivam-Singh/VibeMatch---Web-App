@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party as PartyModel, User } from "@/models";
 import { parseVibes, type Party } from "@/lib/types";
 
@@ -33,14 +33,12 @@ function serialize(p: any): Party {
 // GET /api/parties/for-you?userId=...
 // Personalized feed: rank parties by overlap with the user's vibe preferences
 // (User.vibes — a comma-separated string saved from onboarding) and city.
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
-
-  await connectDB();
 
   const user = await User.findById(userId).lean({ virtuals: true });
   const userVibes = user?.vibePrefs ? parseVibes(user.vibePrefs) : [];
@@ -80,3 +78,5 @@ export async function GET(req: NextRequest) {
     matchedVibes: userVibes,
   });
 }
+
+export const GET = withDB(_GET);

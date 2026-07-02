@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Order, Party, User, Ticket, JoinRequest, Message, ChatThread, GroupChat } from "@/models";
 import { currencyForCity } from "@/lib/types";
 
 // GET /api/orders?userId=...  → list a user's orders (with items + party)
 // GET /api/orders?partyId=... → list orders for a party (host view)
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   const partyId = req.nextUrl.searchParams.get("partyId");
 
@@ -15,8 +15,6 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const filter = userId ? { userId } : { partyId: partyId ?? undefined };
   const orders = await Order.find(filter)
@@ -48,7 +46,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/orders  → create an order (entry + optional add-ons) + ticket
 // Body: { userId, partyId, items: [{ menuItemId?, name, emoji, unitPrice, quantity }] }
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const body = await req.json();
   const { userId, partyId, items } = body;
   if (!userId || !partyId || !Array.isArray(items) || items.length === 0) {
@@ -57,8 +55,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const party = await Party.findById(partyId).lean({ virtuals: true });
   if (!party) {
@@ -202,3 +198,6 @@ const BRAND_SEED = [
   { id: "instamart", name: "Instamart", offer: "15-min mixers & soft drinks · 12% off" },
   { id: "flipkart", name: "Flipkart Minutes", offer: "Speakers & decor in 10 mins · 20% off" },
 ];
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);

@@ -2465,3 +2465,47 @@ Stage Summary:
 - CRITICAL: BLOB_READ_WRITE_TOKEN should be set for Vercel Blob uploads
 - Dev server works with auto-seeding (in-memory MongoDB)
 - User needs to provide: MongoDB Atlas connection string for Vercel env var
+
+---
+Task ID: 2
+Agent: backend-fixer
+Task: Fix MongoDB connection issue, OTP flow, health route diagnostics, and apply withDB wrapper to all API routes.
+
+Work Log:
+- Fixed MongoDB connection: Moved `MONGODB_URI` env var read from module load time to inside `ensureMongoServer()` so it's always fresh on Vercel serverless function invocations
+- Fixed OTP flow: Replaced in-memory `Map` with global-scoped cache (`global.__otpStore`) that survives hot reloads and serverless cold starts
+- Added OTP rate limiting: max 5 OTP sends per phone per 15 minutes with 429 response and retryAfterSeconds
+- Added periodic cleanup of expired OTPs and rate limit entries
+- Health route now reads `MONGODB_URI` at request time (not import time) and shows more diagnostics: uri_length, uri_is_atlas, uri_is_local
+- Applied `withDB` wrapper to all 19 API routes that use MongoDB:
+  - /api/auth/otp/route.ts
+  - /api/parties/route.ts
+  - /api/parties/for-you/route.ts
+  - /api/parties/[id]/route.ts
+  - /api/parties/[id]/media/route.ts
+  - /api/requests/route.ts
+  - /api/requests/[id]/route.ts
+  - /api/threads/route.ts
+  - /api/threads/[id]/route.ts
+  - /api/messages/route.ts
+  - /api/users/route.ts
+  - /api/saved/route.ts
+  - /api/views/route.ts
+  - /api/analytics/route.ts
+  - /api/reviews/route.ts
+  - /api/menus/route.ts
+  - /api/menus/[id]/route.ts
+  - /api/orders/route.ts
+  - /api/tickets/route.ts
+  - /api/trust-ratings/route.ts
+  - /api/group-chats/route.ts
+- Each route: renamed handler to `_GET`/`_POST` etc., removed manual `await connectDB()` calls, exported wrapped version with `withDB()`
+- Lint check passes clean with zero errors
+- Dev server running normally
+
+Stage Summary:
+- MongoDB URI is now read at runtime, fixing Vercel `uri_set: false` issue
+- OTP store uses global cache (survives hot reloads), with rate limiting (5/15min per phone)
+- Health endpoint provides rich diagnostics (uri length, Atlas/local detection)
+- All 21 API route handlers wrapped with `withDB` for consistent DB connection + error handling
+- Zero lint errors

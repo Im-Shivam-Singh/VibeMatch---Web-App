@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { User } from "@/models";
 import type { VibeUser } from "@/lib/types";
 
@@ -25,12 +25,10 @@ function serializeUser(u: any): VibeUser {
 }
 
 // GET /api/users?phone=...  or  /api/users?id=...
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const phone = searchParams.get("phone");
   const id = searchParams.get("id");
-
-  await connectDB();
 
   let user: any = null;
   if (phone) {
@@ -48,7 +46,7 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/users?id=...
-export async function PATCH(req: NextRequest) {
+async function _PATCH(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) {
@@ -76,11 +74,12 @@ export async function PATCH(req: NextRequest) {
     if (body[k] !== undefined) data[k] = body[k];
   }
 
-  await connectDB();
-
   const updated = await User.findByIdAndUpdate(id, { $set: data }, { new: true }).lean({ virtuals: true });
   if (!updated) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
   return NextResponse.json({ user: serializeUser(updated) });
 }
+
+export const GET = withDB(_GET);
+export const PATCH = withDB(_PATCH);

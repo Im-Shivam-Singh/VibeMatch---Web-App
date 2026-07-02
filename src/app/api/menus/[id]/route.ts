@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { MenuItem } from "@/models";
 
 // DELETE /api/menus/[id] — remove a menu item (host manage-party)
-export async function DELETE(
+async function _DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-
-  await connectDB();
 
   try {
     const deleted = await MenuItem.findByIdAndDelete(id);
@@ -21,3 +19,5 @@ export async function DELETE(
   }
   return NextResponse.json({ id });
 }
+
+export const DELETE = withDB(_DELETE as (req: Request) => Promise<Response>);

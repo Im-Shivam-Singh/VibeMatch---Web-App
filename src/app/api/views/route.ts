@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { PartyView, Party } from "@/models";
 
 // POST /api/views — record a party view
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: { partyId: string; userId?: string };
   try {
     body = await req.json();
@@ -15,8 +15,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
 
-  await connectDB();
-
   await PartyView.create({
     partyId,
     userId: userId || null,
@@ -27,12 +25,10 @@ export async function POST(req: NextRequest) {
 
 // GET /api/views?partyId=... — get view count for a party
 // GET /api/views?hostId=... — get total views across all hosted parties
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const partyId = searchParams.get("partyId");
   const hostId = searchParams.get("hostId");
-
-  await connectDB();
 
   if (partyId) {
     const count = await PartyView.countDocuments({ partyId });
@@ -65,3 +61,6 @@ export async function GET(req: NextRequest) {
     { status: 400 },
   );
 }
+
+export const POST = withDB(_POST);
+export const GET = withDB(_GET);

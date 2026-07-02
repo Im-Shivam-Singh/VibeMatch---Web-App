@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { ChatThread, User, Message, JoinRequest, Order } from "@/models";
 
 // GET /api/threads/[id]?userId=... — full thread with messages + other user
-export async function GET(
+async function _GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
-
-  await connectDB();
 
   const thread = await ChatThread.findById(id).lean({ virtuals: true });
   if (!thread) {
@@ -113,3 +111,5 @@ export async function GET(
     paid,
   });
 }
+
+export const GET = withDB(_GET as (req: Request) => Promise<Response>);

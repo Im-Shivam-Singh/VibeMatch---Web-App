@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { GroupChat, User } from "@/models";
 import type { GroupChat as GroupChatType } from "@/lib/types";
 
 // GET /api/group-chats?partyId=...&userId=...
 // Returns the group chat for a party (members + messages). 404 if the group
 // chat hasn't been enabled yet (no paid guests) or the user isn't a member.
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const partyId = searchParams.get("partyId");
   const userId = searchParams.get("userId");
@@ -16,8 +16,6 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   const gc = await GroupChat.findOne({ partyId }).lean({ virtuals: true });
   if (!gc) {
@@ -79,7 +77,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/group-chats  { groupChatId, senderId, content }
 // Send a text message to the group chat.
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: { groupChatId: string; senderId: string; content: string };
   try {
     body = await req.json();
@@ -93,8 +91,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   // Membership gate
   const gc = await GroupChat.findById(groupChatId).lean({ virtuals: true });
@@ -134,3 +130,6 @@ export async function POST(req: NextRequest) {
     { status: 201 },
   );
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);

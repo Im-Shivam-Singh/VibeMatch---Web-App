@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/mongodb";
 import { Party as PartyModel, User, PartyMedia as PartyMediaModel } from "@/models";
 import {
   parseVibes,
@@ -40,7 +40,7 @@ function serialize(p: any): Party {
 
 // GET /api/parties?city=Delhi&vibe=Techno&q=rooftop&profession=Student
 // GET /api/parties?lat=28.61&lng=77.20&radiusKm=5  — proximity filter (map view)
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const city = searchParams.get("city");
   const vibe = searchParams.get("vibe");
@@ -54,8 +54,6 @@ export async function GET(req: NextRequest) {
     lat !== null && lng !== null && radiusKm !== null &&
     !Number.isNaN(parseFloat(lat)) && !Number.isNaN(parseFloat(lng)) &&
     !Number.isNaN(parseFloat(radiusKm));
-
-  await connectDB();
 
   const filter: Record<string, unknown> = {};
   if (city) filter.city = city;
@@ -122,7 +120,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/parties
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   let body: PartyCreateInput;
   try {
     body = await req.json();
@@ -155,8 +153,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  await connectDB();
 
   // try to associate with a host user by hostName
   const host = await User.findOne({ name: hostName }).lean({ virtuals: true });
@@ -208,3 +204,6 @@ export async function POST(req: NextRequest) {
   const leanParty = party.toObject({ virtuals: true });
   return NextResponse.json({ party: serialize(leanParty) }, { status: 201 });
 }
+
+export const GET = withDB(_GET);
+export const POST = withDB(_POST);
