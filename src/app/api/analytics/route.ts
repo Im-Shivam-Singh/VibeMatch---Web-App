@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, JoinRequest, PartyView, Review } from "@/models";
 import type { HostAnalytics } from "@/lib/types";
 
 // GET /api/analytics?hostId=...
@@ -11,18 +12,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "hostId required" }, { status: 400 });
   }
 
-  const parties = await db.party.findMany({
-    where: { hostId },
-    select: {
-      id: true,
-      title: true,
-      maxGuests: true,
-      guestCount: true,
-      requests: { select: { id: true, status: true } },
-      views: { select: { id: true } },
-      reviews: { select: { rating: true } },
-    },
-  });
+  await connectDB();
+
+  const parties = await Party.find({ hostId }).lean({ virtuals: true });
 
   if (parties.length === 0) {
     const empty: HostAnalytics = {
@@ -43,6 +35,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(empty);
   }
 
+  const partyIds = parties.map((p) => p.id ?? p._id?.toString());
+
+  // Fetch all requests, views, and reviews for these parties in parallel
+  const [allRequests, allViews, allReviews] = await Promise.all([
+    JoinRequest.find({ partyId: { $in: partyIds } }).lean({ virtuals: true }),
+    PartyView.find({ partyId: { $in: partyIds } }).lean({ virtuals: true }),
+    Review.find({ partyId: { $in: partyIds } }).lean({ virtuals: true }),
+  ]);
+
+  // Group by partyId
+  const requestsByParty = new Map<string, any[]>();
+  for (const r of allRequests) {
+    const list = requestsByParty.get(r.partyId) ?? [];
+    list.push(r);
+    requestsByParty.set(r.partyId, list);
+  }
+
+  const viewsByParty = new Map<string, number>();
+  for (const v of allViews) {
+    viewsByParty.set(v.partyId, (viewsByParty.get(v.partyId) ?? 0) + 1);
+  }
+
+  const reviewsByParty = new Map<string, any[]>();
+  for (const r of allReviews) {
+    const list = reviewsByParty.get(r.partyId) ?? [];
+    list.push(r);
+    reviewsByParty.set(r.partyId, list);
+  }
+
   let totalViews = 0;
   let totalGuests = 0;
   let totalCapacity = 0;
@@ -55,25 +76,30 @@ export async function GET(req: NextRequest) {
   const topParties: HostAnalytics["topParties"] = [];
 
   for (const p of parties) {
-    totalViews += p.views.length;
+    const pId = p.id ?? p._id?.toString();
+    const pViews = viewsByParty.get(pId) ?? 0;
+    const pRequests = requestsByParty.get(pId) ?? [];
+    const pReviews = reviewsByParty.get(pId) ?? [];
+
+    totalViews += pViews;
     totalGuests += p.guestCount;
     totalCapacity += p.maxGuests;
-    totalRequests += p.requests.length;
-    const accepted = p.requests.filter((r) => r.status === "accepted").length;
-    const pending = p.requests.filter((r) => r.status === "pending").length;
-    const rejected = p.requests.filter((r) => r.status === "rejected").length;
+    totalRequests += pRequests.length;
+    const accepted = pRequests.filter((r: any) => r.status === "accepted").length;
+    const pending = pRequests.filter((r: any) => r.status === "pending").length;
+    const rejected = pRequests.filter((r: any) => r.status === "rejected").length;
     acceptedRequests += accepted;
     pendingRequests += pending;
     rejectedRequests += rejected;
-    if (p.reviews.length > 0) {
-      ratingSum += p.reviews.reduce((s, r) => s + r.rating, 0);
-      reviewCount += p.reviews.length;
+    if (pReviews.length > 0) {
+      ratingSum += pReviews.reduce((s: number, r: any) => s + r.rating, 0);
+      reviewCount += pReviews.length;
     }
     topParties.push({
-      partyId: p.id,
+      partyId: pId,
       title: p.title,
-      views: p.views.length,
-      requests: p.requests.length,
+      views: pViews,
+      requests: pRequests.length,
       guests: p.guestCount,
       capacity: p.maxGuests,
     });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { PartyView, Party } from "@/models";
 
 // POST /api/views — record a party view
 export async function POST(req: NextRequest) {
@@ -14,8 +15,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
 
-  await db.partyView.create({
-    data: { partyId, userId: userId || null },
+  await connectDB();
+
+  await PartyView.create({
+    partyId,
+    userId: userId || null,
   });
 
   return NextResponse.json({ recorded: true }, { status: 201 });
@@ -28,34 +32,30 @@ export async function GET(req: NextRequest) {
   const partyId = searchParams.get("partyId");
   const hostId = searchParams.get("hostId");
 
+  await connectDB();
+
   if (partyId) {
-    const count = await db.partyView.count({ where: { partyId } });
+    const count = await PartyView.countDocuments({ partyId });
     return NextResponse.json({ partyId, views: count });
   }
 
   if (hostId) {
     // Total views across all parties hosted by this user
-    const parties = await db.party.findMany({
-      where: { hostId },
-      select: { id: true },
-    });
-    const partyIds = parties.map((p) => p.id);
-    const views = await db.partyView.count({
-      where: { partyId: { in: partyIds } },
-    });
-    // Also get per-party breakdown
-    const breakdown = await db.partyView.groupBy({
-      by: ["partyId"],
-      where: { partyId: { in: partyIds } },
-      _count: { id: true },
-    });
+    const parties = await Party.find({ hostId }).lean({ virtuals: true });
+    const partyIds = parties.map((p) => p.id ?? p._id?.toString());
+    const views = await PartyView.countDocuments({ partyId: { $in: partyIds } });
+    // Also get per-party breakdown using aggregation
+    const breakdown = await PartyView.aggregate([
+      { $match: { partyId: { $in: partyIds } } },
+      { $group: { _id: "$partyId", views: { $sum: 1 } } },
+    ]);
     return NextResponse.json({
       hostId,
       totalViews: views,
       partyCount: parties.length,
       breakdown: breakdown.map((b) => ({
-        partyId: b.partyId,
-        views: b._count.id,
+        partyId: b._id,
+        views: b.views,
       })),
     });
   }

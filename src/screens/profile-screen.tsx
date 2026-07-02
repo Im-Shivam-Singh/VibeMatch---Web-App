@@ -23,6 +23,8 @@ import {
   Zap,
   Award,
   Rocket,
+  BarChart3,
+  Ticket,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -33,6 +35,7 @@ import { toast } from "sonner";
 
 export function ProfileScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
+  const userRole = useAppStore((s) => s.userRole);
   const setScreen = useAppStore((s) => s.setScreen);
   const logout = useAppStore((s) => s.logout);
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
@@ -44,6 +47,7 @@ export function ProfileScreen() {
   });
 
   const user = data?.user ?? currentUser;
+  const role = user?.role ?? userRole;
 
   if (!user) return null;
 
@@ -101,6 +105,8 @@ export function ProfileScreen() {
     },
   ];
 
+  const isHost = role === "host";
+
   return (
     <div className="flex h-full flex-col animate-screen-in">
       <header className="sticky top-0 z-20 flex items-center justify-between glass-strong border-b border-white/10 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] lg:px-6">
@@ -129,7 +135,15 @@ export function ProfileScreen() {
                 <h2 className="font-display text-xl font-bold truncate text-amber-400">
                   {user.name}
                 </h2>
-                <Crown className="h-4 w-4 text-amber-400" />
+                {/* Role badge */}
+                <span className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
+                  isHost
+                    ? "bg-amber-400/15 text-amber-300 border-amber-400/40"
+                    : "bg-teal-500/15 text-teal-300 border-teal-500/40",
+                )}>
+                  {isHost ? "🎉 Host" : "🎊 Partier"}
+                </span>
               </div>
               <p className="truncate text-sm font-medium text-white/70">
                 @{user.username || "viber"} · {user.city || "India"}
@@ -210,7 +224,9 @@ export function ProfileScreen() {
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Host parties & get vibes from guests to climb the leaderboard.
+            {isHost
+              ? "Host parties & get vibes from guests to climb the leaderboard."
+              : "Attend parties, earn trust & get vibes to climb the leaderboard."}
           </p>
         </section>
 
@@ -245,38 +261,56 @@ export function ProfileScreen() {
           </div>
         </section>
 
-        {/* Activity */}
+        {/* Activity — adapted by role */}
         <section className="mt-6">
           <h3 className="mb-2 px-1 text-[11px] uppercase tracking-[0.2em] text-white/50">
             Activity
           </h3>
-          <div className="overflow-hidden rounded-2xl glass border border-white/10">
-            <Row
-              icon={<Flame className="h-4 w-4 text-amber-400" />}
-              label="My parties"
-              sub={`${user.hosted} hosted`}
-              onClick={() => setScreen("my-parties")}
-            />
-            <Row
-              icon={<InboxIcon className="h-4 w-4 text-amber-400" />}
-              label="Requests received"
-              sub="Review join requests"
-              onClick={() => setScreen("requests")}
-            />
-            <Row
-              icon={<CalendarDays className="h-4 w-4 text-amber-400" />}
-              label="My RSVPs"
-              sub="Parties you're going to"
-              onClick={() => toast.info("RSVPs coming soon")}
-            />
-            <Row
-              icon={<Heart className="h-4 w-4 text-amber-400" />}
-              label="Saved parties"
-              sub={`${savedCount} saved`}
-              onClick={() => setScreen("saved")}
-              last
-            />
-          </div>
+          {isHost ? (
+            <div className="overflow-hidden rounded-2xl glass border border-white/10">
+              <Row
+                icon={<Flame className="h-4 w-4 text-amber-400" />}
+                label="My parties"
+                sub={`${user.hosted} hosted`}
+                onClick={() => setScreen("my-parties")}
+              />
+              <Row
+                icon={<InboxIcon className="h-4 w-4 text-amber-400" />}
+                label="Requests received"
+                sub="Review join requests"
+                onClick={() => setScreen("requests")}
+              />
+              <Row
+                icon={<BarChart3 className="h-4 w-4 text-amber-400" />}
+                label="Analytics"
+                sub="Views, ratings & insights"
+                onClick={() => setScreen("host-dashboard")}
+                last
+              />
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl glass border border-white/10">
+              <Row
+                icon={<CalendarDays className="h-4 w-4 text-amber-400" />}
+                label="My RSVPs"
+                sub="Parties you're going to"
+                onClick={() => toast.info("RSVPs coming soon")}
+              />
+              <Row
+                icon={<Heart className="h-4 w-4 text-amber-400" />}
+                label="Saved parties"
+                sub={`${savedCount} saved`}
+                onClick={() => setScreen("saved")}
+              />
+              <Row
+                icon={<Ticket className="h-4 w-4 text-amber-400" />}
+                label="Tickets"
+                sub="Your entry tickets"
+                onClick={() => setScreen("tickets")}
+                last
+              />
+            </div>
+          )}
         </section>
 
         {/* Settings */}

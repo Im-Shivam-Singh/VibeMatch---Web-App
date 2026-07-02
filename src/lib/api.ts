@@ -138,10 +138,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ step: "send", phone }),
     }),
-  verifyOtp: (phone: string, otp: string, name?: string) =>
+  verifyOtp: (phone: string, otp: string, name?: string, role?: 'host' | 'partier') =>
     jfetch<{ user: VibeUser; token: string }>(`/api/auth/otp`, {
       method: "POST",
-      body: JSON.stringify({ step: "verify", phone, otp, name }),
+      body: JSON.stringify({ step: "verify", phone, otp, name, role }),
     }),
 
   // saved parties (server-side)

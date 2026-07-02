@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 import type { JoinRequestInput } from "@/lib/types";
 
 // ── Purchase-flow rewrite ─────────────────────────────────────────────
@@ -57,14 +58,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const party = await db.party.findUnique({
-    where: { id: partyId },
-    include: { host: true },
-  });
+  await connectDB();
+
+  const party = await Party.findById(partyId).lean({ virtuals: true });
   if (!party) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
-  if (!party.host) {
+
+  // Look up host user
+  const host = party.hostId ? await User.findById(party.hostId).lean({ virtuals: true }) : null;
+  if (!host) {
     return NextResponse.json(
       { error: "This party has no host to message" },
       { status: 400 },
@@ -74,18 +77,17 @@ export async function POST(req: NextRequest) {
   // Resolve the requester user (prefer the explicitly-passed id, fall back
   // to a name lookup so older callers keep working).
   const requester = providedRequesterId
-    ? await db.user.findUnique({ where: { id: providedRequesterId } })
-    : await db.user.findFirst({ where: { name: requesterName } });
+    ? await User.findById(providedRequesterId).lean({ virtuals: true })
+    : await User.findOne({ name: requesterName }).lean({ virtuals: true });
 
   // ── F5: re-apply lockout ──────────────────────────────────────────
   if (requester) {
-    const priorRejected = await db.joinRequest.findFirst({
-      where: {
-        partyId,
-        requesterId: requester.id,
-        status: "rejected",
-      },
-    });
+    const requesterId = requester.id ?? requester._id?.toString();
+    const priorRejected = await JoinRequest.findOne({
+      partyId,
+      requesterId,
+      status: "rejected",
+    }).lean({ virtuals: true });
     if (priorRejected && !partyIsOver(party.date, party.time)) {
       return NextResponse.json(
         {
@@ -98,13 +100,11 @@ export async function POST(req: NextRequest) {
     }
     // Also block duplicate pending applications (don't let the same guest
     // spam-apply while their first one is still pending).
-    const priorPending = await db.joinRequest.findFirst({
-      where: {
-        partyId,
-        requesterId: requester.id,
-        status: "pending",
-      },
-    });
+    const priorPending = await JoinRequest.findOne({
+      partyId,
+      requesterId,
+      status: "pending",
+    }).lean({ virtuals: true });
     if (priorPending) {
       return NextResponse.json(
         {
@@ -118,9 +118,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── F4: queue limit ──────────────────────────────────────────────
-  const pendingCount = await db.joinRequest.count({
-    where: { partyId, status: "pending" },
-  });
+  const pendingCount = await JoinRequest.countDocuments({ partyId, status: "pending" });
   const limit = queueLimit(party.maxGuests);
   if (pendingCount >= limit) {
     return NextResponse.json(
@@ -136,88 +134,80 @@ export async function POST(req: NextRequest) {
 
   // ── Ensure the 1:1 host↔guest thread ─────────────────────────────
   let threadId = providedThreadId ?? null;
-  if (!threadId) {
-    const existing = await db.chatThread.findFirst({
-      where: {
-        OR: [
-          { userAId: requester!.id, userBId: party.host.id },
-          { userAId: party.host.id, userBId: requester!.id },
-        ],
-      },
-    });
-    threadId = existing?.id ?? null;
+  const requesterId = requester?.id ?? requester?._id?.toString();
+  const hostId = host.id ?? host._id?.toString();
+
+  if (!threadId && requesterId) {
+    const existing = await ChatThread.findOne({
+      $or: [
+        { userAId: requesterId, userBId: hostId },
+        { userAId: hostId, userBId: requesterId },
+      ],
+    }).lean({ virtuals: true });
+    threadId = existing?.id ?? existing?._id?.toString() ?? null;
     if (!threadId) {
-      const t = await db.chatThread.create({
-        data: {
-          userAId: requester!.id,
-          userBId: party.host.id,
-          partyId,
-        },
+      const t = await ChatThread.create({
+        userAId: requesterId,
+        userBId: hostId,
+        partyId,
       });
-      threadId = t.id;
+      threadId = t.id ?? t._id?.toString();
     }
   }
 
   // ── Create the JoinRequest (linked to thread + intro video) ──────
-  const request = await db.joinRequest.create({
-    data: {
-      partyId,
-      requesterName,
-      introMessage,
-      requesterId: requester?.id ?? null,
-      threadId,
-      introVideoUrl: introVideoUrl ?? null,
-      introVideoPoster: introVideoPoster ?? null,
-    },
+  const request = await JoinRequest.create({
+    partyId,
+    requesterName,
+    introMessage,
+    requesterId: requesterId ?? null,
+    threadId,
+    introVideoUrl: introVideoUrl ?? null,
+    introVideoPoster: introVideoPoster ?? null,
   });
 
+  const requestId = request.id ?? request._id?.toString();
+
   // ── Drop the intro text + video + system notice into the thread ─
-  // Intro text (from guest → host)
-  await db.message.create({
-    data: {
+  if (requesterId && hostId && threadId) {
+    // Intro text (from guest → host)
+    await Message.create({
       threadId,
-      senderId: requester!.id,
-      receiverId: party.host.id,
+      senderId: requesterId,
+      receiverId: hostId,
       content: introMessage,
       kind: "text",
-    },
-  });
-  // Intro video (if attached) — rendered as a tappable video message
-  if (introVideoUrl) {
-    await db.message.create({
-      data: {
+    });
+    // Intro video (if attached) — rendered as a tappable video message
+    if (introVideoUrl) {
+      await Message.create({
         threadId,
-        senderId: requester!.id,
-        receiverId: party.host.id,
+        senderId: requesterId,
+        receiverId: hostId,
         content: "Intro video 🎬",
         kind: "video",
         mediaUrl: introVideoUrl,
-        requestId: request.id,
-      },
-    });
-  }
-  // System notice to the guest (so the chat explains the wait)
-  await db.message.create({
-    data: {
+        requestId,
+      });
+    }
+    // System notice to the guest (so the chat explains the wait)
+    await Message.create({
       threadId,
-      senderId: party.host.id,
-      receiverId: requester!.id,
+      senderId: hostId,
+      receiverId: requesterId,
       content:
         "⏳ Waiting for host approval. You'll be notified here — payment unlocks once the host says yes.",
       kind: "system",
-    },
-  });
-  await db.chatThread.update({
-    where: { id: threadId },
-    data: { updatedAt: new Date() },
-  });
+    });
+    await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
+  }
 
   // NOTE: guestCount is intentionally NOT bumped here. The spot is only
   // reserved once the host accepts AND the guest pays (POST /api/orders).
 
   return NextResponse.json(
     {
-      id: request.id,
+      id: requestId,
       threadId,
       message: "Request sent! The host will review your intro and reply here.",
       status: request.status,
@@ -233,15 +223,19 @@ export async function GET(req: NextRequest) {
   if (!partyId) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
-  const requests = await db.joinRequest.findMany({
-    where: { partyId },
-    orderBy: { createdAt: "desc" },
-  });
+
+  await connectDB();
+
+  const requests = await JoinRequest.find({ partyId })
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
   return NextResponse.json({
     requests: requests.map((r) => ({
       ...r,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
+      id: r.id ?? r._id?.toString(),
+      createdAt: r.createdAt?.toISOString?.() ?? String(r.createdAt ?? ""),
+      updatedAt: r.updatedAt?.toISOString?.() ?? String(r.updatedAt ?? ""),
     })),
   });
 }

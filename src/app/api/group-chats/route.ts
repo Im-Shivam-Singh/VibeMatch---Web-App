@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import type { GroupChat } from "@/lib/types";
+import { connectDB } from "@/lib/mongodb";
+import { GroupChat, User } from "@/models";
+import type { GroupChat as GroupChatType } from "@/lib/types";
 
 // GET /api/group-chats?partyId=...&userId=...
 // Returns the group chat for a party (members + messages). 404 if the group
@@ -16,13 +17,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const gc = await db.groupChat.findUnique({
-    where: { partyId },
-    include: {
-      members: { include: { user: true } },
-      messages: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  await connectDB();
+
+  const gc = await GroupChat.findOne({ partyId }).lean({ virtuals: true });
   if (!gc) {
     return NextResponse.json(
       { error: "Group chat not unlocked yet", code: "NOT_ENABLED" },
@@ -30,7 +27,7 @@ export async function GET(req: NextRequest) {
     );
   }
   // Membership gate: only paid guests + the host can read the group chat.
-  const isMember = gc.members.some((m) => m.userId === userId);
+  const isMember = gc.members.some((m: any) => m.userId === userId);
   if (!isMember) {
     return NextResponse.json(
       { error: "You haven't unlocked this group chat yet", code: "NOT_MEMBER" },
@@ -38,28 +35,42 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const serialized: GroupChat = {
-    id: gc.id,
+  // Fetch all member users for enrichment
+  const memberUserIds = gc.members.map((m: any) => m.userId);
+  const memberUsers = await User.find({ _id: { $in: memberUserIds } }).lean({ virtuals: true });
+  const userMap = new Map(memberUsers.map((u) => [u.id ?? u._id?.toString(), u]));
+
+  const gcId = gc.id ?? gc._id?.toString();
+
+  const serialized: GroupChatType = {
+    id: gcId,
     partyId: gc.partyId,
-    members: gc.members.map((m) => ({
-      id: m.id,
-      userId: m.user.id,
-      name: m.user.name,
-      avatarUrl: m.user.avatarUrl,
-      joinedAt: m.joinedAt.toISOString(),
-    })),
-    messages: gc.messages.map((m) => ({
-      id: m.id,
-      groupChatId: m.groupChatId,
+    members: gc.members.map((m: any) => {
+      const mu = userMap.get(m.userId);
+      return {
+        id: m._id?.toString(),
+        userId: m.userId,
+        name: mu?.name ?? "Guest",
+        avatarUrl: mu?.avatarUrl ?? null,
+        joinedAt: m.joinedAt?.toISOString?.() ?? String(m.joinedAt ?? ""),
+      };
+    }),
+    messages: gc.messages.map((m: any) => ({
+      id: m._id?.toString(),
+      groupChatId: gcId,
       senderId: m.senderId,
       content: m.content,
       kind: (m.kind as "text" | "system" | "offer") ?? "text",
       offerBrand: m.offerBrand ?? null,
-      createdAt: m.createdAt.toISOString(),
+      createdAt: m.createdAt?.toISOString?.() ?? String(m.createdAt ?? ""),
       sender: {
         id: m.senderId,
-        name: gc.members.find((mm) => mm.userId === m.senderId)?.user.name ?? "Guest",
-        avatarUrl: gc.members.find((mm) => mm.userId === m.senderId)?.user.avatarUrl ?? null,
+        name: gc.members.find((mm: any) => mm.userId === m.senderId)
+          ? userMap.get(m.senderId)?.name ?? "Guest"
+          : "Guest",
+        avatarUrl: gc.members.find((mm: any) => mm.userId === m.senderId)
+          ? userMap.get(m.senderId)?.avatarUrl ?? null
+          : null,
       },
     })),
   };
@@ -82,37 +93,42 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
+  await connectDB();
+
   // Membership gate
-  const member = await db.groupChatMember.findUnique({
-    where: { groupChatId_userId: { groupChatId, userId: senderId } },
-  });
-  if (!member) {
+  const gc = await GroupChat.findById(groupChatId).lean({ virtuals: true });
+  if (!gc) {
+    return NextResponse.json({ error: "Group chat not found" }, { status: 404 });
+  }
+  const isMember = gc.members.some((m: any) => m.userId === senderId);
+  if (!isMember) {
     return NextResponse.json(
       { error: "You're not a member of this group chat" },
       { status: 403 },
     );
   }
-  const msg = await db.groupChatMessage.create({
-    data: {
-      groupChatId,
-      senderId,
-      content: content.trim(),
-      kind: "text",
-    },
+
+  // Push a new message into the embedded messages array
+  const newMsg = {
+    senderId,
+    content: content.trim(),
+    kind: "text",
+    createdAt: new Date(),
+  };
+  await GroupChat.findByIdAndUpdate(groupChatId, {
+    $push: { messages: newMsg },
+    $set: { updatedAt: new Date() },
   });
-  await db.groupChat.update({
-    where: { id: groupChatId },
-    data: { updatedAt: new Date() },
-  });
+
   return NextResponse.json(
     {
       message: {
-        id: msg.id,
-        groupChatId: msg.groupChatId,
-        senderId: msg.senderId,
-        content: msg.content,
+        groupChatId,
+        senderId,
+        content: content.trim(),
         kind: "text",
-        createdAt: msg.createdAt.toISOString(),
+        createdAt: newMsg.createdAt.toISOString(),
       },
     },
     { status: 201 },

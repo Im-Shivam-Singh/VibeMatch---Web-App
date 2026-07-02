@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { SavedParty, Party } from "@/models";
 
 // GET /api/saved?userId=... — list saved party IDs for a user
 export async function GET(req: NextRequest) {
@@ -9,35 +10,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
 
-  const saved = await db.savedParty.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: { party: true },
-  });
+  await connectDB();
+
+  const saved = await SavedParty.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
+  // Fetch associated parties
+  const partyIds = saved.map((s) => s.partyId);
+  const parties = await Party.find({ _id: { $in: partyIds } }).lean({ virtuals: true });
+  const partyMap = new Map(parties.map((p) => [p.id ?? p._id?.toString(), p]));
 
   return NextResponse.json({
-    saved: saved.map((s) => ({
-      id: s.id,
-      partyId: s.partyId,
-      createdAt: s.createdAt.toISOString(),
-      party: {
-        id: s.party.id,
-        title: s.party.title,
-        city: s.party.city,
-        area: s.party.area,
-        date: s.party.date,
-        time: s.party.time,
-        fee: s.party.fee,
-        maxGuests: s.party.maxGuests,
-        vibes: s.party.vibes,
-        description: s.party.description,
-        hostName: s.party.hostName,
-        hostId: s.party.hostId,
-        coverUrl: s.party.coverUrl,
-        guestCount: s.party.guestCount,
-        createdAt: s.party.createdAt.toISOString(),
-      },
-    })),
+    saved: saved.map((s) => {
+      const party = partyMap.get(s.partyId);
+      return {
+        id: s.id ?? s._id?.toString(),
+        partyId: s.partyId,
+        createdAt: s.createdAt?.toISOString?.() ?? String(s.createdAt ?? ""),
+        party: party
+          ? {
+              id: party.id ?? party._id?.toString(),
+              title: party.title,
+              city: party.city,
+              area: party.area,
+              date: party.date,
+              time: party.time,
+              fee: party.fee,
+              maxGuests: party.maxGuests,
+              vibes: party.vibes,
+              description: party.description,
+              hostName: party.hostName,
+              hostId: party.hostId,
+              coverUrl: party.coverUrl,
+              guestCount: party.guestCount,
+              createdAt: party.createdAt?.toISOString?.() ?? String(party.createdAt ?? ""),
+            }
+          : null,
+      };
+    }),
     partyIds: saved.map((s) => s.partyId),
   });
 }
@@ -58,16 +69,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await db.savedParty.findUnique({
-    where: { userId_partyId: { userId, partyId } },
-  });
+  await connectDB();
+
+  const existing = await SavedParty.findOne({ userId, partyId }).lean({ virtuals: true });
   if (existing) {
     // toggle: unsave
-    await db.savedParty.delete({ where: { id: existing.id } });
+    await SavedParty.findByIdAndDelete(existing.id ?? existing._id);
     return NextResponse.json({ saved: false, partyId });
   }
 
-  await db.savedParty.create({ data: { userId, partyId } });
+  await SavedParty.create({ userId, partyId });
   return NextResponse.json({ saved: true, partyId }, { status: 201 });
 }
 
@@ -83,13 +94,13 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  const existing = await db.savedParty.findUnique({
-    where: { userId_partyId: { userId, partyId } },
-  });
+  await connectDB();
+
+  const existing = await SavedParty.findOne({ userId, partyId }).lean({ virtuals: true });
   if (!existing) {
     return NextResponse.json({ error: "Not saved" }, { status: 404 });
   }
 
-  await db.savedParty.delete({ where: { id: existing.id } });
+  await SavedParty.findByIdAndDelete(existing.id ?? existing._id);
   return NextResponse.json({ saved: false, partyId });
 }

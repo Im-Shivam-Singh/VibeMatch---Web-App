@@ -249,18 +249,18 @@ export function DetailScreen() {
   if (isLoading) {
     return (
       <div className="animate-screen-in space-y-4 p-4">
-        <Skeleton className="h-56 w-full rounded-2xl" />
-        <Skeleton className="h-6 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
+        <div className="vibe-skeleton h-56 w-full rounded-2xl" />
+        <div className="vibe-skeleton h-6 w-3/4 rounded-md" />
+        <div className="vibe-skeleton h-4 w-1/2 rounded-md" />
         <div className="grid grid-cols-2 gap-2">
-          <Skeleton className="h-12 rounded-lg" />
-          <Skeleton className="h-12 rounded-lg" />
-          <Skeleton className="h-12 rounded-lg" />
-          <Skeleton className="h-12 rounded-lg" />
+          <div className="vibe-skeleton h-12 rounded-lg" />
+          <div className="vibe-skeleton h-12 rounded-lg" />
+          <div className="vibe-skeleton h-12 rounded-lg" />
+          <div className="vibe-skeleton h-12 rounded-lg" />
         </div>
-        <Skeleton className="h-16 w-full rounded-2xl" />
-        <Skeleton className="h-20 w-full rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
+        <div className="vibe-skeleton h-16 w-full rounded-2xl" />
+        <div className="vibe-skeleton h-20 w-full rounded-2xl" />
+        <div className="vibe-skeleton h-24 w-full rounded-2xl" />
       </div>
     );
   }
@@ -369,24 +369,30 @@ export function DetailScreen() {
           going={going}
         />
 
+        {/* Gradient bleed from hero into body */}
+        <div className="relative z-10 -mt-6 h-6 bg-gradient-to-t from-background to-transparent" />
+
         {/* ── BODY ─────────────────────────────────────────────────── */}
-        <div className="space-y-4 p-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:space-y-0">
+        <div className="space-y-5 p-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:space-y-0">
           {/* Left column — party info */}
-          <div className="space-y-4 lg:col-span-3">
+          <div className="space-y-5 lg:col-span-3">
             {/* Title row */}
-            <section className="space-y-1.5">
+            <section className="space-y-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <h1 className="flex-1 font-display text-xl font-bold leading-tight text-foreground lg:text-2xl">
                   {party.title}
                 </h1>
-                <span className="shrink-0 rounded-lg bg-purple-500/20 px-2.5 py-1 text-sm font-medium text-purple-300">
+                <span className="shrink-0 rounded-xl bg-gradient-to-r from-purple-500/25 to-teal-500/20 px-3 py-1.5 text-sm font-semibold text-purple-200 border border-purple-500/30">
                   {feeLabel} entry
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+              <p className="text-sm text-muted-foreground">
                 Pay once · drinks add-on available after
               </p>
             </section>
+
+            {/* Section divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-purple-500/25 to-transparent" />
 
             {/* Meta grid 2×2 */}
             <section className="grid grid-cols-2 gap-2">
@@ -431,11 +437,12 @@ export function DetailScreen() {
 
             {/* About this party */}
             {party.description && (
-              <section className="space-y-1.5">
+              <section className="space-y-2">
                 <span className="eyebrow">About this party</span>
                 <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                   {party.description}
                 </p>
+                <div className="h-px bg-gradient-to-r from-transparent via-purple-500/25 to-transparent" />
               </section>
             )}
 
@@ -479,7 +486,7 @@ export function DetailScreen() {
           </div>
 
           {/* Right column — host/chat sidebar */}
-          <div className="space-y-4 lg:col-span-2">
+          <div className="space-y-5 lg:col-span-2">
             {/* Host card — with teal Verified badge */}
             {host && (
               <section className="glass flex items-center gap-3 rounded-2xl p-3">
@@ -604,14 +611,17 @@ export function DetailScreen() {
                       "press-feedback flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition",
                       isFull
                         ? "bg-white/8 text-muted-foreground"
-                        : "glow-violet bg-primary text-primary-foreground",
+                        : "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-[0_4px_24px_-4px_rgba(83,74,183,0.5)] hover:shadow-[0_6px_28px_-4px_rgba(83,74,183,0.65)] hover:brightness-110",
                     )}
                   >
                     {isFull ? (
                       "Sold out — join waitlist"
                     ) : (
                       <>
-                        <span>Join for {feeLabel}</span>
+                        <span className="relative">
+                          Join for {feeLabel}
+                          {!isFull && <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />}
+                        </span>
                         <span className="opacity-50">·</span>
                         <span>get your spot</span>
                       </>
@@ -626,7 +636,7 @@ export function DetailScreen() {
 
       {/* ── STICKY CTA — Join for £N · get your spot (mobile only) ──── */}
       <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 lg:hidden">
-        <div className="flex items-center gap-2">
+        <div className="glass-strong rounded-2xl p-2.5 flex items-center gap-2">
           {/* Save / heart toggle */}
           <button
             onClick={handleSaveToggle}
@@ -656,14 +666,17 @@ export function DetailScreen() {
                 "press-feedback flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition",
                 isFull
                   ? "bg-white/8 text-muted-foreground"
-                  : "glow-violet bg-primary text-primary-foreground",
+                  : "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-[0_4px_24px_-4px_rgba(83,74,183,0.5)] hover:shadow-[0_6px_28px_-4px_rgba(83,74,183,0.65)] hover:brightness-110",
               )}
             >
               {isFull ? (
                 "Sold out — join waitlist"
               ) : (
                 <>
-                  <span>Join for {feeLabel}</span>
+                  <span className="relative">
+                    Join for {feeLabel}
+                    {!isFull && <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />}
+                  </span>
                   <span className="opacity-50">·</span>
                   <span>get your spot</span>
                 </>
@@ -811,11 +824,11 @@ export function DetailScreen() {
 // ── Meta cell for the 2×2 meta grid ──────────────────────────────────
 function MetaCell({ emoji, text }: { emoji: string; text: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-white/4 p-2.5 text-xs">
+    <div className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-white/[0.03] p-3 text-xs transition-colors hover:border-purple-500/30 hover:bg-white/[0.05]">
       <span aria-hidden className="text-sm leading-none">
         {emoji}
       </span>
-      <span className="min-w-0 truncate text-foreground/80">{text}</span>
+      <span className="min-w-0 truncate text-foreground/80 font-medium">{text}</span>
     </div>
   );
 }

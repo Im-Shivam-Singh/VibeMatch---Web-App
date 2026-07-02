@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { ChatThread, User, Message, JoinRequest, Order } from "@/models";
 
 // GET /api/threads/[id]?userId=... — full thread with messages + other user
 export async function GET(
@@ -10,33 +11,34 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
 
-  const thread = await db.chatThread.findUnique({
-    where: { id },
-    include: {
-      userA: true,
-      userB: true,
-      messages: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  await connectDB();
 
+  const thread = await ChatThread.findById(id).lean({ virtuals: true });
   if (!thread) {
     return NextResponse.json({ error: "Thread not found" }, { status: 404 });
   }
 
   // mark messages addressed to userId as read
   if (userId) {
-    await db.message.updateMany({
-      where: { threadId: id, receiverId: userId, read: false },
-      data: { read: true },
-    });
+    await Message.updateMany(
+      { threadId: id, receiverId: userId, read: false },
+      { $set: { read: true } },
+    );
   }
+
+  // Fetch userA and userB
+  const [userA, userB, messages] = await Promise.all([
+    User.findById(thread.userAId).lean({ virtuals: true }),
+    User.findById(thread.userBId).lean({ virtuals: true }),
+    Message.find({ threadId: id }).sort({ createdAt: 1 }).lean({ virtuals: true }),
+  ]);
 
   const otherId = userId
     ? thread.userAId === userId
       ? thread.userBId
       : thread.userAId
     : thread.userBId;
-  const other = thread.userAId === otherId ? thread.userA : thread.userB;
+  const other = thread.userAId === otherId ? userA : userB;
 
   // ── Purchase-flow context ──────────────────────────────────────────
   // Look up the JoinRequest linked to this thread (if any). The chat UI uses
@@ -45,34 +47,30 @@ export async function GET(
   let request: any = null;
   let paid = false;
   if (thread.partyId) {
-    const req = await db.joinRequest.findFirst({
-      where: { threadId: thread.id },
-      orderBy: { createdAt: "desc" },
-    });
-    if (req) {
+    const reqDoc = await JoinRequest.findOne({ threadId: id })
+      .sort({ createdAt: -1 })
+      .lean({ virtuals: true });
+    if (reqDoc) {
       request = {
-        id: req.id,
-        partyId: req.partyId,
-        requesterId: req.requesterId,
-        requesterName: req.requesterName,
-        status: req.status,
-        threadId: req.threadId,
-        introVideoUrl: req.introVideoUrl,
-        introVideoPoster: req.introVideoPoster,
-        createdAt: req.createdAt.toISOString(),
-        updatedAt: req.updatedAt.toISOString(),
+        id: reqDoc.id ?? reqDoc._id?.toString(),
+        partyId: reqDoc.partyId,
+        requesterId: reqDoc.requesterId,
+        requesterName: reqDoc.requesterName,
+        status: reqDoc.status,
+        threadId: reqDoc.threadId,
+        introVideoUrl: reqDoc.introVideoUrl,
+        introVideoPoster: reqDoc.introVideoPoster,
+        createdAt: reqDoc.createdAt?.toISOString?.() ?? String(reqDoc.createdAt ?? ""),
+        updatedAt: reqDoc.updatedAt?.toISOString?.() ?? String(reqDoc.updatedAt ?? ""),
       };
       // "Paid" = there's a paid Order for this party by the requesting guest.
       // That's the unlock signal — once true, the 1:1 chat opens for both sides.
-      if (req.requesterId) {
-        const paidOrder = await db.order.findFirst({
-          where: {
-            partyId: req.partyId,
-            userId: req.requesterId,
-            status: "paid",
-          },
-          select: { id: true },
-        });
+      if (reqDoc.requesterId) {
+        const paidOrder = await Order.findOne({
+          partyId: reqDoc.partyId,
+          userId: reqDoc.requesterId,
+          status: "paid",
+        }).lean({ virtuals: true });
         paid = !!paidOrder;
       }
     }
@@ -80,16 +78,16 @@ export async function GET(
 
   return NextResponse.json({
     thread: {
-      id: thread.id,
+      id: thread.id ?? thread._id?.toString(),
       userAId: thread.userAId,
       userBId: thread.userBId,
       partyId: thread.partyId,
-      createdAt: thread.createdAt.toISOString(),
-      updatedAt: thread.updatedAt.toISOString(),
+      createdAt: thread.createdAt?.toISOString?.() ?? String(thread.createdAt ?? ""),
+      updatedAt: thread.updatedAt?.toISOString?.() ?? String(thread.updatedAt ?? ""),
     },
     otherUser: other
       ? {
-          id: other.id,
+          id: other.id ?? other._id?.toString(),
           name: other.name,
           username: other.username,
           bio: other.bio,
@@ -101,11 +99,14 @@ export async function GET(
           hosted: other.hosted,
           rating: other.rating,
           ratingCount: other.ratingCount,
+          trustScore: other.trustScore,
+          trustCount: other.trustCount,
         }
       : null,
-    messages: thread.messages.map((m) => ({
+    messages: messages.map((m) => ({
       ...m,
-      createdAt: m.createdAt.toISOString(),
+      id: m.id ?? m._id?.toString(),
+      createdAt: m.createdAt?.toISOString?.() ?? String(m.createdAt ?? ""),
     })),
     // Purchase-flow context — drives the composer lock + status banner.
     request,

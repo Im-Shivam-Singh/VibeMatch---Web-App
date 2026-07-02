@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, User, PartyMedia } from "@/models";
 import {
   parseVibes,
   partyCoords,
@@ -10,7 +11,7 @@ import {
 
 function serialize(p: any): Party {
   return {
-    id: p.id,
+    id: p.id ?? p._id?.toString(),
     title: p.title,
     city: p.city,
     area: p.area,
@@ -30,7 +31,7 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     groupChatEnabled: p.groupChatEnabled,
-    createdAt: p.createdAt.toISOString(),
+    createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     // Intentionally empty in list payloads to keep the response small.
     // The full media list is only included on the GET /api/parties/[id] route.
     media: [],
@@ -54,16 +55,28 @@ export async function GET(req: NextRequest) {
     !Number.isNaN(parseFloat(lat)) && !Number.isNaN(parseFloat(lng)) &&
     !Number.isNaN(parseFloat(radiusKm));
 
+  await connectDB();
+
+  const filter: Record<string, unknown> = {};
+  if (city) filter.city = city;
+
   // When a profession filter is set, include the host so we can filter by
   // host.profession ("who are you" → find parties hosted by your crowd).
-  const parties = await db.party.findMany({
-    where: {
-      ...(city ? { city } : {}),
-    },
-    include: profession ? { host: true } : undefined,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+  let parties = await Party.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .lean({ virtuals: true });
+
+  // If profession filter is active, we need to look up host users
+  if (profession && parties.length > 0) {
+    const hostIds = [...new Set(parties.map((p) => p.hostId).filter(Boolean))] as string[];
+    const hosts = await User.find({ _id: { $in: hostIds }, profession }).lean({ virtuals: true });
+    const hostIdSet = new Set(hosts.map((h) => h.id));
+    parties = parties.map((p) => {
+      (p as any).host = p.hostId && hostIdSet.has(p.hostId) ? { profession } : null;
+      return p;
+    });
+  }
 
   let filtered = parties;
   if (vibe) {
@@ -98,7 +111,7 @@ export async function GET(req: NextRequest) {
       const coords = partyCoords({
         lat: p.lat,
         lng: p.lng,
-        id: p.id,
+        id: p.id ?? p._id?.toString(),
         city: p.city,
       });
       return haversineKm(center, coords) <= radius;
@@ -143,8 +156,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  await connectDB();
+
   // try to associate with a host user by hostName
-  const host = await db.user.findFirst({ where: { name: hostName } });
+  const host = await User.findOne({ name: hostName }).lean({ virtuals: true });
 
   // If the host didn't pass an explicit coverUrl but added media, the first
   // media item becomes the cover (keeps legacy party-card rendering working).
@@ -152,49 +167,44 @@ export async function POST(req: NextRequest) {
   const resolvedCoverUrl =
     coverUrl || (mediaList.length > 0 ? mediaList[0].url : null);
 
-  const party = await db.party.create({
-    data: {
-      title,
-      city,
-      area,
-      date,
-      time,
-      fee: Number(fee) || 0,
-      maxGuests: Number(maxGuests) || 10,
-      vibes: (vibes || []).join(","),
-      description: description || "",
-      hostName,
-      hostId: host?.id,
-      coverUrl: resolvedCoverUrl,
-      lat: typeof lat === "number" ? lat : null,
-      lng: typeof lng === "number" ? lng : null,
-      guestCount: 0,
-      securityBooked: Boolean(securityBooked),
-      securityFee: Number(securityFee) || 0,
-      securityStatus: securityBooked ? "requested" : "",
-    },
+  const party = await Party.create({
+    title,
+    city,
+    area,
+    date,
+    time,
+    fee: Number(fee) || 0,
+    maxGuests: Number(maxGuests) || 10,
+    vibes: (vibes || []).join(","),
+    description: description || "",
+    hostName,
+    hostId: host?.id ?? host?._id?.toString() ?? null,
+    coverUrl: resolvedCoverUrl,
+    lat: typeof lat === "number" ? lat : null,
+    lng: typeof lng === "number" ? lng : null,
+    guestCount: 0,
+    securityBooked: Boolean(securityBooked),
+    securityFee: Number(securityFee) || 0,
+    securityStatus: securityBooked ? "requested" : "",
   });
 
-  // Persist the media gallery (sorted by position). createMany is more
-  // efficient than per-row create and we don't need the created rows back.
+  // Persist the media gallery (sorted by position).
   if (mediaList.length > 0) {
-    await db.partyMedia.createMany({
-      data: mediaList.slice(0, 12).map((m, index) => ({
-        partyId: party.id,
-        url: m.url,
-        type: m.type === "video" ? "video" : "image",
-        caption: m.caption ?? "",
-        position: index,
-      })),
-    });
+    const mediaDocs = mediaList.slice(0, 12).map((m, index) => ({
+      partyId: party.id ?? party._id?.toString(),
+      url: m.url,
+      type: m.type === "video" ? "video" : "image",
+      caption: m.caption ?? "",
+      position: index,
+    }));
+    await PartyMedia.insertMany(mediaDocs);
   }
 
   if (host) {
-    await db.user.update({
-      where: { id: host.id },
-      data: { hosted: { increment: 1 } },
-    });
+    await User.findByIdAndUpdate(host.id ?? host._id, { $inc: { hosted: 1 } });
   }
 
-  return NextResponse.json({ party: serialize(party) }, { status: 201 });
+  // Get lean version for serialization
+  const leanParty = party.toObject({ virtuals: true });
+  return NextResponse.json({ party: serialize(leanParty) }, { status: 201 });
 }

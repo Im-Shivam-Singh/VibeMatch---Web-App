@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Review, User } from "@/models";
 import type { PartyReview } from "@/lib/types";
 
-function serialize(r: any): PartyReview {
+function serialize(r: any, user?: any): PartyReview {
   return {
-    id: r.id,
+    id: r.id ?? r._id?.toString(),
     partyId: r.partyId,
     userId: r.userId,
     rating: r.rating,
     comment: r.comment,
-    createdAt: r.createdAt.toISOString(),
-    user: r.user
+    createdAt: r.createdAt?.toISOString?.() ?? String(r.createdAt ?? ""),
+    user: user
       ? {
-          id: r.user.id,
-          name: r.user.name,
-          avatarUrl: r.user.avatarUrl,
+          id: user.id ?? user._id?.toString(),
+          name: user.name,
+          avatarUrl: user.avatarUrl,
         }
       : undefined,
   };
@@ -28,11 +29,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "partyId required" }, { status: 400 });
   }
 
-  const reviews = await db.review.findMany({
-    where: { partyId },
-    include: { user: true },
-    orderBy: { createdAt: "desc" },
-  });
+  await connectDB();
+
+  const reviews = await Review.find({ partyId })
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
+  // Fetch users for all reviews
+  const userIds = [...new Set(reviews.map((r) => r.userId))];
+  const users = await User.find({ _id: { $in: userIds } }).lean({ virtuals: true });
+  const userMap = new Map(users.map((u) => [u.id ?? u._id?.toString(), u]));
 
   const count = reviews.length;
   const avgRating =
@@ -41,7 +47,7 @@ export async function GET(req: NextRequest) {
       : 0;
 
   return NextResponse.json({
-    reviews: reviews.map(serialize),
+    reviews: reviews.map((r) => serialize(r, userMap.get(r.userId))),
     avgRating: Math.round(avgRating * 10) / 10,
     count,
   });
@@ -68,18 +74,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rating must be 1..5" }, { status: 400 });
   }
 
+  await connectDB();
+
   // upsert: one review per user per party
-  const review = await db.review.upsert({
-    where: { partyId_userId: { partyId, userId } },
-    update: { rating: Number(rating), comment: comment || "" },
-    create: {
+  const existing = await Review.findOne({ partyId, userId }).lean({ virtuals: true });
+  let review: any;
+  if (existing) {
+    review = await Review.findByIdAndUpdate(
+      existing.id ?? existing._id,
+      { $set: { rating: Number(rating), comment: comment || "" } },
+      { new: true },
+    ).lean({ virtuals: true });
+  } else {
+    review = await Review.create({
       partyId,
       userId,
       rating: Number(rating),
       comment: comment || "",
-    },
-    include: { user: true },
-  });
+    });
+    review = review.toObject({ virtuals: true });
+  }
 
-  return NextResponse.json({ review: serialize(review) }, { status: 201 });
+  const user = await User.findById(userId).lean({ virtuals: true });
+
+  return NextResponse.json({ review: serialize(review, user) }, { status: 201 });
 }

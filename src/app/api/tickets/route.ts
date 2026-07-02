@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Ticket, Party, Order } from "@/models";
 
 // GET /api/tickets?userId=...  → list a user's tickets (with party + order)
 export async function GET(req: NextRequest) {
@@ -10,13 +11,36 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-  const tickets = await db.ticket.findMany({
-    where: { userId },
-    include: {
-      party: true,
-      order: { include: { items: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json({ tickets });
+
+  await connectDB();
+
+  const tickets = await Ticket.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
+  // Enrich with party and order info
+  const partyIds = [...new Set(tickets.map((t) => t.partyId))];
+  const orderIds = [...new Set(tickets.map((t) => t.orderId))];
+
+  const [parties, orders] = await Promise.all([
+    Party.find({ _id: { $in: partyIds } }).lean({ virtuals: true }),
+    Order.find({ _id: { $in: orderIds } }).lean({ virtuals: true }),
+  ]);
+
+  const partyMap = new Map(parties.map((p) => [p.id ?? p._id?.toString(), p]));
+  const orderMap = new Map(orders.map((o) => [o.id ?? o._id?.toString(), o]));
+
+  const enriched = tickets.map((t) => ({
+    ...t,
+    id: t.id ?? t._id?.toString(),
+    party: partyMap.get(t.partyId) ?? null,
+    order: (() => {
+      const o = orderMap.get(t.orderId);
+      if (!o) return null;
+      return { ...o, id: o.id ?? o._id?.toString() };
+    })(),
+    createdAt: t.createdAt?.toISOString?.() ?? String(t.createdAt ?? ""),
+  }));
+
+  return NextResponse.json({ tickets: enriched });
 }

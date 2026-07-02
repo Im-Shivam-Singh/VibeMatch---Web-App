@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, PartyMedia } from "@/models";
 
 // ── /api/parties/[id]/media ───────────────────────────────────────────
 // Host manage-party endpoints for the live event gallery + group-chat toggle.
@@ -24,35 +25,33 @@ export async function POST(
       { status: 400 },
     );
   }
-  // Position = current max + 1 so new items append to the end.
-  const count = await db.partyMedia.count({ where: { partyId } });
+
+  await connectDB();
+
+  // Position = current count so new items append to the end.
+  const count = await PartyMedia.countDocuments({ partyId });
   // If the party has no cover yet, set it from this first media item.
-  const party = await db.party.findUnique({ where: { id: partyId } });
-  const media = await db.partyMedia.create({
-    data: {
-      partyId,
-      url,
-      type,
-      caption: caption ?? "",
-      position: count,
-    },
+  const party = await Party.findById(partyId).lean({ virtuals: true });
+  const media = await PartyMedia.create({
+    partyId,
+    url,
+    type,
+    caption: caption ?? "",
+    position: count,
   });
   if (party && !party.coverUrl) {
-    await db.party.update({
-      where: { id: partyId },
-      data: { coverUrl: url },
-    });
+    await Party.findByIdAndUpdate(partyId, { $set: { coverUrl: url } });
   }
   return NextResponse.json(
     {
       media: {
-        id: media.id,
+        id: media.id ?? media._id?.toString(),
         partyId: media.partyId,
         url: media.url,
         type: media.type === "video" ? "video" : "image",
         caption: media.caption,
         position: media.position,
-        createdAt: media.createdAt.toISOString(),
+        createdAt: media.createdAt?.toISOString?.() ?? String(media.createdAt ?? ""),
       },
     },
     { status: 201 },
@@ -70,22 +69,24 @@ export async function DELETE(
   if (!mediaId) {
     return NextResponse.json({ error: "id query param required" }, { status: 400 });
   }
-  const existing = await db.partyMedia.findUnique({ where: { id: mediaId } });
+
+  await connectDB();
+
+  const existing = await PartyMedia.findById(mediaId).lean({ virtuals: true });
   if (!existing || existing.partyId !== partyId) {
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
   const wasCoverUrl = existing.url;
-  await db.partyMedia.delete({ where: { id: mediaId } });
+  await PartyMedia.findByIdAndDelete(mediaId);
   // If we removed the cover, promote the next media item (if any) to cover.
-  const party = await db.party.findUnique({
-    where: { id: partyId },
-    include: { media: { orderBy: { position: "asc" } } },
-  });
+  const party = await Party.findById(partyId).lean({ virtuals: true });
   if (party && party.coverUrl === wasCoverUrl) {
-    const next = party.media[0];
-    await db.party.update({
-      where: { id: partyId },
-      data: { coverUrl: next?.url ?? null },
+    const next = await PartyMedia.find({ partyId })
+      .sort({ position: 1 })
+      .limit(1)
+      .lean({ virtuals: true });
+    await Party.findByIdAndUpdate(partyId, {
+      $set: { coverUrl: next[0]?.url ?? null },
     });
   }
   return NextResponse.json({ id: mediaId });
@@ -110,14 +111,18 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  const party = await db.party.update({
-    where: { id: partyId },
-    data: { groupChatEnabled: body.groupChatEnabled },
-  });
+
+  await connectDB();
+
+  const party = await Party.findByIdAndUpdate(
+    partyId,
+    { $set: { groupChatEnabled: body.groupChatEnabled } },
+    { new: true },
+  ).lean({ virtuals: true });
   return NextResponse.json({
     party: {
-      id: party.id,
-      groupChatEnabled: party.groupChatEnabled,
+      id: party?.id ?? party?._id?.toString(),
+      groupChatEnabled: party?.groupChatEnabled,
     },
   });
 }

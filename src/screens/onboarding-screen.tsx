@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, MapPin, Sparkles, PartyPopper } from "lucide-react";
+import { ArrowRight, Check, MapPin, Sparkles, PartyPopper, Crown, Users } from "lucide-react";
 import { CITIES, VIBE_TAGS, VIBE_EMOJI } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const STEPS = ["city", "vibes", "done"] as const;
+const STEPS = ["role", "city", "vibes", "done"] as const;
 type Step = (typeof STEPS)[number];
 
 export function OnboardingScreen() {
@@ -16,8 +16,10 @@ export function OnboardingScreen() {
   const setOnboarded = useAppStore((s) => s.setOnboarded);
   const setScreen = useAppStore((s) => s.setScreen);
   const setCityFilter = useAppStore((s) => s.setCityFilter);
+  const setUserRole = useAppStore((s) => s.setUserRole);
 
-  const [step, setStep] = useState<Step>("city");
+  const [step, setStep] = useState<Step>("role");
+  const [role, setRole] = useState<"host" | "partier" | null>(currentUser?.role ?? null);
   const [city, setCity] = useState<string>(currentUser?.city || "Mumbai");
   const [picks, setPicks] = useState<string[]>([]);
 
@@ -27,16 +29,20 @@ export function OnboardingScreen() {
     );
 
   const finish = async () => {
-    // persist city + vibe preferences to the user's profile
+    // persist role, city + vibe preferences to the user's profile
     if (currentUser) {
       try {
         await api.updateUser(currentUser.id, {
           city,
           vibePrefs: picks.join(","),
+          role: role ?? undefined,
         });
       } catch {
         /* non-blocking */
       }
+    }
+    if (role) {
+      setUserRole(role);
     }
     setCityFilter(city);
     setOnboarded(true);
@@ -65,6 +71,117 @@ export function OnboardingScreen() {
       </div>
 
       <div className="flex flex-1 flex-col justify-center">
+        {step === "role" && (
+          <div className="animate-slide-up space-y-5">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400">
+                <Sparkles className="h-8 w-8 text-black" />
+              </div>
+              <h1 className="font-display text-3xl font-extrabold leading-tight text-white">
+                How will you <span className="text-amber-400">vibe?</span>
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Choose your role — you can always change it later.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Host card */}
+              <button
+                onClick={() => setRole("host")}
+                className={cn(
+                  "group relative w-full overflow-hidden rounded-2xl border p-5 text-left transition-all duration-200",
+                  role === "host"
+                    ? "border-2 border-amber-400 bg-amber-400/10 shadow-[0_0_24px_-4px_rgba(251,191,36,0.4)]"
+                    : "border border-white/10 bg-card hover:border-amber-400/50 hover:bg-amber-400/5",
+                )}
+              >
+                {role === "host" && (
+                  <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-amber-400">
+                    <Check className="h-3.5 w-3.5 text-black" />
+                  </span>
+                )}
+                <div className="flex items-start gap-4">
+                  <span className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-xl ring-1 transition-colors",
+                    role === "host"
+                      ? "bg-amber-400/15 ring-amber-400/50"
+                      : "bg-white/5 ring-white/10",
+                  )}>
+                    <Crown className={cn("h-6 w-6", role === "host" ? "text-amber-400" : "text-white/60")} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg">🎉</p>
+                    <p className={cn(
+                      "font-display text-lg font-bold",
+                      role === "host" ? "text-amber-400" : "text-white",
+                    )}>
+                      I want to HOST parties
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Create and manage events, approve guests, earn vibes
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Partier card */}
+              <button
+                onClick={() => setRole("partier")}
+                className={cn(
+                  "group relative w-full overflow-hidden rounded-2xl border p-5 text-left transition-all duration-200",
+                  role === "partier"
+                    ? "border-2 border-amber-400 bg-amber-400/10 shadow-[0_0_24px_-4px_rgba(251,191,36,0.4)]"
+                    : "border border-white/10 bg-card hover:border-amber-400/50 hover:bg-amber-400/5",
+                )}
+              >
+                {role === "partier" && (
+                  <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-amber-400">
+                    <Check className="h-3.5 w-3.5 text-black" />
+                  </span>
+                )}
+                <div className="flex items-start gap-4">
+                  <span className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-xl ring-1 transition-colors",
+                    role === "partier"
+                      ? "bg-amber-400/15 ring-amber-400/50"
+                      : "bg-white/5 ring-white/10",
+                  )}>
+                    <Users className={cn("h-6 w-6", role === "partier" ? "text-amber-400" : "text-white/60")} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg">🎊</p>
+                    <p className={cn(
+                      "font-display text-lg font-bold",
+                      role === "partier" ? "text-amber-400" : "text-white",
+                    )}>
+                      I want to ATTEND parties
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Discover events, join the vibe, meet new people
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                if (role) setStep("city");
+              }}
+              disabled={!role}
+              className={cn(
+                "flex h-12 w-full items-center justify-center gap-1.5 rounded-xl font-semibold text-black transition active:scale-95",
+                role
+                  ? "bg-amber-400 vibe-pulse"
+                  : "bg-white/10 text-white/30 cursor-not-allowed",
+              )}
+            >
+              Continue <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {step === "city" && (
           <div className="animate-slide-up space-y-5">
             <div className="text-center">
@@ -110,12 +227,20 @@ export function OnboardingScreen() {
                 );
               })}
             </div>
-            <button
-              onClick={() => setStep("vibes")}
-              className="flex h-12 w-full items-center justify-center gap-1.5 rounded-xl bg-amber-400 font-semibold text-black vibe-pulse transition active:scale-95"
-            >
-              Continue <ArrowRight className="h-4 w-4" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep("role")}
+                className="h-12 flex-1 rounded-xl bg-card font-medium text-white/70 ring-1 ring-white/10 transition hover:ring-amber-400/40 hover:text-white"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep("vibes")}
+                className="flex h-12 flex-[2] items-center justify-center gap-1.5 rounded-xl bg-amber-400 font-semibold text-black vibe-pulse transition active:scale-95"
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
 

@@ -8,8 +8,10 @@ interface AppState {
   // auth
   authed: boolean;
   currentUser: VibeUser | null;
+  userRole: 'host' | 'partier';
   setAuthed: (v: boolean) => void;
   setCurrentUser: (u: VibeUser | null) => void;
+  setUserRole: (r: 'host' | 'partier') => void;
   login: (u: VibeUser) => void;
   logout: () => void;
 
@@ -69,13 +71,16 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       authed: false,
       currentUser: null,
+      userRole: 'partier',
       setAuthed: (v) => set({ authed: v }),
-      setCurrentUser: (u) => set({ currentUser: u }),
-      login: (u) => set({ authed: true, currentUser: u, screen: "home" }),
+      setCurrentUser: (u) => set((state) => ({ currentUser: u, userRole: u?.role ?? state.userRole })),
+      setUserRole: (r) => set({ userRole: r }),
+      login: (u) => set({ authed: true, currentUser: u, userRole: u.role ?? 'partier', screen: "home" }),
       logout: () =>
         set({
           authed: false,
           currentUser: null,
+          userRole: 'partier',
           screen: "login",
           selectedPartyId: null,
           selectedThreadId: null,
@@ -139,6 +144,7 @@ export const useAppStore = create<AppState>()(
         onboarded: state.onboarded,
         currentUser: state.currentUser,
         authed: state.authed,
+        userRole: state.userRole,
         cityFilter: state.cityFilter,
         radiusKm: state.radiusKm,
         userLocation: state.userLocation,

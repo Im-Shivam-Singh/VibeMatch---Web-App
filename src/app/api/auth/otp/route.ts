@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { User } from "@/models";
 import type { VibeUser } from "@/lib/types";
 
 function serializeUser(u: any): VibeUser {
   return {
-    id: u.id,
+    id: u.id ?? u._id?.toString(),
     name: u.name,
     username: u.username,
     bio: u.bio,
@@ -12,6 +13,8 @@ function serializeUser(u: any): VibeUser {
     city: u.city,
     instagram: u.instagram,
     vibePrefs: u.vibePrefs,
+    profession: u.profession,
+    role: u.role,
     vibes: u.vibes,
     hosted: u.hosted,
     rating: u.rating,
@@ -25,13 +28,13 @@ function serializeUser(u: any): VibeUser {
 const otpStore = new Map<string, { otp: string; expires: number }>();
 
 function genOtp() {
-  return Math.floor(10000 + Math.random() * 90000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // POST /api/auth/otp
-// body: { step: "send" | "verify", phone, otp?, name? }
+// body: { step: "send" | "verify", phone, otp?, name?, role? }
 export async function POST(req: NextRequest) {
-  let body: { step: string; phone: string; otp?: string; name?: string };
+  let body: { step: string; phone: string; otp?: string; name?: string; role?: 'host' | 'partier' };
   try {
     body = await req.json();
   } catch {
@@ -63,20 +66,28 @@ export async function POST(req: NextRequest) {
     }
     otpStore.delete(phone);
 
+    await connectDB();
+
     // find or create user
-    let user = await db.user.findUnique({ where: { phone } });
+    let user = await User.findOne({ phone }).lean({ virtuals: true });
     if (!user) {
       const name = body.name?.trim() || "New Viber";
-      user = await db.user.create({
-        data: {
-          phone,
-          name,
-          bio: "Just here for the vibes ✨",
-          city: "Mumbai",
-          avatarUrl:
-            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80&auto=format&fit=crop",
-        },
+      const role = body.role || "partier";
+      user = await User.create({
+        phone,
+        name,
+        role,
+        bio: "Just here for the vibes ✨",
+        city: "Mumbai",
+        avatarUrl:
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80&auto=format&fit=crop",
       });
+      // Re-lean to get virtuals
+      user = user.toObject({ virtuals: true });
+    } else if (body.role && user.role !== body.role) {
+      // Update role if provided and different
+      await User.updateOne({ phone }, { $set: { role: body.role } });
+      user = await User.findOne({ phone }).lean({ virtuals: true });
     }
 
     return NextResponse.json({ user: serializeUser(user), token: phone });

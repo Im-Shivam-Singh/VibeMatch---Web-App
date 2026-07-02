@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Order, Party, User, Ticket, JoinRequest, Message, ChatThread, GroupChat } from "@/models";
 import { currencyForCity } from "@/lib/types";
 
 // GET /api/orders?userId=...  → list a user's orders (with items + party)
@@ -15,17 +16,34 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const where = userId ? { userId } : { partyId: partyId ?? undefined };
-  const orders = await db.order.findMany({
-    where,
-    include: {
-      items: true,
-      party: true,
-      ticket: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json({ orders });
+  await connectDB();
+
+  const filter = userId ? { userId } : { partyId: partyId ?? undefined };
+  const orders = await Order.find(filter)
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
+  // Enrich with party and ticket info
+  const partyIds = [...new Set(orders.map((o) => o.partyId))];
+  const orderIds = [...new Set(orders.map((o) => o.id ?? o._id?.toString()))];
+
+  const [parties, tickets] = await Promise.all([
+    Party.find({ _id: { $in: partyIds } }).lean({ virtuals: true }),
+    Ticket.find({ orderId: { $in: orderIds } }).lean({ virtuals: true }),
+  ]);
+
+  const partyMap = new Map(parties.map((p) => [p.id ?? p._id?.toString(), p]));
+  const ticketMap = new Map(tickets.map((t) => [t.orderId, t]));
+
+  const enriched = orders.map((o) => ({
+    ...o,
+    id: o.id ?? o._id?.toString(),
+    party: partyMap.get(o.partyId) ?? null,
+    ticket: ticketMap.get(o.id ?? o._id?.toString()) ?? null,
+    createdAt: o.createdAt?.toISOString?.() ?? String(o.createdAt ?? ""),
+  }));
+
+  return NextResponse.json({ orders: enriched });
 }
 
 // POST /api/orders  → create an order (entry + optional add-ons) + ticket
@@ -40,14 +58,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const party = await db.party.findUnique({ where: { id: partyId } });
+  await connectDB();
+
+  const party = await Party.findById(partyId).lean({ virtuals: true });
   if (!party) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
 
   // Validate the user exists — prevents foreign-key constraint violations
   // when a browser has a stale user ID in localStorage from a previous session.
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await User.findById(userId).lean({ virtuals: true });
   if (!user) {
     return NextResponse.json(
       {
@@ -64,76 +84,64 @@ export async function POST(req: NextRequest) {
     0,
   );
 
-  // Create order + items + ticket in one transaction
-  const order = await db.order.create({
-    data: {
-      userId,
-      partyId,
-      totalAmount,
-      currency,
-      status: "paid", // mock — no real Stripe in dev
-      items: {
-        create: items.map((it: any) => ({
-          menuItemId: it.menuItemId ?? null,
-          name: it.name,
-          emoji: it.emoji || "🎟️",
-          unitPrice: it.unitPrice,
-          quantity: it.quantity,
-        })),
-      },
-    },
-    include: { items: true },
+  // Create order with embedded items
+  const order = await Order.create({
+    userId,
+    partyId,
+    totalAmount,
+    currency,
+    status: "paid", // mock — no real Stripe in dev
+    items: items.map((it: any) => ({
+      menuItemId: it.menuItemId ?? null,
+      name: it.name,
+      emoji: it.emoji || "🎟️",
+      unitPrice: it.unitPrice,
+      quantity: it.quantity,
+    })),
   });
 
-  const ticket = await db.ticket.create({
-    data: {
-      orderId: order.id,
-      userId,
-      partyId,
-      qrHash: `vm-${order.id.slice(-8).toUpperCase()}-${partyId.slice(-4).toUpperCase()}`,
-    },
+  const orderId = order.id ?? order._id?.toString();
+
+  const ticket = await Ticket.create({
+    orderId,
+    userId,
+    partyId,
+    qrHash: `vm-${orderId.slice(-8).toUpperCase()}-${partyId.slice(-4).toUpperCase()}`,
   });
 
   // Increment the party's guest count
-  await db.party.update({
-    where: { id: partyId },
-    data: { guestCount: { increment: 1 } },
-  });
+  await Party.findByIdAndUpdate(partyId, { $inc: { guestCount: 1 } });
 
   // ── Post "Payment confirmed" system message into the 1:1 host↔guest thread
-  // The chat is locked (no messages allowed) between request-creation and
-  // payment. This system message is the unlock signal — it tells both sides
-  // the chat is now open, and the chat UI uses the `paid` flag (computed in
-  // GET /api/threads/[id]) to re-enable the composer.
-  const joinRequest = await db.joinRequest.findFirst({
-    where: { partyId, requesterId: userId },
-    orderBy: { createdAt: "desc" },
-  });
+  const joinRequest = await JoinRequest.findOne({ partyId, requesterId: userId })
+    .sort({ createdAt: -1 })
+    .lean({ virtuals: true });
+
   if (joinRequest?.threadId && party.hostId) {
-    await db.message.create({
-      data: {
-        threadId: joinRequest.threadId,
-        senderId: party.hostId,
-        receiverId: userId,
-        content: "✅ Payment confirmed — chat unlocked. Say hi to your host 👋",
-        kind: "system",
-        requestId: joinRequest.id,
-      },
+    await Message.create({
+      threadId: joinRequest.threadId,
+      senderId: party.hostId,
+      receiverId: userId,
+      content: "✅ Payment confirmed — chat unlocked. Say hi to your host 👋",
+      kind: "system",
+      requestId: joinRequest.id ?? joinRequest._id?.toString(),
     });
-    await db.chatThread.update({
-      where: { id: joinRequest.threadId },
-      data: { updatedAt: new Date() },
-    });
+    await ChatThread.findByIdAndUpdate(joinRequest.threadId, { $set: { updatedAt: new Date() } });
   }
 
   // ── Unlock the group chat for this party + add the paying guest ──
-  // The group chat is the "active event" room where all paid guests + the
-  // host coordinate. It's created on the first payment and the guest is
-  // added as a member. The host is auto-added too (so they're present from
-  // the start). Referral-offer cards are seeded once on creation.
   await ensureGroupChat(partyId, userId, party.hostId);
 
-  return NextResponse.json({ order, ticket }, { status: 201 });
+  const leanOrder = order.toObject({ virtuals: true });
+  const leanTicket = ticket.toObject({ virtuals: true });
+
+  return NextResponse.json(
+    {
+      order: { ...leanOrder, id: orderId },
+      ticket: { ...leanTicket, id: leanTicket.id ?? leanTicket._id?.toString() },
+    },
+    { status: 201 },
+  );
 }
 
 // ── Group chat bootstrap ──────────────────────────────────────────────
@@ -146,50 +154,42 @@ async function ensureGroupChat(
   guestId: string,
   hostId: string | null,
 ) {
-  const existing = await db.groupChat.findUnique({ where: { partyId } });
+  const existing = await GroupChat.findOne({ partyId }).lean({ virtuals: true });
   if (existing) {
     // Add the new guest as a member if not already.
-    await db.groupChatMember.upsert({
-      where: { groupChatId_userId: { groupChatId: existing.id, userId: guestId } },
-      create: { groupChatId: existing.id, userId: guestId },
-      update: {},
-    });
-    await db.party.update({
-      where: { id: partyId },
-      data: { groupChatEnabled: true },
-    });
+    const existingId = existing.id ?? existing._id?.toString();
+    const alreadyMember = existing.members.some((m: any) => m.userId === guestId);
+    if (!alreadyMember) {
+      await GroupChat.findByIdAndUpdate(existingId, {
+        $push: { members: { userId: guestId, joinedAt: new Date() } },
+      });
+    }
+    await Party.findByIdAndUpdate(partyId, { $set: { groupChatEnabled: true } });
     return;
   }
 
   const memberIds = hostId ? [hostId, guestId] : [guestId];
-  const gc = await db.groupChat.create({
-    data: {
-      partyId,
-      members: {
-        create: memberIds.map((uid) => ({ userId: uid })),
+  const gc = await GroupChat.create({
+    partyId,
+    members: memberIds.map((uid) => ({ userId: uid, joinedAt: new Date() })),
+    messages: [
+      {
+        senderId: guestId,
+        content: "Group chat unlocked 🎉 Say hi to everyone before the night!",
+        kind: "system",
+        createdAt: new Date(),
       },
-      messages: {
-        create: [
-          {
-            senderId: guestId,
-            content: "Group chat unlocked 🎉 Say hi to everyone before the night!",
-            kind: "system",
-          },
-          // Seed the 7 referral offers — the platform's ad revenue model.
-          ...BRAND_SEED.map((b) => ({
-            senderId: guestId,
-            content: `${b.name}: ${b.offer}`,
-            kind: "offer" as const,
-            offerBrand: b.id,
-          })),
-        ],
-      },
-    },
+      // Seed the 7 referral offers — the platform's ad revenue model.
+      ...BRAND_SEED.map((b) => ({
+        senderId: guestId,
+        content: `${b.name}: ${b.offer}`,
+        kind: "offer" as const,
+        offerBrand: b.id,
+        createdAt: new Date(),
+      })),
+    ],
   });
-  await db.party.update({
-    where: { id: partyId },
-    data: { groupChatEnabled: true },
-  });
+  await Party.findByIdAndUpdate(partyId, { $set: { groupChatEnabled: true } });
   return gc;
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 
 // ── PATCH /api/requests/[id]  { status: "accepted" | "rejected" } ─────
 // Host action from the requests screen. On accept we post a WhatsApp-style
@@ -26,7 +27,9 @@ export async function PATCH(
     );
   }
 
-  const existing = await db.joinRequest.findUnique({ where: { id } });
+  await connectDB();
+
+  const existing = await JoinRequest.findById(id).lean({ virtuals: true });
   if (!existing) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
@@ -35,68 +38,54 @@ export async function PATCH(
     return NextResponse.json({ id, status });
   }
 
-  const party = await db.party.findUnique({
-    where: { id: existing.partyId },
-    include: { host: true },
-  });
+  const party = await Party.findById(existing.partyId).lean({ virtuals: true });
+  const host = party?.hostId ? await User.findById(party.hostId).lean({ virtuals: true }) : null;
 
-  const updated = await db.joinRequest.update({
-    where: { id },
-    data: { status },
-  });
+  await JoinRequest.findByIdAndUpdate(id, { $set: { status } });
 
   // ── Post the approval / rejection notice into the 1:1 thread ──────
-  if (existing.threadId && party?.host && existing.requesterId) {
+  if (existing.threadId && host && existing.requesterId) {
     const threadId = existing.threadId;
-    const hostId = party.host.id;
+    const hostId = host.id ?? host._id?.toString();
     const guestId = existing.requesterId;
 
     if (status === "accepted") {
       // System notice
-      await db.message.create({
-        data: {
-          threadId,
-          senderId: hostId,
-          receiverId: guestId,
-          content: `✅ ${party.host.name} approved your request. Pay below to lock your spot.`,
-          kind: "system",
-        },
+      await Message.create({
+        threadId,
+        senderId: hostId,
+        receiverId: guestId,
+        content: `✅ ${host.name} approved your request. Pay below to lock your spot.`,
+        kind: "system",
       });
       // Payment CTA — the guest taps this to go to checkout. The amount is
       // the party entry fee; we embed it in the content for the chat UI.
       const currency = ["Delhi", "Mumbai", "Bangalore", "Goa", "Pune"].includes(
-        party.city,
+        party!.city,
       )
         ? "₹"
         : "£";
-      await db.message.create({
-        data: {
-          threadId,
-          senderId: hostId,
-          receiverId: guestId,
-          content: `Pay ${currency}${party.fee}${party.fee === 0 ? " (free entry — tap to confirm)" : " to confirm your spot"}`,
-          kind: "payment",
-          requestId: existing.id,
-        },
+      await Message.create({
+        threadId,
+        senderId: hostId,
+        receiverId: guestId,
+        content: `Pay ${currency}${party!.fee}${party!.fee === 0 ? " (free entry — tap to confirm)" : " to confirm your spot"}`,
+        kind: "payment",
+        requestId: id,
       });
     } else {
       // Rejected
-      await db.message.create({
-        data: {
-          threadId,
-          senderId: hostId,
-          receiverId: guestId,
-          content:
-            "❌ Your request was declined for this event. You can't re-apply until it's over.",
-          kind: "system",
-        },
+      await Message.create({
+        threadId,
+        senderId: hostId,
+        receiverId: guestId,
+        content:
+          "❌ Your request was declined for this event. You can't re-apply until it's over.",
+        kind: "system",
       });
     }
-    await db.chatThread.update({
-      where: { id: threadId },
-      data: { updatedAt: new Date() },
-    });
+    await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
   }
 
-  return NextResponse.json({ id: updated.id, status: updated.status });
+  return NextResponse.json({ id, status });
 }

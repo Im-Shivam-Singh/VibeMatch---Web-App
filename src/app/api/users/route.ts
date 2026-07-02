@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { User } from "@/models";
 import type { VibeUser } from "@/lib/types";
 
 function serializeUser(u: any): VibeUser {
   return {
-    id: u.id,
+    id: u.id ?? u._id?.toString(),
     name: u.name,
     username: u.username,
     bio: u.bio,
@@ -12,6 +13,8 @@ function serializeUser(u: any): VibeUser {
     city: u.city,
     instagram: u.instagram,
     vibePrefs: u.vibePrefs,
+    profession: u.profession,
+    role: u.role,
     vibes: u.vibes,
     hosted: u.hosted,
     rating: u.rating,
@@ -27,11 +30,13 @@ export async function GET(req: NextRequest) {
   const phone = searchParams.get("phone");
   const id = searchParams.get("id");
 
-  let user: Awaited<ReturnType<typeof db.user.findUnique>> = null;
+  await connectDB();
+
+  let user: any = null;
   if (phone) {
-    user = await db.user.findUnique({ where: { phone } });
+    user = await User.findOne({ phone }).lean({ virtuals: true });
   } else if (id) {
-    user = await db.user.findUnique({ where: { id } });
+    user = await User.findById(id).lean({ virtuals: true });
   } else {
     return NextResponse.json({ error: "phone or id required" }, { status: 400 });
   }
@@ -64,12 +69,18 @@ export async function PATCH(req: NextRequest) {
     "city",
     "instagram",
     "vibePrefs",
+    "role",
   ];
   const data: Record<string, unknown> = {};
   for (const k of allowed) {
     if (body[k] !== undefined) data[k] = body[k];
   }
 
-  const updated = await db.user.update({ where: { id }, data });
+  await connectDB();
+
+  const updated = await User.findByIdAndUpdate(id, { $set: data }, { new: true }).lean({ virtuals: true });
+  if (!updated) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
   return NextResponse.json({ user: serializeUser(updated) });
 }

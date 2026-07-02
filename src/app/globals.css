@@ -591,3 +591,125 @@
 .aurora-drift {
   animation: aurora-drift 12s ease-in-out infinite;
 }
+
+/* ===== Additional UI Polish — animations & effects ===== */
+
+/* Smooth page transition */
+@keyframes vibe-page-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-page-in {
+  animation: vibe-page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Card entrance with spring */
+@keyframes vibe-card-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-card-in {
+  animation: vibe-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Subtle glow pulse for CTA buttons */
+@keyframes vibe-cta-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 24px -4px rgba(83, 74, 183, 0.5);
+  }
+  50% {
+    box-shadow: 0 6px 32px -4px rgba(83, 74, 183, 0.7);
+  }
+}
+.vibe-cta-pulse {
+  animation: vibe-cta-pulse 2.5s ease-in-out infinite;
+}
+
+/* Gradient sweep on hover */
+@keyframes vibe-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* Gentle bounce for interactive elements */
+@keyframes vibe-bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Fade + scale for modals/sheets */
+@keyframes vibe-modal-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-modal-in {
+  animation: vibe-modal-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ===== Enhanced Glass-morphism effects ===== */
+
+/* Premium glass with stronger blur and subtle inner glow */
+.glass-premium {
+  background: rgba(17, 15, 31, 0.65);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(83, 74, 183, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 4px 16px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* Glass with colored tint */
+.glass-purple {
+  background: rgba(83, 74, 183, 0.12);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(83, 74, 183, 0.3);
+}
+
+.glass-teal {
+  background: rgba(29, 158, 117, 0.1);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(29, 158, 117, 0.25);
+}
+
+.glass-amber {
+  background: rgba(239, 159, 39, 0.08);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 159, 39, 0.2);
+}
+
+/* ===== Enhanced scrollbar styling ===== */
+.fancy-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.fancy-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fancy-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(83, 74, 183, 0.5), rgba(83, 74, 183, 0.3));
+  border-radius: 999px;
+}
+.fancy-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(83, 74, 183, 0.7), rgba(83, 74, 183, 0.5));
+}
+
+/* Firefox scrollbar */
+.fancy-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83, 74, 183, 0.4) transparent;
+}
+
+/* ===== Section divider gradient ===== */
+.vibe-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(83, 74, 183, 0.25), transparent);
+}
+
+/* ===== Smooth focus ring ===== */
+.vibe-focus-ring {
+  transition: box-shadow 0.2s ease;
+}
+.vibe-focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px rgba(83, 74, 183, 0.5), 0 0 12px -2px rgba(83, 74, 183, 0.3);
+  outline: none;
+}

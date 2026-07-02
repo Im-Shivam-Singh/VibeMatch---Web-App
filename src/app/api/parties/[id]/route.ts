@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Party, User, JoinRequest, PartyMedia } from "@/models";
 import { parseVibes, type Party, type PartyMedia } from "@/lib/types";
 
 function serialize(p: any): Party {
   return {
-    id: p.id,
+    id: p.id ?? p._id?.toString(),
     title: p.title,
     city: p.city,
     area: p.area,
@@ -24,11 +25,11 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     groupChatEnabled: p.groupChatEnabled,
-    createdAt: p.createdAt.toISOString(),
+    createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     media: Array.isArray(p.media)
       ? (p.media
           .map((m: any) => ({
-            id: m.id,
+            id: m.id ?? m._id?.toString(),
             partyId: m.partyId,
             url: m.url,
             type: m.type === "video" ? "video" : "image",
@@ -47,39 +48,47 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const party = await db.party.findUnique({
-    where: { id },
-    include: {
-      host: true,
-      requests: { orderBy: { createdAt: "desc" } },
-      media: { orderBy: { position: "asc" } },
-    },
-  });
+
+  await connectDB();
+
+  const party = await Party.findById(id).lean({ virtuals: true });
   if (!party) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
+
+  // Fetch host, requests, and media in parallel
+  const [host, requests, media] = await Promise.all([
+    party.hostId ? User.findById(party.hostId).lean({ virtuals: true }) : null,
+    JoinRequest.find({ partyId: id }).sort({ createdAt: -1 }).lean({ virtuals: true }),
+    PartyMedia.find({ partyId: id }).sort({ position: 1 }).lean({ virtuals: true }),
+  ]);
+
+  // Attach media to party for serialization
+  (party as any).media = media;
+
   return NextResponse.json({
     party: serialize(party),
-    host: party.host
+    host: host
       ? {
-          id: party.host.id,
-          name: party.host.name,
-          username: party.host.username,
-          bio: party.host.bio,
-          avatarUrl: party.host.avatarUrl,
-          city: party.host.city,
-          instagram: party.host.instagram,
-          vibePrefs: party.host.vibePrefs,
-          vibes: party.host.vibes,
-          hosted: party.host.hosted,
-          rating: party.host.rating,
-          ratingCount: party.host.ratingCount,
+          id: host.id ?? host._id?.toString(),
+          name: host.name,
+          username: host.username,
+          bio: host.bio,
+          avatarUrl: host.avatarUrl,
+          city: host.city,
+          instagram: host.instagram,
+          vibePrefs: host.vibePrefs,
+          vibes: host.vibes,
+          hosted: host.hosted,
+          rating: host.rating,
+          ratingCount: host.ratingCount,
         }
       : null,
-    requests: party.requests.map((r: any) => ({
+    requests: requests.map((r: any) => ({
       ...r,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
+      id: r.id ?? r._id?.toString(),
+      createdAt: r.createdAt?.toISOString?.() ?? String(r.createdAt ?? ""),
+      updatedAt: r.updatedAt?.toISOString?.() ?? String(r.updatedAt ?? ""),
     })),
     vibes: parseVibes(party.vibes),
   });

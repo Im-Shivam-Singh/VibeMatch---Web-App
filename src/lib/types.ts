@@ -175,6 +175,7 @@ export interface VibeUser {
   instagram?: string | null;
   vibePrefs?: string; // comma-separated vibe tag prefs (from onboarding)
   profession?: string | null;
+  role?: 'host' | 'partier';
   vibes: number;
   hosted: number;
   rating: number;

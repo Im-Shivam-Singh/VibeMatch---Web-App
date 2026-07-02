@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { Message, ChatThread } from "@/models";
 
 // POST /api/messages — persist a message (used as fallback when WS unavailable)
 export async function POST(req: NextRequest) {
@@ -23,19 +24,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const msg = await db.message.create({
-    data: { threadId, senderId, receiverId, content },
+  await connectDB();
+
+  const msg = await Message.create({
+    threadId,
+    senderId,
+    receiverId,
+    content,
   });
 
-  await db.chatThread.update({
-    where: { id: threadId },
-    data: { updatedAt: new Date() },
-  });
+  await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
 
   return NextResponse.json(
     {
-      ...msg,
-      createdAt: msg.createdAt.toISOString(),
+      id: msg.id ?? msg._id?.toString(),
+      threadId: msg.threadId,
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      content: msg.content,
+      read: msg.read,
+      kind: msg.kind,
+      mediaUrl: msg.mediaUrl,
+      requestId: msg.requestId,
+      createdAt: msg.createdAt?.toISOString?.() ?? String(msg.createdAt ?? ""),
     },
     { status: 201 },
   );

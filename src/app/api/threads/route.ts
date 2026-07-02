@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { connectDB } from "@/lib/mongodb";
+import { ChatThread, User, Message } from "@/models";
 import type { VibeUser } from "@/lib/types";
 
-function serializeUser(u: { id: string; name: string; username: string | null; bio: string | null; avatarUrl: string | null; city: string | null; instagram: string | null; vibePrefs: string; vibes: number; hosted: number; rating: number; ratingCount: number }): VibeUser {
+function serializeUser(u: any): VibeUser {
   return {
-    id: u.id,
+    id: u.id ?? u._id?.toString(),
     name: u.name,
     username: u.username,
     bio: u.bio,
@@ -16,6 +17,8 @@ function serializeUser(u: { id: string; name: string; username: string | null; b
     hosted: u.hosted,
     rating: u.rating,
     ratingCount: u.ratingCount,
+    trustScore: u.trustScore,
+    trustCount: u.trustCount,
   };
 }
 
@@ -47,41 +50,44 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
 
-  const threads = await db.chatThread.findMany({
-    where: {
-      OR: [{ userAId: userId }, { userBId: userId }],
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  await connectDB();
+
+  const threads = await ChatThread.find({
+    $or: [{ userAId: userId }, { userBId: userId }],
+  })
+    .sort({ updatedAt: -1 })
+    .lean({ virtuals: true });
 
   const result: ThreadListItem[] = [];
   for (const t of threads) {
+    const threadId = t.id ?? t._id?.toString();
     const otherId = t.userAId === userId ? t.userBId : t.userAId;
-    const otherUser = await db.user.findUnique({ where: { id: otherId } });
-    const lastMessage = await db.message.findFirst({
-      where: { threadId: t.id },
-      orderBy: { createdAt: "desc" },
-    });
-    const unreadCount = await db.message.count({
-      where: { threadId: t.id, receiverId: userId, read: false },
+    const otherUser = await User.findById(otherId).lean({ virtuals: true });
+    const lastMessage = await Message.findOne({ threadId })
+      .sort({ createdAt: -1 })
+      .lean({ virtuals: true });
+    const unreadCount = await Message.countDocuments({
+      threadId,
+      receiverId: userId,
+      read: false,
     });
     result.push({
-      id: t.id,
+      id: threadId,
       userAId: t.userAId,
       userBId: t.userBId,
       partyId: t.partyId,
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
+      createdAt: t.createdAt?.toISOString?.() ?? String(t.createdAt ?? ""),
+      updatedAt: t.updatedAt?.toISOString?.() ?? String(t.updatedAt ?? ""),
       otherUser: otherUser ? serializeUser(otherUser) : undefined,
       lastMessage: lastMessage
         ? {
-            id: lastMessage.id,
+            id: lastMessage.id ?? lastMessage._id?.toString(),
             threadId: lastMessage.threadId,
             senderId: lastMessage.senderId,
             receiverId: lastMessage.receiverId,
             content: lastMessage.content,
             read: lastMessage.read,
-            createdAt: lastMessage.createdAt.toISOString(),
+            createdAt: lastMessage.createdAt?.toISOString?.() ?? String(lastMessage.createdAt ?? ""),
           }
         : undefined,
       unreadCount,
@@ -107,21 +113,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await db.chatThread.findFirst({
-    where: {
-      OR: [
-        { userAId, userBId },
-        { userAId: userBId, userBId: userAId },
-      ],
-    },
-  });
+  await connectDB();
+
+  const existing = await ChatThread.findOne({
+    $or: [
+      { userAId, userBId },
+      { userAId: userBId, userBId: userAId },
+    ],
+  }).lean({ virtuals: true });
 
   if (existing) {
-    return NextResponse.json({ threadId: existing.id, created: false });
+    return NextResponse.json({ threadId: existing.id ?? existing._id?.toString(), created: false });
   }
 
-  const t = await db.chatThread.create({
-    data: { userAId, userBId, partyId: partyId || null },
+  const t = await ChatThread.create({
+    userAId,
+    userBId,
+    partyId: partyId || null,
   });
-  return NextResponse.json({ threadId: t.id, created: true }, { status: 201 });
+  return NextResponse.json({ threadId: t.id ?? t._id?.toString(), created: true }, { status: 201 });
 }
