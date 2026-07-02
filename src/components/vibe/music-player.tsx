@@ -185,7 +185,7 @@ export function MusicPlayerBar() {
   const [buffered, setBuffered] = useState(0);
   const [loading, setLoading] = useState(false);
   const [localVolume, setLocalVolume] = useState(volume);
-  const prevMuted = useRef(false);
+  const prevMuted = useRef<number>(0);
 
   // sync expanded state with store so it persists across mounts
   useEffect(() => {
