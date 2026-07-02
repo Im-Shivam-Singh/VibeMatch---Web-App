@@ -65,3 +65,4 @@ mini-services/*/.next
 /tool-results/
 /screenshots/
 /download/db/*.db
+.env
