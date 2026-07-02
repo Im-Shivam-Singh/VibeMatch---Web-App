@@ -2429,3 +2429,39 @@ Stage Summary:
 - Vercel Blob installed (upload route still uses local storage)
 - Known issue: agent-browser causes Next.js process to die in sandbox (resource limits)
 - For production: set MONGODB_URI to MongoDB Atlas connection string
+
+---
+Task ID: 5
+Agent: main
+Task: Fix Vercel build errors and prepare for deployment
+
+Work Log:
+- Investigated project state: MongoDB migration already done, but multiple issues remained
+- Fixed duplicate Party/PartyMedia import collisions in 3 API route files (parties/route.ts, parties/for-you/route.ts, parties/[id]/route.ts, parties/[id]/media/route.ts)
+- Fixed next.config.ts: removed `output: "standalone"` (not needed for Vercel)
+- Fixed build command: removed standalone copy steps from package.json
+- Created missing /api/upload route for Vercel Blob (with base64 fallback for dev)
+- Moved mongodb-memory-server to devDependencies
+- Made MongoDB connection production-safe (throws clear error in production without MONGODB_URI)
+- Removed all Prisma-related code: schema, @prisma/client, prisma CLI, db scripts, SQLite db files
+- Removed unused heavy dependencies: @mdxeditor/editor, @dnd-kit/*, next-auth, next-intl, @reactuses/core, react-syntax-highlighter, sharp, ssh2
+- Fixed inconsistent serializeUser across route files (added profession, role fields)
+- Fixed TypeScript errors: music-player.tsx prevMuted ref type, api.ts sendRequest return type
+- Removed duplicate Mongoose index definitions (User, Ticket, GroupChat models)
+- Updated package.json name to "vibematch", version to 0.3.0
+- Updated vercel.json for proper Vercel deployment
+- Updated .env.example with MongoDB and Blob instructions
+- Pushed 3 commits to GitHub: build fixes, cleanup, index fixes
+- Verified build succeeds locally
+- Verified all API routes work (parties, auth/otp, etc.)
+- Repo moved to: https://github.com/Im-Shivam-Singh/VibeMatch---Web-App.git
+
+Stage Summary:
+- Build succeeds cleanly (next build)
+- All 25 API routes compile and respond
+- Lint passes clean
+- 3 commits pushed to GitHub (will auto-trigger Vercel deployment)
+- CRITICAL: MONGODB_URI must be set as Vercel environment variable for production to work
+- CRITICAL: BLOB_READ_WRITE_TOKEN should be set for Vercel Blob uploads
+- Dev server works with auto-seeding (in-memory MongoDB)
+- User needs to provide: MongoDB Atlas connection string for Vercel env var
