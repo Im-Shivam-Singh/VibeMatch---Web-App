@@ -1,8 +1,33 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ImagePlus, Video, Play, X, CalendarDays, Clock, IndianRupee, Users, Check, Sparkles, ShieldCheck, Info, UploadCloud, Loader2, Camera } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronLeft,
+  ImagePlus,
+  Video,
+  Play,
+  X,
+  CalendarDays,
+  Clock,
+  Users,
+  Check,
+  Sparkles,
+  ShieldCheck,
+  Info,
+  UploadCloud,
+  Loader2,
+  Camera,
+  MapPin,
+  DollarSign,
+  Plus,
+  Minus,
+  GripVertical,
+  ArrowRight,
+  ArrowLeft,
+  PartyPopper,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -10,6 +35,8 @@ import {
   CITIES,
   VIBE_TAGS,
   VIBE_EMOJI,
+  VIBE_COLORS,
+  currencyForCity,
   formatDateLabel,
   formatFee,
   formatTime,
@@ -19,15 +46,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { cn, formatLocation } from "@/lib/utils";
 
+// ── Preset cover images ───────────────────────────────────────────
 const COVER_PRESETS = [
   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1496337589254-7e19d01cec44?w=800&q=80&auto=format&fit=crop",
@@ -37,36 +60,77 @@ const COVER_PRESETS = [
   "https://images.unsplash.com/photo-1483452389744-eaaf621f05cb?w=800&q=80&auto=format&fit=crop",
 ];
 
-// Preset stock videos from Pexels CDN — used in the media picker so hosts
-// can attach a short clip alongside photos without needing to upload.
 const VIDEO_PRESETS = [
-  {
-    url: "https://videos.pexels.com/video-files/2022395/2022395-uhd_3840_2160_24fps.mp4",
-    poster:
-      "https://images.unsplash.com/photo-1571266028243-d220c9c3b31e?w=400&q=60&auto=format&fit=crop",
-  },
-  {
-    url: "https://videos.pexels.com/video-files/2795750/2795750-uhd_3840_2160_30fps.mp4",
-    poster:
-      "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=60&auto=format&fit=crop",
-  },
-  {
-    url: "https://videos.pexels.com/video-files/4234119/4234119-hd_1920_1080_30fps.mp4",
-    poster:
-      "https://images.unsplash.com/photo-1496337589254-7e19d01cec44?w=400&q=60&auto=format&fit=crop",
-  },
+  "https://player.vimeo.com/external/518607353.sd.mp4?s=0c8e1e2e2e5e5e5e5e5e5e5e5e5e5e5e5e5e1&profile=v",
 ];
 
-const MAX_MEDIA = 6;
-
-type MediaItem = { url: string; type: "image" | "video"; caption?: string };
-
-const ENTRY_TYPES = [
-  { label: "Free", value: 0 },
-  { label: "Cover", value: 500 },
-  { label: "Premium", value: 1200 },
+// ── Emoji picker for menu items ───────────────────────────────────
+const MENU_EMOJIS = [
+  "🍹", "🍺", "🍷", "🥃", "🥂", "🍸", "🍾",
+  "🍕", "🌮", "🍔", "🍿", "🥨", "🌭", "🍟",
+  "🥤", "☕", "🧃", "🧊", "🍵", "🥛",
 ];
 
+const MENU_CATEGORIES = [
+  { key: "drink", label: "Drinks", emoji: "🍹" },
+  { key: "snack", label: "Snacks", emoji: "🍿" },
+  { key: "soft", label: "Soft", emoji: "🥤" },
+] as const;
+
+// ── Step definitions ──────────────────────────────────────────────
+const STEPS = [
+  { key: "basics", label: "Basics", icon: Sparkles },
+  { key: "when", label: "When & Where", icon: CalendarDays },
+  { key: "vibe", label: "Vibe & Settings", icon: Users },
+  { key: "menu", label: "Menu", icon: Plus },
+] as const;
+
+type StepKey = (typeof STEPS)[number]["key"];
+
+// ── Form state ────────────────────────────────────────────────────
+interface FormState {
+  title: string;
+  description: string;
+  coverUrl: string;
+  mediaFiles: { url: string; type: "image" | "video"; caption?: string }[];
+  date: string;
+  time: string;
+  city: string;
+  area: string;
+  securityBooked: boolean;
+  vibes: string[];
+  maxGuests: number;
+  fee: number;
+  approvalRequired: boolean;
+  acceptJoiners: boolean;
+  menuItems: {
+    id: string;
+    name: string;
+    price: number;
+    emoji: string;
+    category: "drink" | "snack" | "soft";
+  }[];
+}
+
+const defaultForm: FormState = {
+  title: "",
+  description: "",
+  coverUrl: "",
+  mediaFiles: [],
+  date: "",
+  time: "",
+  city: "",
+  area: "",
+  securityBooked: false,
+  vibes: [],
+  maxGuests: 20,
+  fee: 0,
+  approvalRequired: false,
+  acceptJoiners: true,
+  menuItems: [],
+};
+
+// ── Main Component ────────────────────────────────────────────────
 export function CreateScreen() {
   const goBack = useAppStore((s) => s.goBack);
   const setScreen = useAppStore((s) => s.setScreen);
@@ -74,1113 +138,1018 @@ export function CreateScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const qc = useQueryClient();
 
-  const [form, setForm] = useState<PartyCreateInput>({
-    title: "",
-    city: currentUser?.city || "Mumbai",
-    area: "",
-    date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    time: "21:00",
-    fee: 0,
-    maxGuests: 20,
-    vibes: [],
-    description: "",
-    hostName: currentUser?.name || "You",
-    coverUrl: COVER_PRESETS[0],
-    // Pre-seed the gallery with the first preset so the live preview + the
-    // detail-screen carousel always have something to show.
-    media: [{ url: COVER_PRESETS[0], type: "image" }],
-    securityBooked: false,
-    securityFee: 0,
-  });
-
-  const [submitting, setSubmitting] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  // ── Device upload state ──────────────────────────────────────────────
-  // Tracks which media URLs came from the host's own device (so we can show
-  // a "Your upload" pill), plus the in-flight upload progress (0..100).
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadedUrls, setUploadedUrls] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState<FormState>(defaultForm);
+  const [step, setStep] = useState<number>(0);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
-  // Track object URLs for uploaded videos so we can show a real poster frame
-  // in the gallery + live preview (without a separate poster upload).
-  const [videoPosterMap, setVideoPosterMap] = useState<Record<string, string>>({});
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const uploadMutation = useMutation({
-    mutationFn: ({
-      files,
-      onProgress,
-    }: {
-      files: File[];
-      onProgress?: (pct: number) => void;
-    }) => api.uploadMedia(files, onProgress),
-    onMutate: () => setUploadPct(0),
-    onSuccess: (data, variables) => {
-      const remainingSlots = MAX_MEDIA - mediaFull;
-      const accepted = data.files.slice(0, Math.max(0, remainingSlots));
-      if (data.files.length > accepted.length) {
-        toast.warning(
-          `Only ${accepted.length} of ${data.files.length} added — gallery is full`,
-        );
-      }
-      if (accepted.length === 0) {
-        toast.error("Gallery is full — remove an item first");
-        return;
-      }
-      // Build local object-URL posters for uploaded videos so the gallery +
-      // live preview show a real frame without a separate poster upload.
-      const newPosters: Record<string, string> = {};
-      accepted.forEach((f) => {
-        const idx = data.files.indexOf(f);
-        const file = variables.files[idx];
-        if (file && f.type === "video") {
-          newPosters[f.url] = URL.createObjectURL(file);
-        }
-      });
-      if (Object.keys(newPosters).length > 0) {
-        setVideoPosterMap((m) => ({ ...m, ...newPosters }));
-      }
-      setUploadedUrls((s) => {
-        const next = new Set(s);
-        accepted.forEach((f) => next.add(f.url));
-        return next;
-      });
-      // Prepend uploaded media so the host's own photo/video becomes the
-      // cover (the default preset placeholder gets pushed back). We add them
-      // in reverse so the first-selected upload ends up at position 0.
-      [...accepted].reverse().forEach((f) =>
-        addMedia({ url: f.url, type: f.type, caption: f.name }, { prepend: true }),
-      );
-      const addedImages = accepted.filter((f) => f.type === "image").length;
-      const addedVideos = accepted.filter((f) => f.type === "video").length;
-      const parts: string[] = [];
-      if (addedImages) parts.push(`${addedImages} photo${addedImages > 1 ? "s" : ""}`);
-      if (addedVideos) parts.push(`${addedVideos} video${addedVideos > 1 ? "s" : ""}`);
-      toast.success(`Uploaded ${parts.join(" + ")}`);
-    },
-    onError: (e: Error) =>
-      toast.error(e instanceof Error ? e.message : "Upload failed"),
-    onSettled: () => setUploadPct(null),
-  });
-
-  const handleFilePick = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList);
-    const slotsLeft = MAX_MEDIA - mediaFull;
-    if (slotsLeft <= 0) {
-      toast.error(`Gallery is full (${MAX_MEDIA} max)`);
-      return;
-    }
-    // Pre-validate on the client so we fail fast with a friendlier message.
-    const validTypes = new Set([
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-      "image/avif",
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-      "video/ogg",
-    ]);
-    const bad = files.find((f) => !validTypes.has(f.type));
-    if (bad) {
-      toast.error(`Unsupported file: ${bad.name}`, {
-        description: "Use JPG, PNG, WebP, GIF, MP4, WebM, or MOV",
-      });
-      return;
-    }
-    const tooBigImage = files.find(
-      (f) => f.type.startsWith("image/") && f.size > 10 * 1024 * 1024,
-    );
-    if (tooBigImage) {
-      toast.error(`"${tooBigImage.name}" is over 10 MB`, {
-        description: "Resize the image and try again",
-      });
-      return;
-    }
-    const tooBigVideo = files.find(
-      (f) => f.type.startsWith("video/") && f.size > 60 * 1024 * 1024,
-    );
-    if (tooBigVideo) {
-      toast.error(`"${tooBigVideo.name}" is over 60 MB`, {
-        description: "Trim the clip and try again",
-      });
-      return;
-    }
-    const toUpload = files.slice(0, slotsLeft);
-    if (files.length > slotsLeft) {
-      toast.warning(`Only ${slotsLeft} slot${slotsLeft > 1 ? "s" : ""} left — adding the first ${slotsLeft}`);
-    }
-    uploadMutation.mutate({ files: toUpload });
-    // reset the input so the same file can be re-picked if needed
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // Security fee is city-dependent: £40-60 for UK, ₹800-1500 for India.
-  // We pick the midpoint of the range as the default when the host toggles
-  // the bouncer add-on on.
-  const isIndia = ["Delhi", "Mumbai", "Bangalore", "Goa", "Pune"].includes(
-    form.city,
+  // ── Form setters ────────────────────────────────────────────────
+  const set = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) =>
+      setForm((f) => ({ ...f, [key]: value })),
+    [],
   );
-  const securityFeeDefault = isIndia ? 1000 : 50;
-  const securityFeeMin = isIndia ? 800 : 40;
-  const securityFeeMax = isIndia ? 1500 : 60;
-  const currency = isIndia ? "₹" : "£";
-  const platformFeePct = 18; // 15-20% — we show 18% as the midpoint
 
-  const set = <K extends keyof PartyCreateInput>(k: K, v: PartyCreateInput[K]) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  // ── Cover image upload ──────────────────────────────────────────
+  const handleFilePick = useCallback(
+    (fileList: FileList | null) => {
+      if (!fileList || fileList.length === 0) return;
+      setUploadPct(0);
+      api
+        .uploadMedia(Array.from(fileList), (pct) => setUploadPct(pct))
+        .then((res) => {
+          for (const f of res.files) {
+            if (f.type === "image" && !form.coverUrl) {
+              set("coverUrl", f.url);
+            }
+            setForm((prev) => ({
+              ...prev,
+              mediaFiles: [
+                ...prev.mediaFiles,
+                { url: f.url, type: f.type, caption: "" },
+              ],
+              coverUrl:
+                f.type === "image" && !prev.coverUrl ? f.url : prev.coverUrl,
+            }));
+          }
+          toast.success("Media uploaded!");
+        })
+        .catch((e: Error) =>
+          toast.error(e instanceof Error ? e.message : "Upload failed"),
+        )
+        .finally(() => setUploadPct(null));
+      if (fileRef.current) fileRef.current.value = "";
+    },
+    [form.coverUrl],
+  );
 
-  const toggleVibe = (v: string) =>
-    setForm((f) => ({
-      ...f,
-      vibes: f.vibes.includes(v)
-        ? f.vibes.filter((x) => x !== v)
-        : [...f.vibes, v],
-    }));
-
-  // ── Media gallery helpers ────────────────────────────────────────────
-  // The first item in `media` is always the cover (drives the legacy
-  // coverUrl field + party-card rendering). Adding/removing reorders and
-  // re-syncs coverUrl so the two never drift.
-  const media: MediaItem[] = form.media ?? [];
-  const mediaFull = media.length;
-
-  const syncCoverFromMedia = (items: MediaItem[]) => ({
-    coverUrl: items.length > 0 ? items[0].url : form.coverUrl,
-    media: items,
-  });
-
-  const addMedia = (item: MediaItem, opts?: { prepend?: boolean }) => {
-    setForm((f) => {
-      const current = f.media ?? [];
-      if (current.length >= MAX_MEDIA) {
-        toast.error(`Up to ${MAX_MEDIA} photos or videos`);
-        return f;
-      }
-      // Skip exact-duplicate URLs (e.g. tapping the same preset twice).
-      if (current.some((m) => m.url === item.url)) return f;
-      // `prepend` puts the new item at the front so it becomes the cover —
-      // used for host-uploaded media so their own photo is featured, not the
-      // default preset placeholder.
-      const next = opts?.prepend ? [item, ...current] : [...current, item];
-      return { ...f, ...syncCoverFromMedia(next) };
-    });
-  };
-
-  const removeMediaAt = (index: number) => {
-    setForm((f) => {
-      const current = f.media ?? [];
-      const next = current.filter((_, i) => i !== index);
-      return { ...f, ...syncCoverFromMedia(next) };
-    });
-  };
-
-  const makeCoverAt = (index: number) => {
-    setForm((f) => {
-      const current = f.media ?? [];
-      if (index <= 0 || index >= current.length) return f;
-      const next = [
-        current[index],
-        ...current.filter((_, i) => i !== index),
-      ];
-      return { ...f, ...syncCoverFromMedia(next) };
-    });
-  };
-
+  // ── Create party ────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (input: PartyCreateInput) => api.createParty(input),
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["parties"] });
-      toast.success("Vibe launched! 🚀", {
-        description: "Your party is now live on Explore.",
+    mutationFn: async () => {
+      if (!currentUser) throw new Error("Sign in to create a party");
+      const input: PartyCreateInput = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        city: form.city,
+        area: form.area.trim(),
+        date: form.date,
+        time: form.time,
+        fee: form.fee,
+        maxGuests: form.maxGuests,
+        vibes: form.vibes,
+        hostName: currentUser.name,
+        coverUrl: form.coverUrl || undefined,
+        securityBooked: form.securityBooked,
+        securityFee: form.securityBooked ? 25 : undefined,
+        media:
+          form.mediaFiles.length > 0 ? form.mediaFiles : undefined,
+      };
+      const res = await api.createParty(input);
+      return res.party;
+    },
+    onSuccess: (party) => {
+      toast.success("Party created! 🎉", {
+        description: "Your vibe is live. Let's get the word out.",
       });
-      setSelectedPartyId(data.party.id);
+      qc.invalidateQueries({ queryKey: ["parties"] });
+      setSelectedPartyId(party.id);
       setScreen("detail");
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Failed to launch"),
+    onError: (e: Error) => {
+      toast.error(e.message || "Couldn't create party");
+    },
   });
 
-  const submit = () => {
-    if (!form.title.trim()) {
-      toast.error("Give your party a title");
-      return;
+  // ── Step validation ─────────────────────────────────────────────
+  const canProceed = (): boolean => {
+    switch (step) {
+      case 0:
+        return form.title.trim().length >= 3;
+      case 1:
+        return form.date !== "" && form.time !== "" && form.city !== "" && form.area.trim().length >= 2;
+      case 2:
+        return form.vibes.length > 0;
+      case 3:
+        return true; // menu is optional
+      default:
+        return false;
     }
-    if (!form.area.trim()) {
-      toast.error("Add an area / neighbourhood");
-      return;
+  };
+
+  const handleNext = () => {
+    if (step < STEPS.length - 1) {
+      setStep(step + 1);
+    } else {
+      createMutation.mutate();
     }
-    if (form.vibes.length === 0) {
-      toast.error("Pick at least one vibe");
-      return;
-    }
-    setSubmitting(true);
-    createMutation.mutate(form, {
-      onSettled: () => setSubmitting(false),
-    });
+  };
+
+  const handleBack = () => {
+    if (step > 0) setStep(step - 1);
+    else goBack();
+  };
+
+  // ── Toggle vibe ─────────────────────────────────────────────────
+  const toggleVibe = (vibe: string) => {
+    setForm((f) => ({
+      ...f,
+      vibes: f.vibes.includes(vibe)
+        ? f.vibes.filter((x) => x !== vibe)
+        : [...f.vibes, vibe],
+    }));
+  };
+
+  // ── Menu item helpers ───────────────────────────────────────────
+  const addMenuItem = () => {
+    const id = `menu-${Date.now()}`;
+    setForm((f) => ({
+      ...f,
+      menuItems: [
+        ...f.menuItems,
+        { id, name: "", price: 0, emoji: "🍹", category: "drink" },
+      ],
+    }));
+  };
+
+  const updateMenuItem = (
+    id: string,
+    patch: Partial<FormState["menuItems"][0]>,
+  ) => {
+    setForm((f) => ({
+      ...f,
+      menuItems: f.menuItems.map((item) =>
+        item.id === id ? { ...item, ...patch } : item,
+      ),
+    }));
+  };
+
+  const removeMenuItem = (id: string) => {
+    setForm((f) => ({
+      ...f,
+      menuItems: f.menuItems.filter((item) => item.id !== id),
+    }));
+  };
+
+  const currency = form.city ? currencyForCity(form.city) : "£";
+
+  // ── Animation variants ──────────────────────────────────────────
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+    }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction: number) => ({
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+    }),
+  };
+
+  const [direction, setDirection] = useState(0);
+
+  const goToStep = (newStep: number) => {
+    setDirection(newStep > step ? 1 : -1);
+    setStep(newStep);
   };
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
-      {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 glass px-3 py-3 pt-[max(env(safe-area-inset-top),12px)] lg:px-6">
-        <button
-          onClick={goBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 text-white hover:bg-purple-400/10 active:scale-95 transition"
-          aria-label="Back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1">
-          <h1 className="font-display text-lg font-bold leading-tight">
-            Launch a <span className="text-purple-400">Vibe</span>
-          </h1>
-          <p className="text-[11px] text-muted-foreground">
-            Fill the details and go live in seconds
-          </p>
-        </div>
-      </header>
-
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 lg:px-6">
-        <div className="glass-strong rounded-3xl border border-purple-400/40 p-4 space-y-6 lg:mx-auto lg:max-w-2xl">
-          {/* Photos & videos gallery uploader */}
-          <section className="space-y-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <Label className="text-xs uppercase tracking-wide text-white flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-                Photos &amp; videos
-              </Label>
-              <span className="text-[10px] text-muted-foreground">
-                {mediaFull}/{MAX_MEDIA} · first one becomes the cover
-              </span>
-            </div>
-
-            {/* Hidden multi-file input — opened by the "Upload" tile + the
-                "Upload from device" button inside the picker dialog. Accepts
-                the same image + video types we whitelist server-side. */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFilePick(e.target.files)}
-            />
-
-            {/* Upload progress bar — only visible while a upload is in flight */}
-            {uploadPct !== null && (
-              <div className="animate-screen-in rounded-xl border border-purple-400/30 bg-purple-400/5 p-2.5">
-                <div className="mb-1 flex items-center gap-2 text-[11px] text-purple-200">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span className="font-medium">
-                    Uploading… {uploadPct}%
-                  </span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-pink-400 transition-[width] duration-200 ease-out"
-                    style={{ width: `${uploadPct}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Preview tiles — horizontally scrollable list with two add tiles at end */}
-            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {media.map((m, i) => {
-                const isUploaded = uploadedUrls.has(m.url);
-                // Resolve a poster for video tiles: prefer the local object
-                // URL we captured at upload time, then the preset poster,
-                // then fall back to the video URL itself.
-                const videoPoster =
-                  videoPosterMap[m.url] ||
-                  VIDEO_PRESETS.find((v) => v.url === m.url)?.poster ||
-                  m.url;
-                return (
-                  <div
-                    key={`${m.url}-${i}`}
-                    className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-purple-400/30"
-                  >
-                    {m.type === "image" ? (
-                      <img
-                        src={m.url}
-                        alt={i === 0 ? "Cover" : `Media ${i + 1}`}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <>
-                        <img
-                          src={videoPoster}
-                          alt={`Video ${i + 1}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                          <Play className="h-5 w-5 fill-white text-white" />
-                        </span>
-                      </>
-                    )}
-                    {i === 0 && (
-                      <span className="absolute left-1 top-1 rounded-md bg-purple-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                        COVER
-                      </span>
-                    )}
-                    {/* "Your upload" pill — distinguishes host-uploaded media
-                        from stock presets in the gallery. */}
-                    {isUploaded && (
-                      <span className="absolute bottom-1 left-1 rounded bg-teal-500/90 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow">
-                        <Camera className="mr-0.5 inline h-2 w-2" />
-                        Yours
-                      </span>
-                    )}
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={() => removeMediaAt(i)}
-                      aria-label={`Remove media ${i + 1}`}
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-coral/80 active:scale-90"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                    {/* Make-cover button (only for non-first items) */}
-                    {i > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => makeCoverAt(i)}
-                        className="absolute bottom-1 right-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[9px] font-semibold text-white/90 transition hover:bg-purple-500/80 active:scale-95"
-                      >
-                        Use as cover
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Upload-from-device tile — primary affordance. Always shown
-                  (even when full) so the host can swap: they remove a tile
-                  then upload. Disabled only while an upload is in flight. */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadPct !== null || mediaFull >= MAX_MEDIA}
-                className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-teal-400/55 bg-teal-400/5 text-teal-200 transition hover:border-teal-400/90 hover:bg-teal-400/10 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
-                aria-label="Upload photos or videos from your device"
-              >
-                <UploadCloud className="h-5 w-5" />
-                <span className="text-[10px] font-semibold leading-none">
-                  Upload
-                </span>
-                <span className="text-[8px] text-teal-300/70 leading-none">
-                  from device
-                </span>
-              </button>
-
-              {/* Presets tile — secondary affordance, opens the picker dialog */}
-              {mediaFull < MAX_MEDIA && (
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  disabled={uploadPct !== null}
-                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-purple-400/45 bg-purple-400/5 text-purple-300 transition hover:border-purple-400/80 hover:bg-purple-400/10 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
-                  aria-label="Pick from preset photos and videos"
-                >
-                  <ImagePlus className="h-5 w-5" />
-                  <span className="text-[10px] font-semibold">Presets</span>
-                </button>
-              )}
-            </div>
-
-            {/* Primary inline upload button + format hint */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadPct !== null || mediaFull >= MAX_MEDIA}
-                className="inline-flex items-center gap-1.5 rounded-full border border-teal-400/50 bg-teal-400/10 px-3 py-1.5 text-[11px] font-semibold text-teal-200 transition hover:bg-teal-400/20 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
-              >
-                <UploadCloud className="h-3 w-3" />
-                Upload from device
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                disabled={uploadPct !== null}
-                className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-400/10 px-3 py-1.5 text-[11px] font-medium text-purple-200 transition hover:bg-purple-400/15 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
-              >
-                <Sparkles className="h-3 w-3" />
-                Pick from presets
-              </button>
-            </div>
-            <p className="text-[10px] leading-relaxed text-muted-foreground">
-              JPG / PNG / WebP / GIF up to 10 MB · MP4 / WebM / MOV up to 60 MB.
-              Your uploads stay private until you launch.
+    <div className="flex h-full flex-col">
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <motion.button
+            onClick={handleBack}
+            whileTap={{ scale: 0.9 }}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-card/50 text-foreground transition hover:bg-card"
+            aria-label="Back"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </motion.button>
+          <div className="flex-1">
+            <h2 className="font-display text-base font-bold text-foreground">
+              Create a Party
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Step {step + 1} of {STEPS.length} · {STEPS[step].label}
             </p>
-          </section>
-
-          {/* Title */}
-          <section className="space-y-1.5">
-            <Label htmlFor="title" className="text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Party title
-            </Label>
-            <Input
-              id="title"
-              placeholder="e.g. Neon Rooftop: Techno Till Dawn"
-              value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-              className="h-12 rounded-xl border-white/10 bg-card text-foreground placeholder:text-muted-foreground/70 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              maxLength={80}
-            />
-          </section>
-
-          {/* City + Area */}
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-white flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-                City
-              </Label>
-              <select
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-                className="h-12 w-full rounded-xl border border-white/10 bg-card px-3 text-sm text-foreground outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              >
-                {CITIES.map((c) => (
-                  <option key={c} value={c} className="bg-card">
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="area" className="text-white flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-                Area
-              </Label>
-              <Input
-                id="area"
-                placeholder="Bandra West"
-                value={form.area}
-                onChange={(e) => set("area", e.target.value)}
-                className="h-12 rounded-xl border-white/10 bg-card text-foreground placeholder:text-muted-foreground/70 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              />
-            </div>
-          </section>
-
-          {/* Date + Time */}
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5 text-white">
-                <CalendarDays className="h-3.5 w-3.5 text-purple-400" /> Date
-              </Label>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) => set("date", e.target.value)}
-                className="h-12 rounded-xl border-white/10 bg-card text-foreground focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5 text-white">
-                <Clock className="h-3.5 w-3.5 text-purple-400" /> Time
-              </Label>
-              <Input
-                type="time"
-                value={form.time}
-                onChange={(e) => set("time", e.target.value)}
-                className="h-12 rounded-xl border-white/10 bg-card text-foreground focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              />
-            </div>
-          </section>
-
-          {/* Entry type quick */}
-          <section className="space-y-2">
-            <Label className="text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Entry type
-            </Label>
-            <div className="grid grid-cols-3 gap-2">
-              {ENTRY_TYPES.map((t) => {
-                const active = form.fee === t.value;
-                return (
-                  <button
-                    key={t.label}
-                    onClick={() => set("fee", t.value)}
-                    className={cn(
-                      "rounded-xl border px-3 py-2 text-left transition active:scale-95",
-                      active
-                        ? "border-purple-400 bg-purple-400/10"
-                        : "border-white/10 bg-card hover:border-purple-400/40",
-                    )}
-                  >
-                    <div className="text-xs font-semibold">{t.label}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {t.value === 0 ? "No charge" : `~₹${t.value}`}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="relative">
-              <IndianRupee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-400" />
-              <Input
-                type="number"
-                min={0}
-                value={form.fee}
-                onChange={(e) => set("fee", Number(e.target.value) || 0)}
-                className="h-11 rounded-xl border-white/10 bg-card pl-9 text-foreground focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              />
-            </div>
-          </section>
-
-          {/* Max guests */}
-          <section className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-white">
-              <Users className="h-3.5 w-3.5 text-purple-400" /> Max guests
-            </Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={5}
-                max={100}
-                step={1}
-                value={form.maxGuests}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  // F1: if the host drops maxGuests to ≤15 while security is
-                  // booked, auto-unset the bouncer add-on (it's gated to 15+).
-                  if (next <= 15 && form.securityBooked) {
-                    setForm((f) => ({
-                      ...f,
-                      maxGuests: next,
-                      securityBooked: false,
-                      securityFee: 0,
-                    }));
-                    toast.info("Security add-on removed", {
-                      description: "Bouncer add-on needs 15+ guests.",
-                    });
-                  } else {
-                    set("maxGuests", next);
-                  }
-                }}
-                className="vibe-slider h-2 flex-1"
-                style={
-                  {
-                    background: `linear-gradient(to right, #ffcb05 0%, #e0a800 ${
-                      ((form.maxGuests - 5) / 95) * 100
-                    }%, rgba(255,203,5,0.18) ${
-                      ((form.maxGuests - 5) / 95) * 100
-                    }%)`,
-                  } as React.CSSProperties
-                }
-              />
-              <span className="w-12 rounded-lg border border-white/10 bg-card py-1.5 text-center text-sm font-semibold text-purple-400">
-                {form.maxGuests}
-              </span>
-            </div>
-          </section>
-
-          {/* ── Security / Bouncer booking add-on ──────────────────────
-              Hosts can opt in to add a verified security person for the
-              night. £40-60 (UK) / ₹800-1500 (India) for 4 hours. Platform
-              takes 15-20% booking fee; bouncer gets the rest after the event.
-              This is a major trust signal — especially for women guests.
-              F1: only enabled when maxGuests > 15 — smaller gatherings don't
-              need a bouncer, and the add-on cost doesn't pencil out. */}
-          <section className="space-y-2">
-            <Label className="text-white flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-teal-400" />
-              Security add-on (optional)
-            </Label>
+          </div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/15 text-purple-300">
             {(() => {
-              const securityGated = form.maxGuests <= 15;
-              const handleToggle = () => {
-                if (securityGated) {
-                  toast.info("Security unlocks at 15+ guests", {
-                    description: "Bump the max-guests slider above 15 to add a verified bouncer.",
-                  });
-                  return;
-                }
-                const next = !form.securityBooked;
-                setForm((f) => ({
-                  ...f,
-                  securityBooked: next,
-                  securityFee: next ? securityFeeDefault : 0,
-                }));
-              };
-              return (
-              <button
-                type="button"
-                onClick={handleToggle}
-                aria-pressed={form.securityBooked}
-                aria-disabled={securityGated}
-                className={cn(
-                  "w-full rounded-2xl border p-3.5 text-left transition active:scale-[0.98]",
-                  securityGated && "opacity-60 cursor-not-allowed active:scale-100",
-                  form.securityBooked
-                    ? "border-teal-500/50 bg-teal-500/10 ring-1 ring-teal-500/30"
-                    : "border-white/10 bg-white/5 hover:border-teal-500/40",
-                )}
-              >
-              <div className="flex items-start gap-3">
-                <div
+              const Icon = STEPS[step].icon;
+              return <Icon className="h-4 w-4" />;
+            })()}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3 flex items-center gap-1.5">
+          {STEPS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => i < step && goToStep(i)}
+              className="flex-1 group"
+              disabled={i > step}
+            >
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40 transition-all">
+                <motion.div
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    form.securityBooked
-                      ? "bg-teal-500/20 text-teal-300"
-                      : "bg-white/5 text-muted-foreground",
+                    "h-full rounded-full",
+                    i < step
+                      ? "bg-purple-500"
+                      : i === step
+                        ? "bg-gradient-to-r from-purple-500 to-violet-400"
+                        : "bg-transparent",
                   )}
-                >
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                      Add a verified security person
-                    </p>
-                    {securityGated ? (
-                      <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                        🔒 15+ guests
-                      </span>
-                    ) : (
-                      <span
-                        className={cn(
-                          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                          form.securityBooked ? "bg-teal-500" : "bg-secondary",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform",
-                            form.securityBooked && "translate-x-5",
-                          )}
-                        />
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    {securityGated
-                      ? "Unlocks when you raise max guests above 15 — bigger crowds benefit most from on-site security."
-                      : `${currency}${securityFeeMin}–${currency}${securityFeeMax} for 4 hours · platform takes ${platformFeePct}% · bouncer paid after event`}
-                  </p>
-                </div>
+                  animate={{ width: i <= step ? "100%" : "0%" }}
+                  transition={{ duration: 0.4, ease: "easeInOut" }}
+                />
               </div>
             </button>
-            );
-            })()}
-
-            {form.securityBooked && (
-              <div className="animate-screen-in rounded-2xl border border-teal-500/20 bg-teal-500/5 p-3.5 space-y-3">
-                {/* Why this matters */}
-                <div className="flex items-start gap-2">
-                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-400" />
-                  <p className="text-[11px] leading-relaxed text-teal-200/80">
-                    <span className="font-semibold">Why add security?</span> A
-                    verified bouncer lets you confidently host 20-25 guests
-                    instead of capping at 12. Women guests especially trust
-                    parties with on-site security — it could be the difference
-                    between someone joining or not.
-                  </p>
-                </div>
-
-                {/* Fee slider */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Security fee
-                    </span>
-                    <span className="text-sm font-semibold text-teal-300 tabular-nums">
-                      {currency}{form.securityFee || securityFeeDefault}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={securityFeeMin}
-                    max={securityFeeMax}
-                    step={isIndia ? 50 : 5}
-                    value={form.securityFee || securityFeeDefault}
-                    onChange={(e) =>
-                      set("securityFee", Number(e.target.value))
-                    }
-                    aria-label="Security fee"
-                    className="mt-2 h-1.5 w-full cursor-pointer accent-teal-500"
-                  />
-                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                    <span>{currency}{securityFeeMin}</span>
-                    <span>{currency}{securityFeeMax}</span>
-                  </div>
-                </div>
-
-                {/* Breakdown */}
-                <div className="rounded-xl bg-white/5 p-2.5 text-[11px] space-y-1">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Security fee</span>
-                    <span className="tabular-nums">
-                      {currency}{form.securityFee || securityFeeDefault}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-coral/80">
-                    <span>Platform booking fee ({platformFeePct}%)</span>
-                    <span className="tabular-nums">
-                      −{currency}
-                      {Math.round((form.securityFee || securityFeeDefault) * platformFeePct / 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-teal-300 border-t border-white/10 pt-1">
-                    <span>Bouncer payout (after event)</span>
-                    <span className="tabular-nums">
-                      {currency}
-                      {Math.round((form.securityFee || securityFeeDefault) * (100 - platformFeePct) / 100)}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  🔒 Verified & licensed · paid out after the event ·
-                  refundable if you cancel the party
-                </p>
-              </div>
-            )}
-          </section>
-
-          {/* Vibe chips multi-select */}
-          <section className="space-y-2">
-            <Label className="text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Vibes (pick what fits)
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              {VIBE_TAGS.map((v) => {
-                const active = form.vibes.includes(v);
-                return (
-                  <button
-                    key={v}
-                    onClick={() => toggleVibe(v)}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95",
-                      active
-                        ? "scale-110 border-purple-400/50 bg-purple-400/15 text-purple-300"
-                        : "border-white/10 bg-white/5 text-white/60 hover:text-foreground hover:border-purple-400/40",
-                    )}
-                  >
-                    <span aria-hidden>{VIBE_EMOJI[v]}</span>
-                    {v}
-                    {active && <Check className="h-3 w-3 ml-0.5" />}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Description */}
-          <section className="space-y-1.5">
-            <Label htmlFor="desc" className="text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Description
-            </Label>
-            <Textarea
-              id="desc"
-              rows={4}
-              placeholder="Set the scene: music, vibe, dress code, what to bring, house rules…"
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              className="rounded-xl border-white/10 bg-card text-foreground placeholder:text-muted-foreground/70 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-              maxLength={600}
-            />
-            <p className="text-right text-[11px] text-muted-foreground">
-              {form.description.length}/600
-            </p>
-          </section>
-
-          {/* Host name */}
-          <section className="space-y-1.5">
-            <Label htmlFor="host" className="text-white flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400" aria-hidden />
-              Host name
-            </Label>
-            <Input
-              id="host"
-              value={form.hostName}
-              onChange={(e) => set("hostName", e.target.value)}
-              className="h-12 rounded-xl border-white/10 bg-card text-foreground placeholder:text-muted-foreground/70 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
-            />
-          </section>
-
-          {/* Live preview — how the party card will look */}
-          <section className="space-y-2">
-            <Label className="text-white flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-              Live preview
-            </Label>
-            <div className="overflow-hidden rounded-2xl glass border border-purple-400/40">
-              <div className="relative aspect-[16/9] w-full">
-                {(() => {
-                  const first = media[0];
-                  if (first?.type === "image" && first.url) {
-                    return (
-                      <img
-                        src={first.url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    );
-                  }
-                  if (first?.type === "video") {
-                    const poster =
-                      videoPosterMap[first.url] ||
-                      VIDEO_PRESETS.find((v) => v.url === first.url)?.poster ||
-                      form.coverUrl ||
-                      "";
-                    return (
-                      <>
-                        {poster ? (
-                          <img
-                            src={poster}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-purple-400/40" />
-                        )}
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Play className="h-7 w-7 fill-white text-white" />
-                        </span>
-                      </>
-                    );
-                  }
-                  if (form.coverUrl) {
-                    return (
-                      <img
-                        src={form.coverUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    );
-                  }
-                  return <div className="h-full w-full bg-purple-400 opacity-60" />;
-                })()}
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
-                <span className="absolute right-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold text-purple-400 backdrop-blur">
-                  {formatFee(form.fee)}
-                </span>
-              </div>
-              <div className="space-y-2 p-3">
-                <p className="font-display text-sm font-bold leading-tight">
-                  {form.title.trim() || (
-                    <span className="text-muted-foreground">Your party title</span>
-                  )}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {formatDateLabel(form.date)} · {formatTime(form.time)} ·{" "}
-                  {formatLocation(form.area || "Area", form.city)}
-                </p>
-                {form.vibes.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {form.vibes.map((v) => (
-                      <span
-                        key={v}
-                        className="inline-flex items-center gap-1 rounded-full border border-purple-400/50 bg-purple-400/15 px-2 py-0.5 text-[10px] font-medium text-purple-300"
-                      >
-                        {VIBE_EMOJI[v]} {v}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[11px] text-foreground/70">
-                  Hosted by{" "}
-                  <span className="font-semibold text-purple-400">
-                    {form.hostName || "You"}
-                  </span>{" "}
-                  · up to {form.maxGuests} guests
-                </p>
-              </div>
-            </div>
-          </section>
+          ))}
         </div>
       </div>
 
-      {/* Footer CTA */}
-      <footer className="sticky bottom-0 z-20 border-t border-white/10 glass px-4 py-3 safe-bottom">
-        <Button
-          onClick={submit}
-          disabled={submitting}
-          className={cn(
-            "h-12 w-full rounded-xl bg-purple-400 text-base font-semibold text-black transition active:scale-95 disabled:opacity-60",
-            !submitting && "vibe-pulse",
-          )}
-        >
-          {submitting ? (
-            "Launching…"
-          ) : (
-            <>
-              <Sparkles className="mr-1.5 h-4 w-4" /> Launch Vibe
-            </>
-          )}
-        </Button>
-      </footer>
+      {/* ── Step content ────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-hidden relative">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={step}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="absolute inset-0 fancy-scrollbar overflow-y-auto px-4 py-5"
+          >
+            {step === 0 && (
+              <StepBasics form={form} set={set} coverPresets={COVER_PRESETS} />
+            )}
+            {step === 1 && (
+              <StepWhenWhere form={form} set={set} />
+            )}
+            {step === 2 && (
+              <StepVibeSettings
+                form={form}
+                set={set}
+                toggleVibe={toggleVibe}
+                currency={currency}
+              />
+            )}
+            {step === 3 && (
+              <StepMenu
+                form={form}
+                addMenuItem={addMenuItem}
+                updateMenuItem={updateMenuItem}
+                removeMenuItem={removeMenuItem}
+                currency={currency}
+                emojiPickerOpen={emojiPickerOpen}
+                setEmojiPickerOpen={setEmojiPickerOpen}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-      {/* Media picker dialog — preset cover images + stock videos */}
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent
-          showCloseButton
-          className="max-h-[85vh] w-full max-w-[440px] gap-3 rounded-3xl border-purple-400/20 bg-card/95 p-5 backdrop-blur-xl"
-        >
-          <DialogHeader className="text-left">
-            <DialogTitle className="flex items-center gap-2 font-display text-base">
-              <ImagePlus className="h-4 w-4 text-purple-400" />
-              Add photo or video
-            </DialogTitle>
-            <DialogDescription className="text-[11px] text-muted-foreground">
-              Upload your own or pick from presets · {mediaFull}/{MAX_MEDIA} added
-            </DialogDescription>
-          </DialogHeader>
+      {/* ── Upload overlay ──────────────────────────────────────────── */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,video/mp4,video/webm,video/quicktime"
+        multiple
+        className="hidden"
+        onChange={(e) => handleFilePick(e.target.files)}
+      />
+      {uploadPct !== null && (
+        <div className="fixed inset-x-0 top-0 z-50 h-1">
+          <motion.div
+            className="h-full bg-gradient-to-r from-purple-500 to-violet-400"
+            animate={{ width: `${uploadPct}%` }}
+            transition={{ duration: 0.2 }}
+          />
+        </div>
+      )}
 
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto fancy-scrollbar pr-1">
-            {/* Upload-from-device block — primary, shown at the top of the
-                picker so it's the first thing hosts see. */}
-            <button
-              type="button"
-              onClick={() => {
-                setPickerOpen(false);
-                // give the dialog a tick to close before opening the file picker
-                setTimeout(() => fileInputRef.current?.click(), 60);
-              }}
-              disabled={uploadPct !== null || mediaFull >= MAX_MEDIA}
+      {/* ── Bottom bar ──────────────────────────────────────────────── */}
+      <div className="shrink-0 border-t border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          {/* Step dots */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            {STEPS.map((s, i) => (
+              <button
+                key={s.key}
+                onClick={() => i <= step && goToStep(i)}
+                className={cn(
+                  "flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold transition",
+                  i < step
+                    ? "border-purple-500/40 bg-purple-500/10 text-purple-300"
+                    : i === step
+                      ? "border-purple-500/50 bg-purple-500/20 text-purple-200"
+                      : "border-border/40 bg-card/30 text-muted-foreground",
+                )}
+              >
+                {i < step ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <span>{i + 1}</span>
+                )}
+                <span className="hidden md:inline">{s.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Back */}
+          {step > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => goToStep(step - 1)}
+              className="rounded-xl gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </Button>
+          )}
+
+          {/* Next / Create */}
+          <motion.div whileTap={{ scale: 0.97 }}>
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed() || createMutation.isPending}
               className={cn(
-                "group flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-teal-400/55 bg-teal-400/5 p-3.5 text-left transition active:scale-[0.99]",
-                "hover:border-teal-400/90 hover:bg-teal-400/10 disabled:opacity-40 disabled:active:scale-100",
+                "rounded-xl gap-1.5 font-bold",
+                step === STEPS.length - 1
+                  ? "bg-gradient-to-r from-purple-600 via-purple-500 to-violet-500 shadow-[0_4px_20px_-4px_rgba(139,92,246,0.5)] hover:shadow-[0_6px_24px_-4px_rgba(139,92,246,0.65)] text-white"
+                  : "bg-primary text-primary-foreground",
               )}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-400/15 text-teal-300 transition group-hover:bg-teal-400/25">
-                <UploadCloud className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-teal-100">
-                  Upload from your device
-                </span>
-                <span className="block text-[11px] leading-snug text-teal-300/70">
-                  Photos up to 10 MB · videos up to 60 MB · multi-select supported
-                </span>
-              </span>
-              <span className="rounded-full bg-teal-400/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-teal-200">
-                Open
-              </span>
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating…
+                </>
+              ) : step === STEPS.length - 1 ? (
+                <>
+                  <PartyPopper className="h-4 w-4" />
+                  Create Party
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 1: Basics ────────────────────────────────────────────────
+function StepBasics({
+  form,
+  set,
+  coverPresets,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  coverPresets: string[];
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-6">
+      {/* Title */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Party name
+        </Label>
+        <Input
+          value={form.title}
+          onChange={(e) => set("title", e.target.value)}
+          placeholder="Friday Night R&B Rooftop"
+          className="h-14 rounded-2xl border-border/50 bg-card/40 text-lg font-bold placeholder:text-muted-foreground/50 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          maxLength={60}
+        />
+        <p className="text-right text-[10px] text-muted-foreground">
+          {form.title.length}/60
+        </p>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Description
+        </Label>
+        <Textarea
+          value={form.description}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="Tell guests what to expect — music, crowd vibe, dress code, what to bring…"
+          rows={4}
+          className="rounded-2xl border-border/50 bg-card/40 text-sm placeholder:text-muted-foreground/50 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          maxLength={500}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground">
+            Be specific — hosts with detailed descriptions get 3× more requests
+          </p>
+          <p className="text-[10px] tabular-nums text-muted-foreground">
+            {form.description.length}/500
+          </p>
+        </div>
+      </div>
+
+      {/* Cover image */}
+      <div className="space-y-3">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Cover image
+        </Label>
+
+        {/* Upload zone */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            try {
+              const res = await api.uploadMedia(Array.from(files));
+              if (res.files[0]) {
+                set("coverUrl", res.files[0].url);
+                toast.success("Cover uploaded!");
+              }
+            } catch {
+              toast.error("Upload failed");
+            }
+            if (fileRef.current) fileRef.current.value = "";
+          }}
+        />
+        {form.coverUrl ? (
+          <div className="relative overflow-hidden rounded-2xl">
+            <img
+              src={form.coverUrl}
+              alt="Cover preview"
+              className="h-48 w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            <button
+              onClick={() => set("coverUrl", "")}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
+            >
+              <X className="h-4 w-4" />
             </button>
-
-            {/* Preset cover images */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-purple-300">
-                <ImagePlus className="h-3 w-3" /> Preset photos
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {COVER_PRESETS.map((url) => {
-                  const selected = media.some((m) => m.url === url);
-                  return (
-                    <button
-                      key={url}
-                      type="button"
-                      onClick={() => {
-                        addMedia({ url, type: "image" });
-                      }}
-                      disabled={selected || mediaFull >= MAX_MEDIA}
-                      className={cn(
-                        "relative aspect-square overflow-hidden rounded-lg border transition active:scale-95",
-                        selected
-                          ? "border-purple-400 ring-2 ring-purple-400/50"
-                          : "border-white/10 hover:border-purple-400/40",
-                        mediaFull >= MAX_MEDIA && !selected && "opacity-40",
-                      )}
-                    >
-                      <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      {selected && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-purple-400/40">
-                          <Check className="h-4 w-4 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/70"
+            >
+              <Camera className="h-3 w-3" />
+              Change
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border/60 bg-card/20 p-8 text-center transition hover:border-purple-500/40 hover:bg-purple-500/5 active:scale-[0.99]"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/10">
+              <ImagePlus className="h-6 w-6 text-purple-400" />
             </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Upload cover image
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Drag & drop or click · JPG, PNG, WebP
+              </p>
+            </div>
+          </button>
+        )}
 
-            {/* Preset stock videos */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-purple-300">
-                <Video className="h-3 w-3" /> Preset clips
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {VIDEO_PRESETS.map((v) => {
-                  const selected = media.some((m) => m.url === v.url);
-                  return (
-                    <button
-                      key={v.url}
-                      type="button"
-                      onClick={() => addMedia({ url: v.url, type: "video" })}
-                      disabled={selected || mediaFull >= MAX_MEDIA}
-                      className={cn(
-                        "relative aspect-square overflow-hidden rounded-lg border transition active:scale-95",
-                        selected
-                          ? "border-purple-400 ring-2 ring-purple-400/50"
-                          : "border-white/10 hover:border-purple-400/40",
-                        mediaFull >= MAX_MEDIA && !selected && "opacity-40",
-                      )}
-                    >
-                      <img
-                        src={v.poster}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                        <Play className="h-5 w-5 fill-white text-white" />
-                      </span>
-                      {selected && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-purple-400/40">
-                          <Check className="h-4 w-4 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Videos play inline on the party detail screen. First media item
-                becomes the cover photo in the feed.
+        {/* Preset covers */}
+        {!form.coverUrl && (
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Or pick a preset
+            </p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {coverPresets.map((url, i) => (
+                <motion.button
+                  key={i}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => set("coverUrl", url)}
+                  className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-border/40 transition hover:border-purple-500/40"
+                >
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Step 2: When & Where ──────────────────────────────────────────
+function StepWhenWhere({
+  form,
+  set,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Date */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Date
+        </Label>
+        <div className="relative">
+          <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="date"
+            value={form.date}
+            onChange={(e) => set("date", e.target.value)}
+            className="h-12 rounded-2xl border-border/50 bg-card/40 pl-10 text-sm focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
+      </div>
+
+      {/* Time */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Start time
+        </Label>
+        <div className="relative">
+          <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="time"
+            value={form.time}
+            onChange={(e) => set("time", e.target.value)}
+            className="h-12 rounded-2xl border-border/50 bg-card/40 pl-10 text-sm focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
+      </div>
+
+      {/* City */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          City
+        </Label>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <select
+            value={form.city}
+            onChange={(e) => set("city", e.target.value)}
+            className="h-12 w-full rounded-2xl border border-border/50 bg-card/40 pl-10 pr-4 text-sm text-foreground appearance-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none"
+          >
+            <option value="" disabled>
+              Select city
+            </option>
+            {CITIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Area/Address */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Area / Address
+        </Label>
+        <Input
+          value={form.area}
+          onChange={(e) => set("area", e.target.value)}
+          placeholder="Kensington, London"
+          className="h-12 rounded-2xl border-border/50 bg-card/40 text-sm placeholder:text-muted-foreground/50 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          maxLength={100}
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Exact address is revealed to guests only after payment
+        </p>
+      </div>
+
+      {/* Map preview placeholder */}
+      {form.city && form.area && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="rounded-2xl border border-border/40 bg-card/30 p-4 text-center"
+        >
+          <MapPin className="mx-auto h-8 w-8 text-purple-400" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            📍 {formatLocation(form.area, form.city)}
+          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Pin preview will appear here
+          </p>
+        </motion.div>
+      )}
+
+      {/* Security add-on */}
+      <div className="rounded-2xl border border-border/40 bg-card/30 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10">
+              <ShieldCheck className="h-5 w-5 text-teal-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Security add-on
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Licensed bouncer · {currency}25
               </p>
             </div>
           </div>
+          <Switch
+            checked={form.securityBooked}
+            onCheckedChange={(v) => set("securityBooked", v)}
+          />
+        </div>
+        {form.securityBooked && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="mt-3 rounded-xl bg-teal-500/5 border border-teal-500/20 p-3"
+          >
+            <p className="text-[11px] text-teal-300/80 leading-relaxed">
+              ✅ A verified security person will be on-site. Guests see a
+              &quot;Safe&quot; badge on your party — major trust signal,
+              especially for women.
+            </p>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <span className="text-[11px] text-muted-foreground">
-              {mediaFull} of {MAX_MEDIA} used
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setPickerOpen(false)}
-              className="h-9 rounded-xl bg-purple-400 px-4 text-xs font-semibold text-black hover:bg-purple-300"
+// ── Step 3: Vibe & Settings ───────────────────────────────────────
+function StepVibeSettings({
+  form,
+  set,
+  toggleVibe,
+  currency,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  toggleVibe: (v: string) => void;
+  currency: string;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Vibe multi-select */}
+      <div className="space-y-3">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Pick your vibes
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          {VIBE_TAGS.map((vibe) => {
+            const active = form.vibes.includes(vibe);
+            const emoji = VIBE_EMOJI[vibe] || "✨";
+            const colorCls = VIBE_COLORS[vibe] || "bg-purple-500/15 text-purple-300 border-purple-500/45";
+            return (
+              <motion.button
+                key={vibe}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => toggleVibe(vibe)}
+                className={cn(
+                  "relative flex items-center gap-2 rounded-2xl border p-3 text-left transition-all",
+                  active
+                    ? colorCls + " ring-2 ring-purple-400/50"
+                    : "border-border/40 bg-card/30 text-foreground/60 hover:border-border/60",
+                )}
+              >
+                <span className="text-xl">{emoji}</span>
+                <span className="text-sm font-semibold">{vibe}</span>
+                {active && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/20"
+                  >
+                    <Check className="h-3 w-3" />
+                  </motion.div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+        {form.vibes.length === 0 && (
+          <p className="text-[11px] text-amber-400">
+            Pick at least one vibe so guests can find your party
+          </p>
+        )}
+      </div>
+
+      {/* Max guests slider */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Max guests
+          </Label>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                set("maxGuests", Math.max(2, form.maxGuests - 5))
+              }
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-card/30 text-foreground transition hover:bg-card/50"
             >
-              Done
-            </Button>
+              <Minus className="h-3 w-3" />
+            </button>
+            <span className="w-10 text-center text-lg font-bold text-foreground tabular-nums">
+              {form.maxGuests}
+            </span>
+            <button
+              onClick={() =>
+                set("maxGuests", Math.min(200, form.maxGuests + 5))
+              }
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-card/30 text-foreground transition hover:bg-card/50"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <Slider
+          value={[form.maxGuests]}
+          onValueChange={([v]) => set("maxGuests", v)}
+          min={2}
+          max={200}
+          step={1}
+          className="w-full"
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>Intimate (2)</span>
+          <span>Massive (200)</span>
+        </div>
+      </div>
 
-      <style>{`
-        .vibe-slider { -webkit-appearance: none; appearance: none; border-radius: 999px; outline: none; }
-        .vibe-slider::-webkit-slider-thumb {
-          -webkit-appearance: none; appearance: none;
-          width: 20px; height: 20px; border-radius: 50%;
-          background: #fff; border: 3px solid #ffcb05;
-          box-shadow: 0 2px 8px rgba(255,203,5,0.6); cursor: pointer;
-        }
-        .vibe-slider::-moz-range-thumb {
-          width: 20px; height: 20px; border-radius: 50%;
-          background: #fff; border: 3px solid #ffcb05; cursor: pointer;
-        }
-      `}</style>
+      {/* Entry fee */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Entry fee
+        </Label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-purple-300">
+            {currency}
+          </span>
+          <Input
+            type="number"
+            min={0}
+            value={form.fee || ""}
+            onChange={(e) => set("fee", Math.max(0, Number(e.target.value)))}
+            placeholder="0"
+            className="h-12 rounded-2xl border-border/50 bg-card/40 pl-8 text-sm font-bold focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          {form.fee === 0
+            ? "Free entry — great for first-time hosts to build ratings"
+            : `${currency}${form.fee} per guest · platform fee applies`}
+        </p>
+      </div>
+
+      {/* Approval toggle */}
+      <div className="rounded-2xl border border-border/40 bg-card/30 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Approval required
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Guests must send an intro before joining
+            </p>
+          </div>
+          <Switch
+            checked={form.approvalRequired}
+            onCheckedChange={(v) => set("approvalRequired", v)}
+          />
+        </div>
+      </div>
+
+      {/* Accept walk-ins toggle */}
+      <div className="rounded-2xl border border-border/40 bg-card/30 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Accept walk-ins
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Let guests show up without pre-booking
+            </p>
+          </div>
+          <Switch
+            checked={form.acceptJoiners}
+            onCheckedChange={(v) => set("acceptJoiners", v)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 4: Menu (optional) ───────────────────────────────────────
+function StepMenu({
+  form,
+  addMenuItem,
+  updateMenuItem,
+  removeMenuItem,
+  currency,
+  emojiPickerOpen,
+  setEmojiPickerOpen,
+}: {
+  form: FormState;
+  addMenuItem: () => void;
+  updateMenuItem: (
+    id: string,
+    patch: Partial<FormState["menuItems"][0]>,
+  ) => void;
+  removeMenuItem: (id: string) => void;
+  currency: string;
+  emojiPickerOpen: string | null;
+  setEmojiPickerOpen: (id: string | null) => void;
+}) {
+  const [menuCat, setMenuCat] = useState<string>("drink");
+
+  return (
+    <div className="space-y-6">
+      {/* Info banner */}
+      <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-purple-400" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Menu is optional
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
+              Add drinks, snacks, and soft beverages guests can pre-order.
+              Skip this step if your party doesn&apos;t have a menu.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Category tabs */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+        {MENU_CATEGORIES.map((cat) => (
+          <button
+            key={cat.key}
+            onClick={() => setMenuCat(cat.key)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all",
+              menuCat === cat.key
+                ? "border-purple-500/50 bg-purple-500/15 text-purple-200"
+                : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span>{cat.emoji}</span>
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Menu items */}
+      <div className="space-y-3">
+        {form.menuItems
+          .filter((item) => item.category === menuCat)
+          .map((item) => (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="rounded-2xl border border-border/40 bg-card/30 p-3 space-y-3"
+            >
+              <div className="flex items-center gap-2">
+                {/* Emoji picker trigger */}
+                <button
+                  onClick={() =>
+                    setEmojiPickerOpen(
+                      emojiPickerOpen === item.id ? null : item.id,
+                    )
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/40 bg-card/50 text-lg hover:border-purple-500/30 transition"
+                >
+                  {item.emoji}
+                </button>
+                <Input
+                  value={item.name}
+                  onChange={(e) =>
+                    updateMenuItem(item.id, { name: e.target.value })
+                  }
+                  placeholder="Item name"
+                  className="h-10 flex-1 rounded-xl border-border/40 bg-card/40 text-sm"
+                />
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-300">
+                    {currency}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={item.price || ""}
+                    onChange={(e) =>
+                      updateMenuItem(item.id, {
+                        price: Math.max(0, Number(e.target.value)),
+                      })
+                    }
+                    placeholder="0"
+                    className="h-10 w-20 rounded-xl border-border/40 bg-card/40 pl-7 text-sm"
+                  />
+                </div>
+                <button
+                  onClick={() => removeMenuItem(item.id)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/40 bg-card/30 text-muted-foreground transition hover:text-coral hover:border-coral/30"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Emoji picker dropdown */}
+              <AnimatePresence>
+                {emojiPickerOpen === item.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex flex-wrap gap-1.5 overflow-hidden"
+                  >
+                    {MENU_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          updateMenuItem(item.id, { emoji });
+                          setEmojiPickerOpen(null);
+                        }}
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-lg text-base transition hover:bg-purple-500/15",
+                          item.emoji === emoji &&
+                            "bg-purple-500/20 ring-1 ring-purple-400/50",
+                        )}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ))}
+      </div>
+
+      {/* Add item button */}
+      <button
+        onClick={addMenuItem}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/50 bg-card/20 p-3.5 text-sm font-semibold text-muted-foreground transition hover:border-purple-500/30 hover:text-purple-300 hover:bg-purple-500/5"
+      >
+        <Plus className="h-4 w-4" />
+        Add {MENU_CATEGORIES.find((c) => c.key === menuCat)?.label.slice(0, -1)} item
+      </button>
+
+      {/* Menu preview */}
+      {form.menuItems.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Menu preview
+          </p>
+          <div className="rounded-2xl border border-border/40 bg-card/30 p-3 space-y-2">
+            {form.menuItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-base">{item.emoji}</span>
+                  <span className="font-medium text-foreground">
+                    {item.name || "Unnamed"}
+                  </span>
+                </span>
+                <span className="font-bold text-purple-300">
+                  {currency}
+                  {item.price}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import {
   Settings,
   Pencil,
@@ -21,10 +23,11 @@ import {
   Crown,
   Trophy,
   Zap,
-  Award,
-  Rocket,
   BarChart3,
   Ticket,
+  Camera,
+  ArrowLeftRight,
+  Info,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -33,6 +36,176 @@ import { RatingPill } from "@/components/vibe/rating-pill";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+/* ------------------------------------------------------------------ */
+/*  Animated count-up hook                                             */
+/* ------------------------------------------------------------------ */
+function useCountUp(target: number, duration = 900) {
+  const [value, setValue] = useState(0);
+  const raf = useRef<number>(0);
+  useEffect(() => {
+    const start = performance.now();
+    const from = 0;
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setValue(Math.round(from + (target - from) * ease));
+      if (t < 1) raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target, duration]);
+  return value;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Stat pill with animated count                                      */
+/* ------------------------------------------------------------------ */
+function AnimatedStat({
+  label,
+  value,
+  icon,
+  delay,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  delay: number;
+}) {
+  const counted = useCountUp(value, 1000);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] px-3 py-4 text-center"
+    >
+      <span className="text-purple-bright">{icon}</span>
+      <p className="font-display text-2xl font-bold text-white">{counted}</p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/50">
+        {label}
+      </p>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Quick action card (2×2 grid)                                       */
+/* ------------------------------------------------------------------ */
+function QuickAction({
+  icon,
+  label,
+  badge,
+  onClick,
+  delay,
+  accent = "purple",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+  onClick: () => void;
+  delay: number;
+  accent?: "purple" | "teal" | "amber" | "coral";
+}) {
+  const bgMap = {
+    purple: "bg-purple-500/10 border-purple-500/30",
+    teal: "bg-teal-500/10 border-teal-500/30",
+    amber: "bg-amber-500/10 border-amber-500/30",
+    coral: "bg-coral-500/10 border-coral-500/30",
+  };
+  const iconBg = {
+    purple: "bg-purple-500/15 text-purple-bright",
+    teal: "bg-teal-500/15 text-teal-bright",
+    amber: "bg-amber-500/15 text-amber-bright",
+    coral: "bg-coral-500/15 text-coral-bright",
+  };
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      onClick={onClick}
+      className={cn(
+        "relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 transition-all duration-200 active:scale-[0.97]",
+        bgMap[accent],
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-xl",
+          iconBg[accent],
+        )}
+      >
+        {icon}
+      </span>
+      <span className="text-sm font-semibold text-white/90">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-bright px-1.5 text-[10px] font-bold text-white">
+          {badge}
+        </span>
+      )}
+    </motion.button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Menu row                                                           */
+/* ------------------------------------------------------------------ */
+function MenuRow({
+  icon,
+  label,
+  sub,
+  onClick,
+  last,
+  danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  onClick: () => void;
+  last?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-white/[0.04]",
+        !last && "border-b border-white/[0.06]",
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-xl",
+          danger
+            ? "bg-red-500/10 text-red-400"
+            : "bg-white/[0.06] text-white/60",
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            "truncate text-sm font-medium",
+            danger ? "text-red-400" : "text-white/90",
+          )}
+        >
+          {label}
+        </p>
+        {sub && (
+          <p className="truncate text-[11px] text-white/40">{sub}</p>
+        )}
+      </div>
+      <ChevronRight
+        className={cn("h-4 w-4", danger ? "text-red-400/60" : "text-white/30")}
+      />
+    </button>
+  );
+}
+
+/* ================================================================== */
+/*  PROFILE SCREEN                                                     */
+/* ================================================================== */
 export function ProfileScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const userRole = useAppStore((s) => s.userRole);
@@ -51,378 +224,279 @@ export function ProfileScreen() {
 
   if (!user) return null;
 
-  const vibeScore = Math.min(999, user.vibes + user.hosted * 10);
-  const tiers = [
-    { name: "Rookie", min: 0, icon: Rocket },
-    { name: "Riser", min: 50, icon: Zap },
-    { name: "Vibe", min: 150, icon: Sparkles },
-    { name: "Legend", min: 400, icon: Crown },
-  ];
-  const currentTier = [...tiers].reverse().find((t) => vibeScore >= t.min) || tiers[0];
-  const nextTier = tiers.find((t) => t.min > vibeScore);
-  const tierProgress = nextTier
-    ? Math.round(
-        ((vibeScore - currentTier.min) / (nextTier.min - currentTier.min)) * 100,
-      )
-    : 100;
-
-  const achievements = [
-    {
-      icon: Rocket,
-      label: "First Steps",
-      desc: "Joined VibeMatch",
-      unlocked: true,
-    },
-    {
-      icon: Heart,
-      label: "Curator",
-      desc: "Saved 3+ parties",
-      unlocked: savedCount >= 3,
-    },
-    {
-      icon: Flame,
-      label: "Host",
-      desc: "Hosted a party",
-      unlocked: user.hosted >= 1,
-    },
-    {
-      icon: Star,
-      label: "Rising Star",
-      desc: "Reach 100 vibes",
-      unlocked: user.vibes >= 100,
-    },
-    {
-      icon: Award,
-      label: "Social Butterfly",
-      desc: "5+ conversations",
-      unlocked: false,
-    },
-    {
-      icon: Crown,
-      label: "Legend",
-      desc: "Reach 400 vibe score",
-      unlocked: vibeScore >= 400,
-    },
-  ];
-
   const isHost = role === "host";
 
   return (
     <div className="flex h-full flex-col animate-screen-in">
-      <header className="sticky top-0 z-20 flex items-center justify-between glass-strong border-b border-white/10 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] lg:px-6">
-        <h1 className="font-display text-xl font-bold text-amber-400">
-          Profile
-        </h1>
-        <button
-          onClick={() => toast.info("Settings coming soon")}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-amber-400"
-          aria-label="Settings"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
-      </header>
+      {/* ---- Hero header ---- */}
+      <div className="relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-deep via-purple/30 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(83,74,183,0.45),transparent_60%)]" />
 
-      <div className="fancy-scrollbar flex-1 overflow-y-auto px-4 pb-6 lg:px-6">
-        {/* Hero */}
-        <section className="relative mt-4 overflow-hidden rounded-3xl glass border border-white/10 p-5">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-amber-400 opacity-30" />
-          <div className="relative flex items-center gap-4">
-            <span className="relative block rounded-full ring-2 ring-amber-400">
-              <UserAvatar name={user.name} src={user.avatarUrl} size={72} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-xl font-bold truncate text-amber-400">
-                  {user.name}
-                </h2>
-                {/* Role badge */}
-                <span className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
-                  isHost
-                    ? "bg-amber-400/15 text-amber-300 border-amber-400/40"
-                    : "bg-teal-500/15 text-teal-300 border-teal-500/40",
-                )}>
-                  {isHost ? "🎉 Host" : "🎊 Partier"}
-                </span>
-              </div>
-              <p className="truncate text-sm font-medium text-white/70">
-                @{user.username || "viber"} · {user.city || "India"}
-              </p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <RatingPill rating={user.rating} count={user.ratingCount} />
-                {/* Guest TRUST score — distinct from host rating. Shows how
-                    reliable this user is as a GUEST (given by hosts). */}
-                {(user.trustCount ?? 0) > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/15 px-2.5 py-0.5 text-[11px] font-semibold border border-teal-500/30 text-teal-300">
-                    <ShieldCheck className="h-3 w-3" />
-                    TRUST {(user.trustScore ?? 5).toFixed(1)}
-                    <span className="text-muted-foreground">
-                      ({user.trustCount})
-                    </span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          {user.bio && (
-            <p className="relative mt-4 rounded-2xl glass px-3 py-2 text-sm text-foreground/90">{user.bio}</p>
-          )}
-          <button
-            onClick={() => setScreen("edit-profile")}
-            className="relative mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-amber-400 px-4 text-sm font-semibold text-black transition active:scale-95"
-          >
-            <Pencil className="h-3.5 w-3.5" /> Edit profile
-          </button>
-        </section>
-
-        {/* Stats — uniform yellow */}
-        <section className="mt-4 grid grid-cols-3 gap-3 lg:grid-cols-3 lg:gap-4">
-          <Stat icon={<Sparkles className="h-4 w-4 text-amber-400" />} label="Vibes" value={user.vibes} delay={0} />
-          <Stat icon={<Flame className="h-4 w-4 text-amber-400" />} label="Hosted" value={user.hosted} delay={60} />
-          <Stat icon={<Star className="h-4 w-4 text-amber-400" />} label="Rating" value={user.rating.toFixed(1)} delay={120} />
-        </section>
-
-        {/* Vibe score card with tier + progress */}
-        <section className="mt-4 overflow-hidden rounded-3xl glass border border-white/10 p-5 lg:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-purple-300 font-semibold">
-                Vibe score
-              </p>
-              <p className="font-display text-3xl font-extrabold text-amber-400">
-                {vibeScore}
-              </p>
-            </div>
-            <div
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 shadow-lg",
-              )}
+        <div className="relative px-4 pt-[max(env(safe-area-inset-top),16px)] pb-6 lg:px-6">
+          {/* Top bar */}
+          <div className="flex items-center justify-between pb-4">
+            <h1 className="font-display text-xl font-bold text-white">
+              Profile
+            </h1>
+            <button
+              onClick={() => toast.info("Settings coming soon")}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/60 transition hover:bg-white/[0.14] hover:text-white"
+              aria-label="Settings"
             >
-              <currentTier.icon className="h-6 w-6 text-black" />
-            </div>
+              <Settings className="h-5 w-5" />
+            </button>
           </div>
 
-          {/* Tier + progress */}
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-white">
-                {currentTier.name} tier
-              </span>
-              {nextTier ? (
-                <span className="text-muted-foreground">
-                  {nextTier.min - vibeScore} to {nextTier.name}
+          {/* Avatar + info */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col items-center text-center"
+          >
+            {/* Avatar with gradient ring */}
+            <div className="relative">
+              <div className="rounded-full bg-gradient-to-br from-purple-bright via-purple to-teal p-[3px]">
+                <div className="rounded-full bg-background p-[2px]">
+                  <UserAvatar name={user.name} src={user.avatarUrl} size={88} />
+                </div>
+              </div>
+              {/* Camera icon overlay */}
+              <button
+                onClick={() => setScreen("edit-profile")}
+                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-purple-bright shadow-lg shadow-purple/40 transition-transform active:scale-90"
+                aria-label="Edit profile photo"
+              >
+                <Camera className="h-4 w-4 text-white" />
+              </button>
+            </div>
+
+            {/* Name */}
+            <h2 className="mt-4 font-display text-2xl font-bold text-white">
+              {user.name}
+            </h2>
+            {/* Username */}
+            <p className="mt-0.5 text-sm font-medium text-white/50">
+              @{user.username || "viber"}
+            </p>
+            {/* Bio */}
+            {user.bio && (
+              <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-white/70">
+                {user.bio}
+              </p>
+            )}
+            {/* City + Profession badges */}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {user.city && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-bright border border-teal-500/25">
+                  <Globe className="h-3 w-3" />
+                  {user.city}
                 </span>
-              ) : (
-                <span className="font-semibold text-amber-400">Max tier reached 👑</span>
               )}
-            </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
-              <div
-                className="h-full rounded-full bg-amber-400 transition-all duration-700"
-                style={{ width: `${tierProgress}%` }}
-              />
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {isHost
-              ? "Host parties & get vibes from guests to climb the leaderboard."
-              : "Attend parties, earn trust & get vibes to climb the leaderboard."}
-          </p>
-        </section>
-
-        {/* Achievements / badges */}
-        <section className="mt-4">
-          <h3 className="mb-2 flex items-center gap-1.5 px-1 text-[11px] uppercase tracking-[0.2em] text-white/50">
-            <Trophy className="h-3.5 w-3.5 text-amber-400" /> Achievements
-          </h3>
-          <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
-            {achievements.map((a) => (
-              <div
-                key={a.label}
+              {user.profession && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-bright border border-amber-500/25">
+                  {user.profession}
+                </span>
+              )}
+              <span
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-2xl border p-3 text-center transition glass",
-                  a.unlocked
-                    ? "border-amber-400/40"
-                    : "border-white/10 bg-card/20 opacity-50 grayscale",
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold border",
+                  isHost
+                    ? "bg-purple-500/15 text-purple-bright border-purple-500/35"
+                    : "bg-teal-500/15 text-teal-bright border-teal-500/35",
                 )}
               >
-                <div
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full",
-                    a.unlocked ? "bg-amber-400/10" : "bg-white/5",
-                  )}
-                >
-                  <a.icon className={cn("h-5 w-5", a.unlocked ? "text-amber-400" : "text-muted-foreground")} />
-                </div>
-                <p className="text-[10px] font-semibold leading-tight">{a.label}</p>
-                <p className="text-[9px] leading-tight text-muted-foreground">{a.desc}</p>
-              </div>
-            ))}
+                {isHost ? "🎉 Host" : "🎊 Partier"}
+              </span>
+              <RatingPill rating={user.rating} count={user.ratingCount} />
+              {(user.trustCount ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/15 px-2.5 py-0.5 text-[11px] font-semibold border border-teal-500/30 text-teal-bright">
+                  <ShieldCheck className="h-3 w-3" />
+                  TRUST {(user.trustScore ?? 5).toFixed(1)}
+                  <span className="text-white/40">({user.trustCount})</span>
+                </span>
+              )}
+            </div>
+
+            {/* Edit profile button */}
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setScreen("edit-profile")}
+              className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white/[0.08] px-5 text-sm font-semibold text-white ring-1 ring-white/[0.12] transition hover:bg-white/[0.12]"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit profile
+            </motion.button>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ---- Scrollable body ---- */}
+      <div className="fancy-scrollbar flex-1 overflow-y-auto px-4 pb-8 lg:px-6">
+        {/* Stats row */}
+        <section className="-mt-2 grid grid-cols-3 gap-3">
+          <AnimatedStat
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Vibes"
+            value={user.vibes}
+            delay={0.1}
+          />
+          <AnimatedStat
+            icon={<Flame className="h-4 w-4" />}
+            label="Hosted"
+            value={user.hosted}
+            delay={0.2}
+          />
+          <AnimatedStat
+            icon={<Star className="h-4 w-4" />}
+            label="Rating"
+            value={Math.round(user.rating * 10)}
+            delay={0.3}
+          />
+        </section>
+
+        {/* ---- Quick actions grid ---- */}
+        <section className="mt-5">
+          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+            Quick Actions
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {isHost ? (
+              <>
+                <QuickAction
+                  icon={<Flame className="h-5 w-5" />}
+                  label="My Parties"
+                  badge={user.hosted}
+                  onClick={() => setScreen("my-parties")}
+                  delay={0.15}
+                  accent="purple"
+                />
+                <QuickAction
+                  icon={<Heart className="h-5 w-5" />}
+                  label="Saved"
+                  badge={savedCount}
+                  onClick={() => setScreen("saved")}
+                  delay={0.2}
+                  accent="coral"
+                />
+                <QuickAction
+                  icon={<BarChart3 className="h-5 w-5" />}
+                  label="Host Dashboard"
+                  onClick={() => setScreen("host-dashboard")}
+                  delay={0.25}
+                  accent="teal"
+                />
+                <QuickAction
+                  icon={<Settings className="h-5 w-5" />}
+                  label="Settings"
+                  onClick={() => toast.info("Settings coming soon")}
+                  delay={0.3}
+                  accent="amber"
+                />
+              </>
+            ) : (
+              <>
+                <QuickAction
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  label="My RSVPs"
+                  onClick={() => toast.info("RSVPs coming soon")}
+                  delay={0.15}
+                  accent="purple"
+                />
+                <QuickAction
+                  icon={<Heart className="h-5 w-5" />}
+                  label="Saved"
+                  badge={savedCount}
+                  onClick={() => setScreen("saved")}
+                  delay={0.2}
+                  accent="coral"
+                />
+                <QuickAction
+                  icon={<Ticket className="h-5 w-5" />}
+                  label="Tickets"
+                  onClick={() => setScreen("tickets")}
+                  delay={0.25}
+                  accent="teal"
+                />
+                <QuickAction
+                  icon={<Settings className="h-5 w-5" />}
+                  label="Settings"
+                  onClick={() => toast.info("Settings coming soon")}
+                  delay={0.3}
+                  accent="amber"
+                />
+              </>
+            )}
           </div>
         </section>
 
-        {/* Activity — adapted by role */}
-        <section className="mt-6">
-          <h3 className="mb-2 px-1 text-[11px] uppercase tracking-[0.2em] text-white/50">
-            Activity
+        {/* ---- Menu items ---- */}
+        <section className="mt-5">
+          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+            Account
           </h3>
-          {isHost ? (
-            <div className="overflow-hidden rounded-2xl glass border border-white/10">
-              <Row
-                icon={<Flame className="h-4 w-4 text-amber-400" />}
-                label="My parties"
-                sub={`${user.hosted} hosted`}
-                onClick={() => setScreen("my-parties")}
-              />
-              <Row
-                icon={<InboxIcon className="h-4 w-4 text-amber-400" />}
-                label="Requests received"
-                sub="Review join requests"
-                onClick={() => setScreen("requests")}
-              />
-              <Row
-                icon={<BarChart3 className="h-4 w-4 text-amber-400" />}
-                label="Analytics"
-                sub="Views, ratings & insights"
-                onClick={() => setScreen("host-dashboard")}
-                last
-              />
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl glass border border-white/10">
-              <Row
-                icon={<CalendarDays className="h-4 w-4 text-amber-400" />}
-                label="My RSVPs"
-                sub="Parties you're going to"
-                onClick={() => toast.info("RSVPs coming soon")}
-              />
-              <Row
-                icon={<Heart className="h-4 w-4 text-amber-400" />}
-                label="Saved parties"
-                sub={`${savedCount} saved`}
-                onClick={() => setScreen("saved")}
-              />
-              <Row
-                icon={<Ticket className="h-4 w-4 text-amber-400" />}
-                label="Tickets"
-                sub="Your entry tickets"
-                onClick={() => setScreen("tickets")}
-                last
-              />
-            </div>
-          )}
-        </section>
-
-        {/* Settings */}
-        <section className="mt-6">
-          <h3 className="mb-2 px-1 text-[11px] uppercase tracking-[0.2em] text-white/50">
-            Settings
-          </h3>
-          <div className="overflow-hidden rounded-2xl glass border border-white/10">
-            <Row
-              icon={<Bell className="h-4 w-4 text-amber-400" />}
+          <div className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <MenuRow
+              icon={<Pencil className="h-4 w-4" />}
+              label="Edit Profile"
+              sub="Update your info"
+              onClick={() => setScreen("edit-profile")}
+            />
+            <MenuRow
+              icon={<ArrowLeftRight className="h-4 w-4" />}
+              label="Change Role"
+              sub={isHost ? "Switch to Partier" : "Switch to Host"}
+              onClick={() =>
+                toast.info("Role switching coming soon")
+              }
+            />
+            <MenuRow
+              icon={<Bell className="h-4 w-4" />}
               label="Notifications"
               onClick={() => toast.info("Notifications coming soon")}
             />
-            <Row
-              icon={<Moon className="h-4 w-4 text-amber-400" />}
-              label="Appearance"
-              sub="Dark mode"
-              onClick={() => toast.info("Always dark here ✨")}
-            />
-            <Row
-              icon={<Globe className="h-4 w-4 text-amber-400" />}
-              label="Language"
-              sub="English"
-              onClick={() => toast.info("More languages coming soon")}
-            />
-            <Row
-              icon={<Shield className="h-4 w-4 text-amber-400" />}
-              label="Privacy & safety"
+            <MenuRow
+              icon={<Shield className="h-4 w-4" />}
+              label="Privacy & Safety"
               onClick={() => toast.info("Privacy settings coming soon")}
             />
-            <Row
-              icon={<HelpCircle className="h-4 w-4 text-amber-400" />}
-              label="Help & support"
+            <MenuRow
+              icon={<HelpCircle className="h-4 w-4" />}
+              label="Help & Support"
               onClick={() => toast.info("Help center coming soon")}
+            />
+            <MenuRow
+              icon={<Info className="h-4 w-4" />}
+              label="About VibeMatch"
+              sub="v1.0"
+              onClick={() => toast.info("VibeMatch v1.0 · Made with 💛 in India")}
               last
             />
           </div>
         </section>
 
-        {/* Logout */}
-        <button
-          onClick={() => {
-            logout();
-            toast.success("Signed out. See you on the dancefloor 💛");
-          }}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/70 transition hover:text-white hover:bg-white/10"
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </button>
+        {/* ---- Log out ---- */}
+        <section className="mt-5">
+          <div className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <MenuRow
+              icon={<LogOut className="h-4 w-4" />}
+              label="Log Out"
+              onClick={() => {
+                logout();
+                toast.success("Signed out. See you on the dancefloor 💛");
+              }}
+              danger
+              last
+            />
+          </div>
+        </section>
 
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">
+        {/* Version footer */}
+        <p className="mt-6 text-center text-[11px] text-white/25">
           VibeMatch v1.0 · Made with 💛 in India
         </p>
       </div>
     </div>
-  );
-}
-
-function Stat({
-  icon,
-  label,
-  value,
-  delay = 0,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  delay?: number;
-}) {
-  return (
-    <div
-      className={cn(
-        "animate-pop-in flex flex-col items-center gap-1 rounded-2xl glass border border-amber-400/40 p-3 text-center transition",
-      )}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex justify-center">{icon}</div>
-      <p className="font-display text-xl font-bold text-amber-400">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  sub,
-  onClick,
-  last,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  sub?: string;
-  onClick: () => void;
-  last?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/5",
-        !last && "border-b border-border/40",
-      )}
-    >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/10 ring-1 ring-amber-400/30">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{label}</p>
-        {sub && <p className="truncate text-[11px] text-muted-foreground">{sub}</p>}
-      </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-    </button>
   );
 }

@@ -2509,3 +2509,37 @@ Stage Summary:
 - Health endpoint provides rich diagnostics (uri length, Atlas/local detection)
 - All 21 API route handlers wrapped with `withDB` for consistent DB connection + error handling
 - Zero lint errors
+
+---
+Task ID: 3f
+Agent: redesign-agent
+Task: Redesign 10 remaining screens to Dribbble-quality with dark theme, purple/violet accents, frosted glass cards, and smooth framer-motion transitions.
+
+Work Log:
+- Read all 10 existing screen files to understand current logic, API calls, store usage, and component structure
+- Read supporting files: types.ts, api.ts, store.ts, utils.ts, party-card.tsx, empty-state.tsx, host-analytics.tsx, live-countdown.tsx, globals.css
+- Systematically rewrote each screen with consistent premium design language:
+  1. **saved-screen.tsx**: Animated heart empty state, AnimatePresence for list, frosted header, staggered card entrance
+  2. **my-parties-screen.tsx**: Status badges (Live/Upcoming/Past), ActiveEventCard with animated fill bars, Create CTA banner, PartyRowCard with quick stats
+  3. **requests-screen.tsx**: Animated tab bar with layoutId, pending count badge, intro message preview cards, Accept/Reject with proper colors, exit animations
+  4. **host-dashboard-screen.tsx**: 4-up stat cards with tinted glows, animated capacity bar, top parties list, recent activity feed, trust rating section
+  5. **manage-party-screen.tsx**: Tab system (Menu/Media/Chat/Settings) with animated layoutId, AnimatePresence mode="wait" for tab content, all CRUD logic preserved
+  6. **payment-screen.tsx**: Order summary card, stepper buttons with whileTap, payment method radio cards, security note
+  7. **confirmation-screen.tsx**: Spring-animated checkmark, ticket preview with QR, CountdownDisplay component (live updating), share button
+  8. **countdown-screen.tsx**: Step tracker with frosted cards, countdown badge, location drop alert, party chat preview, invite friends
+  9. **filter-screen.tsx**: Radio-style city cards, vibe multi-select with VIBE_COLORS, profession pills, price slider, radius slider, Clear All + Apply with count
+  10. **map-screen.tsx**: Purple-themed pins replacing amber, frosted header, purple radius/Live pills, dark vignette overlay, bottom sheet with backdrop-blur
+
+Design System Applied Across All Screens:
+- Frosted glass headers: `bg-background/70 backdrop-blur-2xl border-b border-white/[0.06]`
+- Back buttons: rounded-xl with border-white/[0.08], whileTap scale 0.9
+- Cards: `rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm`
+- Labels: `text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium`
+- Primary CTA: `bg-purple-500 shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]`
+- Tab bars: motion layoutId for animated indicator
+- All animations use `ease: [0.22, 1, 0.36, 1]` for premium feel
+- Consistent framer-motion: initial/animate/exit with staggered delays
+- All existing API calls, store logic, mutations, and type imports preserved
+
+Lint: passes clean (0 errors, 0 warnings)
+Dev server: compiles successfully

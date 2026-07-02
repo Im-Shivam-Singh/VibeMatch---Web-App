@@ -1,15 +1,17 @@
 "use client";
 
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
   Calendar,
   Clock,
   Users,
-  IndianRupee,
-  Sparkles,
   Heart,
   Flame,
   Play,
+  Radio,
+  Sparkles,
 } from "lucide-react";
 import { cn, formatLocation } from "@/lib/utils";
 import {
@@ -20,9 +22,12 @@ import {
   pickGuestAvatars,
   partyLiveStatus,
   slotsLeft,
+  countdownTo,
+  VIBE_EMOJI,
+  VIBE_COLORS,
+  currencyForCity,
   type Party,
 } from "@/lib/types";
-import { VibeBadge } from "./vibe-badge";
 import { GuestAvatars } from "./guest-avatars";
 import { LiveCountdown } from "./live-countdown";
 import { useAppStore } from "@/lib/store";
@@ -32,47 +37,64 @@ interface PartyCardProps {
   party: Party;
   onOpen: (id: string) => void;
   className?: string;
+  /** When true, renders a wider hero-style card for the "Hot Tonight" section */
+  featured?: boolean;
+  /** Animation delay index for staggered entrance */
+  index?: number;
 }
 
-export function PartyCard({ party, onOpen, className }: PartyCardProps) {
-  const vibes = parseVibes(party.vibes).slice(0, 4);
+// Vibe-specific gradient backgrounds for the cover when no image is available
+const VIBE_GRADIENTS: Record<string, string> = {
+  "R&B": "from-purple-900/80 via-purple-800/60 to-indigo-950/80",
+  Bollywood: "from-green-900/80 via-emerald-800/60 to-teal-950/80",
+  BYOB: "from-purple-900/80 via-fuchsia-800/60 to-pink-950/80",
+  Games: "from-teal-900/80 via-cyan-800/60 to-blue-950/80",
+  "Lo-fi": "from-violet-900/80 via-purple-800/60 to-slate-950/80",
+  Chill: "from-cyan-900/80 via-teal-800/60 to-emerald-950/80",
+  EDM: "from-rose-900/80 via-pink-800/60 to-purple-950/80",
+  Retro: "from-amber-900/80 via-orange-800/60 to-red-950/80",
+};
+
+export function PartyCard({ party, onOpen, className, featured = false, index = 0 }: PartyCardProps) {
+  const vibes = parseVibes(party.vibes);
+  const displayVibes = vibes.slice(0, 3);
+  const extraVibes = vibes.length - 3;
+  const firstVibe = vibes[0] ?? "Chill";
   const left = slotsLeft(party.maxGuests, party.guestCount);
-  const isLow = left > 0 && left <= 5;
+  const isLow = left > 0 && left <= 3;
   const isFull = left === 0;
   const status = partyLiveStatus(party.date, party.time);
   const isLive = status === "live";
   const isStartingSoon = status === "starting-soon";
+  const going = party.guestCount;
 
   const saved = useAppStore((s) => s.savedPartyIds.includes(party.id));
   const toggleSaved = useAppStore((s) => s.toggleSaved);
 
   const guests = pickGuestAvatars(party.id, Math.min(5, party.guestCount));
-
-  // Cover src — prefer the first gallery item (in case the list payload ever
-  // includes media), else fall back to the legacy coverUrl. The list API
-  // currently returns `media: []` so this effectively just uses coverUrl.
   const coverSrc = party.media?.[0]?.url ?? party.coverUrl;
-  // Show a "▶ Video" badge only when the full media array is present and
-  // contains at least one video clip. The list payload omits media entirely,
-  // so this gracefully no-ops on the feed view (badge only shows up after the
-  // user opens detail, when applicable, or if media is later included).
   const hasVideo =
     Array.isArray(party.media) && party.media.some((m) => m.type === "video");
 
-  const onSave = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleSaved(party.id);
-    toast.success(saved ? "Removed from saved" : "Saved to your list", {
-      duration: 1500,
-    });
-  };
+  const [heartAnimating, setHeartAnimating] = useState(false);
 
-  // "Featured" feel: parties that are live OR have a high guest fill ratio get
-  // a simple solid yellow "Featured" pill. Pure visual flourish.
-  const featured = isLive || party.guestCount / Math.max(1, party.maxGuests) >= 0.75;
+  const onSave = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleSaved(party.id);
+      if (!saved) setHeartAnimating(true);
+      toast.success(saved ? "Removed from saved" : "Saved to your list", {
+        duration: 1500,
+      });
+    },
+    [saved, toggleSaved, party.id],
+  );
+
+  const sym = currencyForCity(party.city);
+  const gradientClass = VIBE_GRADIENTS[firstVibe] ?? "from-purple-900/80 via-purple-800/60 to-indigo-950/80";
 
   return (
-    <div
+    <motion.div
       role="button"
       tabIndex={0}
       onClick={() => onOpen(party.id)}
@@ -82,158 +104,230 @@ export function PartyCard({ party, onOpen, className }: PartyCardProps) {
           onOpen(party.id);
         }
       }}
+      initial={{ opacity: 0, y: 24, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.45,
+        delay: index * 0.06,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      whileHover={{ y: -6, transition: { duration: 0.25, ease: "easeOut" } }}
+      whileTap={{ scale: 0.975 }}
       className={cn(
-        "group relative w-full cursor-pointer overflow-hidden rounded-3xl text-left transition-all duration-300 press-feedback",
-        "glass vibe-gradient-border",
-        "hover:-translate-y-1 hover:glow-gold",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60",
-        isLive && "ring-1 ring-amber-400/40 glow-gold",
+        "group relative w-full cursor-pointer overflow-hidden text-left",
+        "rounded-2xl lg:rounded-3xl",
+        "bg-card/80",
+        "border border-white/[0.06]",
+        "shadow-[0_2px_12px_-4px_rgba(0,0,0,0.4)]",
+        "hover:shadow-[0_20px_44px_-12px_rgba(0,0,0,0.55),0_0_0_1px_rgba(83,74,183,0.25),0_8px_28px_-8px_rgba(83,74,183,0.12)]",
+        "hover:border-purple-500/30",
+        "transition-shadow duration-300 ease-out",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        isLive && "ring-1 ring-coral/40",
+        featured && "md:min-w-[340px]",
         className,
       )}
     >
-      {/* Live now accent strip on top edge */}
-      {isLive && (
-        <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-amber-400 animate-pulse" />
-      )}
-
-      {/* Cover */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden">
+      {/* ====== Cover Section ====== */}
+      <div
+        className={cn(
+          "relative w-full overflow-hidden",
+          featured ? "aspect-[16/9]" : "aspect-[16/10]",
+        )}
+      >
+        {/* Background image or gradient */}
         {coverSrc ? (
           <img
             src={coverSrc}
             alt={party.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="h-full w-full bg-amber-400/15" />
+          <div
+            className={cn(
+              "h-full w-full bg-gradient-to-br gradient-shift",
+              gradientClass,
+            )}
+          />
         )}
 
-        {/* Video badge — purple pill at top-center when any media is a video.
-            Only shown when the list payload includes the media array (which
-            it currently doesn't, so this is a forward-looking affordance). */}
-        {hasVideo && (
-          <span className="absolute left-1/2 top-3 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-purple-500/90 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
-            <Play className="h-3 w-3 fill-white" strokeWidth={2.5} />
-            Video
+        {/* Multi-layer gradient overlays for depth */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent" />
+
+        {/* Floating vibe emoji — large, centered, subtle */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="text-5xl opacity-20 blur-[0.5px] transition-all duration-500 group-hover:opacity-30 group-hover:scale-110">
+            {VIBE_EMOJI[firstVibe] ?? "🎉"}
           </span>
-        )}
+        </div>
 
-        {/* Top chips */}
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+        {/* ====== Top badges ====== */}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3 lg:p-4">
           <div className="flex flex-col gap-1.5">
-            {featured && (
-              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-black">
-                <Flame className="h-3 w-3" strokeWidth={2.5} />
-                Featured
+            {/* LIVE badge */}
+            {isLive && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-coral/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-coral/25">
+                <span className="relative flex h-2 w-2">
+                  <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-coral/60" />
+                  <span className="live-pulse-dot relative inline-flex h-2 w-2 rounded-full bg-white" />
+                </span>
+                LIVE
               </span>
             )}
-            <span
-              className={cn(
-                "w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                isFull
-                  ? "bg-white/10 text-muted-foreground border border-white/15"
-                  : isLow
-                    ? "bg-amber-400 text-black"
-                    : "bg-amber-400/15 text-amber-300 border border-amber-400/40",
-              )}
-            >
-              {isFull ? "Sold out" : isLow ? `Only ${left} left` : `${left} slots`}
-            </span>
+
+            {/* Starting soon badge */}
+            {isStartingSoon && !isLive && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black shadow-lg shadow-amber-500/20">
+                <Flame className="h-3 w-3" strokeWidth={2.5} />
+                Starting soon
+              </span>
+            )}
+
+            {/* Video badge */}
+            {hasVideo && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/85 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm shadow-lg">
+                <Play className="h-3 w-3 fill-white" strokeWidth={2.5} />
+                Video
+              </span>
+            )}
+
+            {/* Countdown badge for starting-soon */}
             {(isLive || isStartingSoon) && (
               <LiveCountdown date={party.date} time={party.time} />
             )}
           </div>
-          <button
+
+          {/* Save heart button */}
+          <motion.button
             onClick={onSave}
-            aria-label={saved ? "Unsave" : "Save"}
+            aria-label={saved ? "Unsave party" : "Save party"}
+            whileTap={{ scale: 0.85 }}
             className={cn(
-              "relative flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-90",
+              "relative flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
+              "border backdrop-blur-md",
               saved
-                ? "bg-amber-400/20 border-amber-400/60"
-                : "bg-black/55 border-white/15 hover:bg-black/75 hover:border-amber-400/40",
+                ? "bg-coral/20 border-coral/60 shadow-lg shadow-coral/20"
+                : "bg-black/40 border-white/15 hover:bg-black/60 hover:border-coral/40",
             )}
           >
             <Heart
               className={cn(
-                "h-4 w-4 transition",
-                saved ? "fill-amber-400 text-amber-400" : "text-foreground/80",
+                "h-4 w-4 transition-colors duration-200",
+                saved ? "fill-coral text-coral" : "text-white/80",
+                heartAnimating && "heart-fill-anim",
               )}
+              onAnimationEnd={() => setHeartAnimating(false)}
             />
-          </button>
+          </motion.button>
         </div>
 
-        {/* Bottom-left: fee badge on cover */}
-        <div className="absolute bottom-3 left-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-black">
-            <IndianRupee className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {formatFee(party.fee)}
+        {/* ====== Bottom badges on cover ====== */}
+        <div className="absolute bottom-0 inset-x-0 flex items-end justify-between p-3 lg:p-4">
+          {/* Fee badge — bottom left, prominent */}
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-sm font-bold shadow-lg backdrop-blur-sm",
+              party.fee === 0
+                ? "bg-teal-500/90 text-white shadow-teal-500/20"
+                : "bg-amber-400/95 text-black shadow-amber-400/20",
+            )}
+          >
+            {party.fee === 0 ? (
+              "Free"
+            ) : (
+              <>
+                <span className="text-xs">{sym}</span>
+                {party.fee}
+              </>
+            )}
           </span>
+
+          {/* Spots remaining badge — bottom right */}
+          {isFull ? (
+            <span className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/60 backdrop-blur-sm">
+              Sold out
+            </span>
+          ) : isLow ? (
+            <span className="urgency-flash inline-flex items-center gap-1 rounded-lg bg-coral/85 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg shadow-coral/20 backdrop-blur-sm">
+              <Users className="h-3 w-3" />
+              Only {left} left!
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-black/40 px-2.5 py-1 text-[11px] font-medium text-white/80 backdrop-blur-sm">
+              <Users className="h-3 w-3" />
+              {going} going
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Body */}
-      <div className="space-y-3 p-4">
-        <h3 className="font-display text-lg font-semibold leading-tight text-foreground line-clamp-2 transition">
+      {/* ====== Content Section ====== */}
+      <div className="space-y-3 p-3.5 lg:p-4">
+        {/* Title */}
+        <h3 className="font-display text-[15px] font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-purple-200 transition-colors duration-200">
           {party.title}
         </h3>
 
-        {/* Vibes + guest stack on same row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap gap-1.5">
-            {vibes.map((v) => (
-              <VibeBadge key={v} vibe={v} />
-            ))}
+        {/* Host info row */}
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 ring-1 ring-purple-500/30">
+            <Sparkles className="h-2.5 w-2.5 text-purple-400" />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Hosted by{" "}
+            <span className="font-medium text-foreground/90">{party.hostName}</span>
+          </span>
+        </div>
+
+        {/* Metadata — location, date, time */}
+        <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+            <span className="truncate">{formatLocation(party.area, party.city)}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+              <span>{formatDateLabel(party.date)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 shrink-0 text-teal-400" />
+              <span>{formatTime(party.time)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Metadata grid — all icons yellow */}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12px]">
-          <Meta icon={<MapPin className="h-3.5 w-3.5 text-amber-400" />}>
-            <span className="truncate">
-              {formatLocation(party.area, party.city)}
-            </span>
-          </Meta>
-          <Meta icon={<Calendar className="h-3.5 w-3.5 text-amber-400" />}>
-            {formatDateLabel(party.date)}
-          </Meta>
-          <Meta icon={<Clock className="h-3.5 w-3.5 text-amber-400" />}>
-            {formatTime(party.time)}
-          </Meta>
-          <Meta icon={<Users className="h-3.5 w-3.5 text-amber-400" />}>
-            {party.guestCount}/{party.maxGuests} going
-          </Meta>
-        </div>
+        {/* Vibe tags + guest avatars */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          {/* Vibe pills */}
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            {displayVibes.map((v) => (
+              <span
+                key={v}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                  VIBE_COLORS[v] ?? "bg-white/5 text-muted-foreground border-border",
+                )}
+              >
+                <span className="text-[0.85em] leading-none">{VIBE_EMOJI[v] ?? "✨"}</span>
+                {v}
+              </span>
+            ))}
+            {extraVibes > 0 && (
+              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                +{extraVibes}
+              </span>
+            )}
+          </div>
 
-        {/* Footer: host + going avatars */}
-        <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-3">
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-            <span className="truncate">
-              <span className="text-muted-foreground/70">by</span>{" "}
-              <span className="font-medium text-foreground">{party.hostName}</span>
-            </span>
-          </span>
+          {/* Guest avatar stack */}
           {party.guestCount > 0 && (
             <GuestAvatars avatars={guests} total={party.guestCount} size={22} max={3} />
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Meta({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-      <span className="shrink-0">{icon}</span>
-      <span className="truncate">{children}</span>
-    </span>
+    </motion.div>
   );
 }

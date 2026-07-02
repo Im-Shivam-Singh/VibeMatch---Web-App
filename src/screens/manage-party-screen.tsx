@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Plus,
@@ -12,11 +13,11 @@ import {
   Play,
   X,
   Loader2,
-  Camera,
   MessageSquare,
   UtensilsCrossed,
   Images,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -29,14 +30,10 @@ import {
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-// ── Presets ────────────────────────────────────────────────────────────
-// Reused inline (kept small — 4 photos + 2 video presets). Hosts can also
-// upload from their device via the hidden file input below.
 const PHOTO_PRESETS = [
   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1496337589254-7e19d01cec44?w=800&q=80&auto=format&fit=crop",
@@ -47,24 +44,20 @@ const PHOTO_PRESETS = [
 const VIDEO_PRESETS = [
   {
     url: "https://videos.pexels.com/video-files/2022395/2022395-uhd_3840_2160_24fps.mp4",
-    poster:
-      "https://images.unsplash.com/photo-1571266028243-d220c9c3b31e?w=400&q=60&auto=format&fit=crop",
+    poster: "https://images.unsplash.com/photo-1571266028243-d220c9c3b31e?w=400&q=60&auto=format&fit=crop",
   },
   {
     url: "https://videos.pexels.com/video-files/2795750/2795750-uhd_3840_2160_30fps.mp4",
-    poster:
-      "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=60&auto=format&fit=crop",
+    poster: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=60&auto=format&fit=crop",
   },
 ];
 
 const MAX_MEDIA = 12;
 
-// Quick emoji presets for the menu add form — keep the picker simple (no
-// full emoji library). Hosts can also type any emoji directly.
 const EMOJI_PRESETS = [
-  "🍹", "🍺", "🍷", "🥃", "🧉", // drinks
-  "🍕", "🍟", "🌮", "🍗", "🥟", // snacks
-  "🥤", "☕", "🧋", "🧃", "🥛", // soft
+  "🍹", "🍺", "🍷", "🥃", "🧉",
+  "🍕", "🍟", "🌮", "🍗", "🥟",
+  "🥤", "☕", "🧋", "🧃", "🥛",
 ];
 
 type MenuCategory = "drink" | "snack" | "soft";
@@ -86,9 +79,6 @@ export function ManagePartyScreen() {
   const goBack = useAppStore((s) => s.goBack);
   const qc = useQueryClient();
 
-  // ── Data queries ───────────────────────────────────────────────────
-  // Party payload includes media[] (image + video) + host + vibes + requests.
-  // Menu is a separate query so add/delete mutations can invalidate it alone.
   const partyQuery = useQuery({
     queryKey: ["party", selectedPartyId],
     queryFn: () => api.getParty(selectedPartyId!),
@@ -106,38 +96,32 @@ export function ManagePartyScreen() {
   const menuItems = (menuQuery.data?.items ?? []) as MenuItem[];
   const sym = party ? currencyForCity(party.city) : "£";
 
-  // ── Inline add-menu form state ─────────────────────────────────────
+  // Form state
   const [mName, setMName] = useState("");
   const [mPrice, setMPrice] = useState<string>("");
   const [mEmoji, setMEmoji] = useState("🍹");
   const [mCat, setMCat] = useState<MenuCategory>("drink");
 
-  // ── Media uploader state ───────────────────────────────────────────
+  // Media state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
 
-  // ── Group-chat toggle ─────────────────────────────────────────────
-  // Server is the source of truth (party.groupChatEnabled). While a toggle
-  // mutation is in flight we render an optimistic local override so the
-  // switch reflects the user's tap immediately.
+  // Group chat state
   const [gcOptimistic, setGcOptimistic] = useState<boolean | null>(null);
 
-  // ── Mutations ──────────────────────────────────────────────────────
+  // ── Tab state ──────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"menu" | "media" | "chat" | "settings">("menu");
+
+  // ── Mutations ──────────────────────────────────────────────────
   const addMenuMutation = useMutation({
-    mutationFn: (input: {
-      partyId: string;
-      name: string;
-      price: number;
-      emoji: string;
-      category: MenuCategory;
-    }) => api.addMenuItem(input),
+    mutationFn: (input: { partyId: string; name: string; price: number; emoji: string; category: MenuCategory }) =>
+      api.addMenuItem(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["menu", selectedPartyId] });
       toast.success("Menu item added");
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Couldn't add item"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't add item"),
   });
 
   const deleteMenuMutation = useMutation({
@@ -146,22 +130,14 @@ export function ManagePartyScreen() {
       qc.invalidateQueries({ queryKey: ["menu", selectedPartyId] });
       toast.success("Removed");
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Couldn't remove"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't remove"),
   });
 
   const addMediaMutation = useMutation({
-    mutationFn: (input: {
-      partyId: string;
-      url: string;
-      type: "image" | "video";
-      caption?: string;
-    }) => api.addPartyMedia(input.partyId, input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["party", selectedPartyId] });
-    },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Couldn't add media"),
+    mutationFn: (input: { partyId: string; url: string; type: "image" | "video"; caption?: string }) =>
+      api.addPartyMedia(input.partyId, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["party", selectedPartyId] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't add media"),
   });
 
   const deleteMediaMutation = useMutation({
@@ -171,33 +147,23 @@ export function ManagePartyScreen() {
       qc.invalidateQueries({ queryKey: ["party", selectedPartyId] });
       toast.success("Media removed");
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Couldn't remove media"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't remove media"),
   });
 
-  // Upload via /api/upload → then create a PartyMedia row per file.
   const uploadMutation = useMutation({
-    mutationFn: ({
-      files,
-      onProgress,
-    }: {
-      files: File[];
-      onProgress?: (pct: number) => void;
-    }) => api.uploadMedia(files, onProgress),
+    mutationFn: ({ files, onProgress }: { files: File[]; onProgress?: (pct: number) => void }) =>
+      api.uploadMedia(files, onProgress),
     onMutate: () => setUploadPct(0),
     onSuccess: async (data) => {
       const slotsLeft = MAX_MEDIA - mediaList.length;
       const accepted = data.files.slice(0, Math.max(0, slotsLeft));
       if (data.files.length > accepted.length) {
-        toast.warning(
-          `Only ${accepted.length} of ${data.files.length} added — gallery is full`,
-        );
+        toast.warning(`Only ${accepted.length} of ${data.files.length} added — gallery is full`);
       }
       if (accepted.length === 0) {
         toast.error("Gallery is full — remove an item first");
         return;
       }
-      // Persist each accepted upload as a PartyMedia row in parallel.
       try {
         await Promise.all(
           accepted.map((f) =>
@@ -215,12 +181,9 @@ export function ManagePartyScreen() {
         if (imgs) parts.push(`${imgs} photo${imgs > 1 ? "s" : ""}`);
         if (vids) parts.push(`${vids} video${vids > 1 ? "s" : ""}`);
         toast.success(`Added ${parts.join(" + ")}`);
-      } catch {
-        // addMediaMutation's onError already toasted.
-      }
+      } catch { /* handled */ }
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Upload failed"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
     onSettled: () => setUploadPct(null),
   });
 
@@ -229,124 +192,54 @@ export function ManagePartyScreen() {
       api.setGroupChatEnabled(partyId, enabled),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["party", selectedPartyId] });
-      toast.success(
-        data.party?.groupChatEnabled
-          ? "Group chat enabled"
-          : "Group chat disabled",
-      );
+      toast.success(data.party?.groupChatEnabled ? "Group chat enabled" : "Group chat disabled");
     },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Couldn't update");
-    },
-    onSettled: () => {
-      // Clear the optimistic override — the server (now invalidated) is the
-      // source of truth again.
-      setGcOptimistic(null);
-    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update"),
+    onSettled: () => setGcOptimistic(null),
   });
 
-  // Resolved switch state: optimistic during a mutation, else server value.
-  const gcEnabled =
-    gcOptimistic !== null
-      ? gcOptimistic
-      : !!(party?.groupChatEnabled);
+  const gcEnabled = gcOptimistic !== null ? gcOptimistic : !!party?.groupChatEnabled;
 
-  // ── Derived: grouped menu ──────────────────────────────────────────
   const grouped = useMemo(() => {
-    const byCat: Record<MenuCategory, MenuItem[]> = {
-      drink: [],
-      snack: [],
-      soft: [],
-    };
+    const byCat: Record<MenuCategory, MenuItem[]> = { drink: [], snack: [], soft: [] };
     for (const it of menuItems) byCat[it.category]?.push(it);
     return byCat;
   }, [menuItems]);
 
-  // ── Handlers ───────────────────────────────────────────────────────
+  // ── Handlers ───────────────────────────────────────────────────
   const handleAddMenuItem = () => {
     const name = mName.trim();
-    if (!name) {
-      toast.error("Add a name");
-      return;
-    }
+    if (!name) { toast.error("Add a name"); return; }
     const price = Number(mPrice) || 0;
-    if (price < 0) {
-      toast.error("Price can't be negative");
-      return;
-    }
+    if (price < 0) { toast.error("Price can't be negative"); return; }
     if (!selectedPartyId) return;
-    addMenuMutation.mutate({
-      partyId: selectedPartyId,
-      name,
-      price,
-      emoji: mEmoji.trim() || "•",
-      category: mCat,
-    });
+    addMenuMutation.mutate({ partyId: selectedPartyId, name, price, emoji: mEmoji.trim() || "•", category: mCat });
     setMName("");
     setMPrice("");
-    // Keep the selected emoji + category so adding several drinks is fast.
   };
 
   const handleFilePick = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
     const slotsLeft = MAX_MEDIA - mediaList.length;
-    if (slotsLeft <= 0) {
-      toast.error(`Gallery is full (${MAX_MEDIA} max)`);
-      return;
-    }
-    const validTypes = new Set([
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-      "image/avif",
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-      "video/ogg",
-    ]);
+    if (slotsLeft <= 0) { toast.error(`Gallery is full (${MAX_MEDIA} max)`); return; }
+    const validTypes = new Set(["image/jpeg","image/png","image/webp","image/gif","image/avif","video/mp4","video/webm","video/quicktime","video/ogg"]);
     const bad = files.find((f) => !validTypes.has(f.type));
-    if (bad) {
-      toast.error(`Unsupported file: ${bad.name}`, {
-        description: "Use JPG, PNG, WebP, GIF, MP4, WebM, or MOV",
-      });
-      return;
-    }
-    const tooBigImage = files.find(
-      (f) => f.type.startsWith("image/") && f.size > 10 * 1024 * 1024,
-    );
-    if (tooBigImage) {
-      toast.error(`"${tooBigImage.name}" is over 10 MB`);
-      return;
-    }
-    const tooBigVideo = files.find(
-      (f) => f.type.startsWith("video/") && f.size > 60 * 1024 * 1024,
-    );
-    if (tooBigVideo) {
-      toast.error(`"${tooBigVideo.name}" is over 60 MB`);
-      return;
-    }
+    if (bad) { toast.error(`Unsupported file: ${bad.name}`, { description: "Use JPG, PNG, WebP, GIF, MP4, WebM, or MOV" }); return; }
+    const tooBigImage = files.find((f) => f.type.startsWith("image/") && f.size > 10 * 1024 * 1024);
+    if (tooBigImage) { toast.error(`"${tooBigImage.name}" is over 10 MB`); return; }
+    const tooBigVideo = files.find((f) => f.type.startsWith("video/") && f.size > 60 * 1024 * 1024);
+    if (tooBigVideo) { toast.error(`"${tooBigVideo.name}" is over 60 MB`); return; }
     const toUpload = files.slice(0, slotsLeft);
-    if (files.length > slotsLeft) {
-      toast.warning(
-        `Only ${slotsLeft} slot${slotsLeft > 1 ? "s" : ""} left — adding the first ${slotsLeft}`,
-      );
-    }
+    if (files.length > slotsLeft) toast.warning(`Only ${slotsLeft} slot${slotsLeft > 1 ? "s" : ""} left`);
     uploadMutation.mutate({ files: toUpload });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleAddPreset = (url: string, type: "image" | "video") => {
     if (!selectedPartyId) return;
-    if (mediaList.length >= MAX_MEDIA) {
-      toast.error(`Gallery is full (${MAX_MEDIA} max)`);
-      return;
-    }
-    if (mediaList.some((m) => m.url === url)) {
-      toast.message("Already in your gallery");
-      return;
-    }
+    if (mediaList.length >= MAX_MEDIA) { toast.error(`Gallery is full (${MAX_MEDIA} max)`); return; }
+    if (mediaList.some((m) => m.url === url)) { toast.message("Already in your gallery"); return; }
     addMediaMutation.mutate({ partyId: selectedPartyId, url, type });
     toast.success(type === "image" ? "Photo added" : "Video added");
   };
@@ -358,552 +251,587 @@ export function ManagePartyScreen() {
 
   const handleToggleGroupChat = (checked: boolean) => {
     if (!selectedPartyId) return;
-    setGcOptimistic(checked); // optimistic override while mutation flies
+    setGcOptimistic(checked);
     gcMutation.mutate({ partyId: selectedPartyId, enabled: checked });
   };
 
-  // ── Empty state: no party selected ─────────────────────────────────
+  // ── Empty state ────────────────────────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex h-full flex-col animate-screen-in">
-        <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-          <button
-            onClick={goBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10"
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="eyebrow">Manage party</span>
-        </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl purple-foil">
+      <div className="flex h-full flex-col">
+        <motion.header
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+        >
+          <div className="flex items-center gap-3">
+            <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+              <ChevronLeft className="h-5 w-5" />
+            </motion.button>
+            <span className="font-display text-lg font-bold text-foreground">Manage</span>
+          </div>
+        </motion.header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 border border-purple-500/20 shadow-[0_0_30px_-8px_rgba(83,74,183,0.3)]">
             <UtensilsCrossed className="h-7 w-7 text-purple-300" />
           </div>
-          <h2 className="font-display text-lg font-bold text-foreground">
-            No party selected
-          </h2>
-          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Pick one of your parties to edit its menu, photos, videos, and
-            group chat settings.
-          </p>
-          <button
-            onClick={goBack}
-            className="press-feedback glow-violet mt-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
+          <h2 className="font-display text-xl font-bold text-foreground">No party selected</h2>
+          <p className="max-w-xs text-sm text-muted-foreground">Pick one of your parties to edit its menu, photos, videos, and group chat settings.</p>
+          <motion.button onClick={goBack} whileTap={{ scale: 0.97 }} className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
             Go back
-          </button>
+          </motion.button>
         </div>
       </div>
     );
   }
 
-  // ── Loading skeleton ───────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────
   const isLoading = partyQuery.isLoading || menuQuery.isLoading;
-  if (isLoading) {
-    return <ManagePartySkeleton onBack={goBack} />;
-  }
+  if (isLoading) return <ManagePartySkeleton onBack={goBack} />;
 
-  // ── Error state: party failed to load ──────────────────────────────
+  // ── Error ──────────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex h-full flex-col animate-screen-in">
-        <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-          <button
+      <div className="flex h-full flex-col">
+        <motion.header
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+        >
+          <div className="flex items-center gap-3">
+            <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+              <ChevronLeft className="h-5 w-5" />
+            </motion.button>
+            <span className="font-display text-lg font-bold text-foreground">Manage</span>
+          </div>
+        </motion.header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+          <h2 className="font-display text-xl font-bold text-foreground">Couldn&apos;t load party</h2>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            {partyQuery.error instanceof Error ? partyQuery.error.message : "Try again in a moment."}
+          </p>
+          <motion.button onClick={() => partyQuery.refetch()} whileTap={{ scale: 0.97 }} className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
+            <RefreshCw className="h-4 w-4" /> Retry
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Tabs config ────────────────────────────────────────────────
+  const TABS = [
+    { id: "menu" as const, label: "Menu", icon: UtensilsCrossed },
+    { id: "media" as const, label: "Media", icon: Images },
+    { id: "chat" as const, label: "Group Chat", icon: MessageSquare },
+    { id: "settings" as const, label: "Settings", icon: Sparkles },
+  ];
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+      >
+        <div className="flex items-center gap-3">
+          <motion.button
             onClick={goBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+            whileTap={{ scale: 0.9 }}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="eyebrow">Manage party</span>
-        </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <h2 className="font-display text-lg font-bold">Couldn't load party</h2>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            {partyQuery.error instanceof Error
-              ? partyQuery.error.message
-              : "Try again in a moment."}
-          </p>
-          <button
-            onClick={() => partyQuery.refetch()}
-            className="press-feedback glow-violet mt-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full flex-col animate-screen-in">
-      {/* ── Sticky header ──────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 glass px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-        <button
-          onClick={goBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 text-white hover:bg-purple-400/10 active:scale-95 transition"
-          aria-label="Back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="eyebrow !text-[10px]">Manage your party</p>
-          <h1 className="font-display text-base font-bold leading-tight truncate">
-            {party.title}
-          </h1>
-        </div>
-      </header>
-
-      {/* ── Scrollable body ────────────────────────────────────────────── */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 space-y-6 pb-40">
-        {/* ╔══ Menu items ══════════════════════════════════════════════════╗ */}
-        <section className="glass-strong rounded-3xl border border-purple-400/40 p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl purple-foil">
-              <UtensilsCrossed className="h-4 w-4 text-purple-200" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-display text-sm font-bold text-white">
-                Menu &amp; drinks
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Add items guests can pre-order
-              </p>
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              {menuItems.length} item{menuItems.length === 1 ? "" : "s"}
-            </span>
+          </motion.button>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Manage</p>
+            <h1 className="font-display text-base font-bold leading-tight truncate text-foreground">{party.title}</h1>
           </div>
+        </div>
 
-          {/* Inline add form */}
-          <div className="rounded-2xl border border-white/10 bg-card/60 p-3 space-y-3">
-            <div className="flex items-center gap-2">
-              <Input
-                value={mEmoji}
-                onChange={(e) => setMEmoji(e.target.value)}
-                placeholder="🍹"
-                aria-label="Emoji"
-                maxLength={4}
-                className="h-10 w-14 rounded-xl border-white/10 bg-card text-center text-lg"
-              />
-              <Input
-                value={mName}
-                onChange={(e) => setMName(e.target.value)}
-                placeholder="Item name (e.g. Margarita)"
-                aria-label="Item name"
-                maxLength={60}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddMenuItem();
-                }}
-                className="h-10 flex-1 rounded-xl border-white/10 bg-card"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-300">
-                  {sym}
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={mPrice}
-                  onChange={(e) => setMPrice(e.target.value)}
-                  placeholder="0"
-                  aria-label="Price"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddMenuItem();
-                  }}
-                  className="h-10 rounded-xl border-white/10 bg-card pl-8"
-                />
-              </div>
-              {/* 3-way category toggle */}
-              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-card p-1">
-                {CATEGORIES.map((c) => {
-                  const active = mCat === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setMCat(c.id)}
-                      aria-pressed={active}
-                      className={cn(
-                        "flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold transition active:scale-95",
-                        active
-                          ? "bg-purple-400/20 text-purple-100 ring-1 ring-purple-400/60"
-                          : "text-muted-foreground hover:text-white",
-                      )}
-                    >
-                      <span aria-hidden>{c.emoji}</span>
-                      <span className="hidden xs:inline sm:inline">{c.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        {/* Tab bar */}
+        <div className="mt-3 flex gap-1">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                whileTap={{ scale: 0.95 }}
+                className={cn(
+                  "relative flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-colors",
+                  isActive ? "text-white" : "text-white/35 hover:text-white/55",
+                )}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="manage-tab"
+                    className="absolute inset-0 rounded-xl bg-purple-500/15 border border-purple-500/25"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <Icon className="h-3.5 w-3.5 relative z-10" />
+                <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.header>
 
-            {/* Quick emoji row */}
-            <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1">
-              {EMOJI_PRESETS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setMEmoji(e)}
-                  className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base transition active:scale-90",
-                    mEmoji === e
-                      ? "border-purple-400 bg-purple-400/15"
-                      : "border-white/10 bg-card hover:border-purple-400/40",
-                  )}
-                  aria-label={`Use emoji ${e}`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-
-            <Button
-              type="button"
-              onClick={handleAddMenuItem}
-              disabled={addMenuMutation.isPending}
-              className="press-feedback glow-violet h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      {/* Content */}
+      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 pb-32">
+        <AnimatePresence mode="wait">
+          {activeTab === "menu" && (
+            <motion.div
+              key="menu"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
             >
-              {addMenuMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Adding…
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-1.5 h-4 w-4" /> Add to menu
-                </>
-              )}
-            </Button>
-          </div>
+              {/* Add menu item form */}
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/15">
+                    <Plus className="h-4 w-4 text-purple-300" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="font-display text-sm font-bold text-foreground">Add Menu Item</h2>
+                    <p className="text-[10px] text-muted-foreground">Guests can pre-order these</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={mEmoji}
+                    onChange={(e) => setMEmoji(e.target.value)}
+                    placeholder="🍹"
+                    aria-label="Emoji"
+                    maxLength={4}
+                    className="h-10 w-14 rounded-xl border-white/[0.08] bg-white/[0.04] text-center text-lg"
+                  />
+                  <Input
+                    value={mName}
+                    onChange={(e) => setMName(e.target.value)}
+                    placeholder="Item name (e.g. Margarita)"
+                    aria-label="Item name"
+                    maxLength={60}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddMenuItem(); }}
+                    className="h-10 flex-1 rounded-xl border-white/[0.08] bg-white/[0.04]"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-300">{sym}</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={mPrice}
+                      onChange={(e) => setMPrice(e.target.value)}
+                      placeholder="0"
+                      aria-label="Price"
+                      onKeyDown={(e) => { if (e.key === "Enter") handleAddMenuItem(); }}
+                      className="h-10 rounded-xl border-white/[0.08] bg-white/[0.04] pl-8"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] p-1">
+                    {CATEGORIES.map((c) => {
+                      const active = mCat === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setMCat(c.id)}
+                          aria-pressed={active}
+                          className={cn(
+                            "flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold transition",
+                            active
+                              ? "bg-purple-500/20 text-purple-200 ring-1 ring-purple-500/40"
+                              : "text-muted-foreground hover:text-white",
+                          )}
+                        >
+                          <span aria-hidden>{c.emoji}</span>
+                          <span className="hidden sm:inline">{c.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1">
+                  {EMOJI_PRESETS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setMEmoji(e)}
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base transition",
+                        mEmoji === e
+                          ? "border-purple-500/40 bg-purple-500/15"
+                          : "border-white/[0.06] bg-white/[0.03] hover:border-purple-500/30",
+                      )}
+                      aria-label={`Use emoji ${e}`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddMenuItem}
+                  disabled={addMenuMutation.isPending}
+                  className="h-10 w-full rounded-xl bg-purple-500 text-sm font-semibold text-white hover:bg-purple-400 disabled:opacity-50"
+                >
+                  {addMenuMutation.isPending ? (
+                    <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Adding…</>
+                  ) : (
+                    <><Plus className="mr-1.5 h-4 w-4" /> Add to menu</>
+                  )}
+                </Button>
+              </div>
 
-          {/* Existing menu items, grouped by category */}
-          {menuItems.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-center text-xs text-muted-foreground">
-              No menu items yet — add your first above.
-            </div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto fancy-scrollbar space-y-3 pr-1">
-              {CATEGORIES.map((c) => {
-                const items = grouped[c.id];
-                if (items.length === 0) return null;
-                return (
-                  <div key={c.id} className="space-y-1.5">
-                    <div className="flex items-center gap-2 px-1">
+              {/* Menu items list */}
+              {menuItems.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-6 text-center text-xs text-muted-foreground">
+                  No menu items yet — add your first above.
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto fancy-scrollbar space-y-3 pr-1">
+                  {CATEGORIES.map((c) => {
+                    const items = grouped[c.id];
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={c.id} className="space-y-1.5">
+                        <div className="flex items-center gap-2 px-1">
+                          <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide", CATEGORY_CHIP[c.id])}>
+                            {c.emoji} {c.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{items.length}</span>
+                        </div>
+                        {items.map((it) => (
+                          <motion.div
+                            key={it.id}
+                            layout
+                            className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-lg">
+                              {it.emoji || "•"}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-foreground">{it.name}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {sym}{it.price.toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(it.price) ? 0 : 2 })}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteMenuMutation.mutate(it.id)}
+                              disabled={deleteMenuMutation.isPending}
+                              aria-label={`Remove ${it.name}`}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.06] text-muted-foreground transition hover:border-coral/40 hover:bg-coral/10 hover:text-coral disabled:opacity-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "media" && (
+            <motion.div
+              key="media"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFilePick(e.target.files)}
+              />
+
+              {uploadPct !== null && (
+                <div className="rounded-xl border border-purple-500/25 bg-purple-500/[0.06] p-3">
+                  <div className="mb-1.5 flex items-center gap-2 text-[11px] text-purple-200">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="font-medium">Uploading… {uploadPct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-full rounded-full bg-gradient-to-r from-purple-400 to-teal-400 transition-[width] duration-200" style={{ width: `${uploadPct}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {mediaList.length === 0 ? (
+                <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-8 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20">
+                    <Images className="h-6 w-6 text-teal-300" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No photos or videos yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {mediaList.map((m) => (
+                    <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.08]">
+                      {m.type === "image" ? (
+                        <img src={m.url} alt={m.caption || "Party media"} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <>
+                          <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                            <Play className="h-5 w-5 fill-white text-white" />
+                          </span>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMedia(m.id)}
+                        disabled={deleteMediaMutation.isPending}
+                        aria-label="Remove media"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-coral/80 disabled:opacity-50"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadMutation.isPending || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/[0.08] px-3.5 py-2 text-[11px] font-semibold text-teal-200 transition hover:bg-teal-500/15 disabled:opacity-40"
+                >
+                  <UploadCloud className="h-3.5 w-3.5" />
+                  Upload from device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetOpen((v) => !v)}
+                  disabled={uploadMutation.isPending || mediaList.length >= MAX_MEDIA}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/[0.08] px-3.5 py-2 text-[11px] font-medium text-purple-200 transition hover:bg-purple-500/15 disabled:opacity-40"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {presetOpen ? "Hide presets" : "Presets"}
+                </button>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground/50">{mediaList.length}/{MAX_MEDIA} · JPG/PNG/WebP/GIF ≤ 10 MB · MP4/WebM/MOV ≤ 60 MB</p>
+
+              {presetOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3"
+                >
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
+                    <ImagePlus className="h-3 w-3" /> Stock photos
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {PHOTO_PRESETS.map((url) => {
+                      const used = mediaList.some((m) => m.url === url);
+                      return (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => handleAddPreset(url, "image")}
+                          disabled={used || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
+                          className="group relative aspect-square overflow-hidden rounded-lg border border-white/[0.08] transition hover:border-purple-500/40 disabled:opacity-40"
+                          aria-label="Add stock photo"
+                        >
+                          <img src={url} alt="Preset" className="h-full w-full object-cover" loading="lazy" />
+                          {used && (
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/55">
+                              <Check className="h-4 w-4 text-teal-300" />
+                            </span>
+                          )}
+                          {!used && (
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                              <Plus className="h-4 w-4 text-white" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
+                    <Play className="h-3 w-3" /> Stock videos
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {VIDEO_PRESETS.map((v) => {
+                      const used = mediaList.some((m) => m.url === v.url);
+                      return (
+                        <button
+                          key={v.url}
+                          type="button"
+                          onClick={() => handleAddPreset(v.url, "video")}
+                          disabled={used || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
+                          className="group relative aspect-video overflow-hidden rounded-lg border border-white/[0.08] transition hover:border-purple-500/40 disabled:opacity-40"
+                          aria-label="Add stock video"
+                        >
+                          <img src={v.poster} alt="Preset video" className="h-full w-full object-cover" loading="lazy" />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/35">
+                            <Play className="h-4 w-4 fill-white text-white" />
+                          </span>
+                          {used && (
+                            <span className="absolute right-1 top-1 rounded-md bg-teal-500/90 px-1 py-0.5 text-[9px] font-bold text-white">ADDED</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "chat" && (
+            <motion.div
+              key="chat"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 shadow-[0_0_16px_-4px_rgba(83,74,183,0.2)]">
+                    <MessageSquare className="h-4.5 w-4.5 text-purple-300" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-display text-base font-bold text-foreground">Group Chat</h2>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      Let confirmed guests chat together before the night kicks off. Group chat unlocks for everyone as soon as the first guest pays.
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
                       <span
                         className={cn(
-                          "rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                          CATEGORY_CHIP[c.id],
+                          "rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                          gcEnabled
+                            ? "border-teal-500/30 bg-teal-500/10 text-teal-200"
+                            : "border-white/[0.08] bg-white/[0.04] text-muted-foreground",
                         )}
                       >
-                        {c.emoji} {c.label}
+                        {gcEnabled ? "Enabled" : "Disabled"}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {items.length}
-                      </span>
-                    </div>
-                    {items.map((it) => (
-                      <div
-                        key={it.id}
-                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-card/60 p-2.5"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-400/10 text-lg">
-                          {it.emoji || "•"}
+                      {gcMutation.isPending && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" /> Saving…
                         </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-white">
-                            {it.name}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {sym}
-                            {it.price.toLocaleString(undefined, {
-                              minimumFractionDigits:
-                                Number.isInteger(it.price) ? 0 : 2,
-                            })}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => deleteMenuMutation.mutate(it.id)}
-                          disabled={deleteMenuMutation.isPending}
-                          aria-label={`Remove ${it.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-muted-foreground transition hover:border-coral-500/60 hover:bg-coral-500/15 hover:text-coral-300 active:scale-95 disabled:opacity-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!!gcEnabled}
+                    onCheckedChange={handleToggleGroupChat}
+                    disabled={gcMutation.isPending}
+                    aria-label="Toggle group chat"
+                  />
+                </div>
+              </div>
+
+              {/* Member preview */}
+              {gcEnabled && (
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3">
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Chat members</span>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: Math.min(5, party.guestCount + 1) }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ring-2 ring-background",
+                          i === 0 ? "bg-purple-500/20 text-purple-200" : "bg-teal-500/20 text-teal-200",
+                        )}
+                      >
+                        {i === 0 ? (party.hostName?.[0] ?? "H") : "G"}
                       </div>
                     ))}
+                    {party.guestCount > 4 && (
+                      <span className="text-[11px] text-muted-foreground">+{party.guestCount - 4} more</span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* ╔══ Photos & videos gallery ═════════════════════════════════════╗ */}
-        <section className="glass-strong rounded-3xl border border-purple-400/40 p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl teal-foil">
-              <Images className="h-4 w-4 text-teal-200" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-display text-sm font-bold text-white">
-                Photos &amp; videos
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Up to {MAX_MEDIA} · gallery shown on the party detail page
-              </p>
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              {mediaList.length}/{MAX_MEDIA}
-            </span>
-          </div>
-
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFilePick(e.target.files)}
-          />
-
-          {/* Upload progress bar */}
-          {uploadPct !== null && (
-            <div className="animate-screen-in rounded-xl border border-purple-400/30 bg-purple-400/5 p-2.5">
-              <div className="mb-1 flex items-center gap-2 text-[11px] text-purple-200">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="font-medium">Uploading… {uploadPct}%</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-purple-400 to-pink-400 transition-[width] duration-200 ease-out"
-                  style={{ width: `${uploadPct}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Media grid */}
-          {mediaList.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-center text-xs text-muted-foreground">
-              No photos or videos yet. Add your first below.
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {mediaList.map((m) => (
-                <div
-                  key={m.id}
-                  className="group relative aspect-square overflow-hidden rounded-xl border border-purple-400/30"
-                >
-                  {m.type === "image" ? (
-                    <img
-                      src={m.url}
-                      alt={m.caption || "Party media"}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <>
-                      <video
-                        src={m.url}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="h-full w-full object-cover"
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                        <Play className="h-5 w-5 fill-white text-white" />
-                      </span>
-                    </>
-                  )}
-                  {/* Remove button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMedia(m.id)}
-                    disabled={deleteMediaMutation.isPending}
-                    aria-label="Remove media"
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-coral-500/80 active:scale-90 disabled:opacity-50"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                  {m.caption && (
-                    <span className="absolute bottom-0 left-0 right-0 truncate bg-black/55 px-1.5 py-0.5 text-[9px] text-white/90">
-                      {m.caption}
-                    </span>
-                  )}
                 </div>
-              ))}
-            </div>
+              )}
+            </motion.div>
           )}
 
-          {/* Inline action buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={
-                uploadMutation.isPending ||
-                addMediaMutation.isPending ||
-                mediaList.length >= MAX_MEDIA
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-teal-400/50 bg-teal-400/10 px-3 py-1.5 text-[11px] font-semibold text-teal-200 transition hover:bg-teal-400/20 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+          {activeTab === "settings" && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
             >
-              <UploadCloud className="h-3 w-3" />
-              Upload from device
-            </button>
-            <button
-              type="button"
-              onClick={() => setPresetOpen((v) => !v)}
-              disabled={
-                uploadMutation.isPending || mediaList.length >= MAX_MEDIA
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-purple-400/40 bg-purple-400/10 px-3 py-1.5 text-[11px] font-medium text-purple-200 transition hover:bg-purple-400/15 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
-            >
-              <Sparkles className="h-3 w-3" />
-              {presetOpen ? "Hide presets" : "Presets"}
-            </button>
-          </div>
-
-          <p className="text-[10px] leading-relaxed text-muted-foreground">
-            JPG / PNG / WebP / GIF up to 10 MB · MP4 / WebM / MOV up to 60 MB.
-          </p>
-
-          {/* Preset gallery — collapsible inline panel */}
-          {presetOpen && (
-            <div className="animate-screen-in space-y-3 rounded-2xl border border-white/10 bg-card/40 p-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
-                <ImagePlus className="h-3 w-3" /> Stock photos
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15">
+                    <Sparkles className="h-4 w-4 text-amber-300" />
+                  </div>
+                  <h2 className="font-display text-sm font-bold text-foreground">Party Details</h2>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Title</span>
+                    <span className="font-medium text-foreground truncate ml-4 max-w-[60%]">{party.title}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">City</span>
+                    <span className="font-medium text-foreground">{party.city}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Area</span>
+                    <span className="font-medium text-foreground">{party.area}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium text-foreground">{party.date}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Time</span>
+                    <span className="font-medium text-foreground">{party.time}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Fee</span>
+                    <span className="font-medium text-foreground">{sym}{party.fee}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Max guests</span>
+                    <span className="font-medium text-foreground">{party.maxGuests}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Approval required</span>
+                    <span className="font-medium text-foreground">{party.approvalRequired ? "Yes" : "No"}</span>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {PHOTO_PRESETS.map((url) => {
-                  const used = mediaList.some((m) => m.url === url);
-                  return (
-                    <button
-                      key={url}
-                      type="button"
-                      onClick={() => handleAddPreset(url, "image")}
-                      disabled={
-                        used ||
-                        addMediaMutation.isPending ||
-                        mediaList.length >= MAX_MEDIA
-                      }
-                      className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 transition hover:border-purple-400/70 active:scale-95 disabled:opacity-40"
-                      aria-label="Add stock photo"
-                    >
-                      <img
-                        src={url}
-                        alt="Preset"
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      {used && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/55">
-                          <Check className="h-4 w-4 text-teal-300" />
-                        </span>
-                      )}
-                      {!used && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-                          <Plus className="h-4 w-4 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
-                <Play className="h-3 w-3" /> Stock videos
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {VIDEO_PRESETS.map((v) => {
-                  const used = mediaList.some((m) => m.url === v.url);
-                  return (
-                    <button
-                      key={v.url}
-                      type="button"
-                      onClick={() => handleAddPreset(v.url, "video")}
-                      disabled={
-                        used ||
-                        addMediaMutation.isPending ||
-                        mediaList.length >= MAX_MEDIA
-                      }
-                      className="group relative aspect-video overflow-hidden rounded-lg border border-white/10 transition hover:border-purple-400/70 active:scale-95 disabled:opacity-40"
-                      aria-label="Add stock video"
-                    >
-                      <img
-                        src={v.poster}
-                        alt="Preset video"
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                        <Play className="h-4 w-4 fill-white text-white" />
-                      </span>
-                      {used && (
-                        <span className="absolute right-1 top-1 rounded-md bg-teal-500/90 px-1 py-0.5 text-[9px] font-bold text-white">
-                          ADDED
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            </motion.div>
           )}
-        </section>
-
-        {/* ╔══ Group chat toggle ══════════════════════════════════════════╗ */}
-        <section className="glass-strong rounded-3xl border border-purple-400/40 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl purple-foil">
-              <MessageSquare className="h-4 w-4 text-purple-200" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-display text-sm font-bold text-white">
-                Group chat
-              </h2>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Let confirmed guests chat together before the night kicks off.
-                Group chat unlocks for everyone as soon as the first guest pays.
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    gcEnabled
-                      ? "border-teal-400/50 bg-teal-400/15 text-teal-200"
-                      : "border-white/10 bg-white/5 text-muted-foreground",
-                  )}
-                >
-                  {gcEnabled ? "Enabled" : "Disabled"}
-                </span>
-                {gcMutation.isPending && (
-                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Loader2 className="h-2.5 w-2.5 animate-spin" /> Saving…
-                  </span>
-                )}
-              </div>
-            </div>
-            <Switch
-              checked={!!gcEnabled}
-              onCheckedChange={handleToggleGroupChat}
-              disabled={gcMutation.isPending}
-              aria-label="Toggle group chat"
-            />
-          </div>
-        </section>
+        </AnimatePresence>
       </div>
 
-      {/* ── Sticky footer CTA ──────────────────────────────────────────── */}
-      <footer className="safe-bottom sticky bottom-0 z-20 border-t border-white/10 glass-strong px-4 py-3">
+      {/* Footer */}
+      <footer className="sticky bottom-0 z-20 border-t border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3">
         <Button
           onClick={goBack}
-          className="press-feedback glow-violet h-12 w-full rounded-2xl bg-primary text-sm font-semibold text-primary-foreground"
+          className="h-12 w-full rounded-2xl bg-purple-500 text-sm font-semibold text-white hover:bg-purple-400"
         >
           <Check className="mr-1.5 h-4 w-4" /> Done
         </Button>
@@ -912,29 +840,26 @@ export function ManagePartyScreen() {
   );
 }
 
-// ── Skeleton ───────────────────────────────────────────────────────────
 function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex h-full flex-col animate-screen-in">
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 glass px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-        <button
-          onClick={onBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 text-white"
-          aria-label="Back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1 space-y-1.5">
-          <Skeleton className="h-2 w-20" />
-          <Skeleton className="h-4 w-40" />
+    <div className="flex h-full flex-col">
+      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-2.5 w-16" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+        <div className="mt-3 flex gap-1">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-8 flex-1 rounded-xl" />
+          ))}
         </div>
       </header>
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 space-y-4">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="glass-strong rounded-3xl border border-purple-400/40 p-4 space-y-3"
-          >
+          <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-8 rounded-xl" />
               <div className="flex-1 space-y-1.5">

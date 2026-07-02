@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import {
   ChevronLeft,
   Share2,
@@ -15,6 +16,17 @@ import {
   Loader2,
   Send,
   X,
+  MapPin,
+  Calendar,
+  Clock,
+  Users,
+  Star,
+  CheckCircle2,
+  Edit3,
+  BarChart3,
+  MessageSquare,
+  Plus,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -28,9 +40,14 @@ import {
   slotsLeft,
   VIBE_COLORS,
   VIBE_EMOJI,
+  partyLiveStatus,
+  countdownTo,
+  pickGuestAvatars,
   type PartyMedia,
+  type MenuItem,
 } from "@/lib/types";
 import { ReviewsSection } from "@/components/vibe/reviews-section";
+import { UserAvatar } from "@/components/vibe/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,29 +61,35 @@ import {
 } from "@/components/ui/sheet";
 import { cn, formatLocation } from "@/lib/utils";
 
-// Hero background per first vibe — deep tinted colors from the spec
-// (R&B/purple → #1a1035, Games/teal → #0d1f2d, Bollywood/green → #1a2410).
-const VIBE_HERO_BG: Record<string, string> = {
-  "R&B": "#1a1035",
-  Bollywood: "#1a2410",
-  BYOB: "#1a1035",
-  Games: "#0d1f2d",
-  "Lo-fi": "#1a1035",
-  Chill: "#0d1f2d",
-  EDM: "#1a1035",
-  Retro: "#0d1f2d",
+// ── Vibe → hero gradient mapping ──────────────────────────────────
+const VIBE_HERO_GRADIENT: Record<string, [string, string]> = {
+  "R&B": ["#2d1b69", "#1a0a3e"],
+  Bollywood: ["#1a4a2e", "#0d2a18"],
+  BYOB: ["#3d1b69", "#1a0a3e"],
+  Games: ["#0d3a4a", "#0a1f2d"],
+  "Lo-fi": ["#2d1b69", "#1a0a3e"],
+  Chill: ["#0d3a4a", "#0a2a3a"],
+  EDM: ["#4a1b69", "#1a0a4e"],
+  Retro: ["#3d1b3a", "#1a0a2d"],
 };
 
-// Demo guest initials shown in the "Who's going" stack — full names are
-// hidden until payment per the spec ("mystery is the mechanic").
-const GUEST_INITIALS = ["P", "R", "J", "S"];
-const GUEST_AVATAR_COLORS = [
-  "bg-purple-500/30 text-purple-200",
-  "bg-teal-500/25 text-teal-200",
-  "bg-amber-500/25 text-amber-200",
-  "bg-purple-500/20 text-purple-200",
+// Guest avatar colors for the "Who's going" stack
+const GUEST_COLORS = [
+  "bg-purple-500/40 text-purple-200",
+  "bg-teal-500/35 text-teal-200",
+  "bg-amber-500/35 text-amber-200",
+  "bg-rose-500/35 text-rose-200",
+  "bg-cyan-500/35 text-cyan-200",
 ];
 
+// Menu category config
+const MENU_CATEGORIES = [
+  { key: "drink", label: "Drinks", emoji: "🍹" },
+  { key: "snack", label: "Snacks", emoji: "🍿" },
+  { key: "soft", label: "Soft", emoji: "🥤" },
+] as const;
+
+// ── Main Component ────────────────────────────────────────────────
 export function DetailScreen() {
   const id = useAppStore((s) => s.selectedPartyId);
   const goBack = useAppStore((s) => s.goBack);
@@ -79,10 +102,7 @@ export function DetailScreen() {
   const toggleSaved = useAppStore((s) => s.toggleSaved);
   const qc = useQueryClient();
 
-  // ── "Get your spot" sheet state (purchase-flow rewrite) ───────────
-  // Guest writes a short intro + optionally attaches a 30s intro video,
-  // then we create the 1:1 thread + JoinRequest + intro messages and drop
-  // them into the chat with the host (WhatsApp-style approval flow).
+  // ── Spot sheet state ────────────────────────────────────────────
   const [spotSheetOpen, setSpotSheetOpen] = useState(false);
   const [intro, setIntro] = useState("");
   const [introVideo, setIntroVideo] = useState<{
@@ -93,28 +113,40 @@ export function DetailScreen() {
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const introFileRef = useRef<HTMLInputElement>(null);
 
+  // ── Description expand ──────────────────────────────────────────
+  const [descExpanded, setDescExpanded] = useState(false);
+
+  // ── Menu category filter ────────────────────────────────────────
+  const [menuCategory, setMenuCategory] = useState<string>("drink");
+
+  // ── Scroll ref for parallax ─────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll({ container: scrollRef });
+  const heroScale = useTransform(scrollY, [0, 300], [1, 1.15]);
+  const heroOpacity = useTransform(scrollY, [0, 200, 300], [1, 0.6, 0]);
+  const heroTranslateY = useTransform(scrollY, [0, 300], [0, -60]);
+
+  // ── Queries ─────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery({
     queryKey: ["party", id],
     queryFn: () => api.getParty(id!),
     enabled: !!id,
   });
 
-  // Menu preview — drinks/snacks available for pre-order on the payment screen.
   const { data: menuData } = useQuery({
     queryKey: ["menu", id],
     queryFn: () => api.listMenu(id!),
     enabled: !!id,
   });
 
-  // Record a view once per party detail mount (for host analytics)
+  // Record view
   useEffect(() => {
     if (!id) return;
-    api.recordView(id, currentUser?.id).catch(() => {
-      /* non-blocking */
-    });
+    api.recordView(id, currentUser?.id).catch(() => {});
   }, [id, currentUser?.id]);
 
-  const messageHost = async () => {
+  // ── Message host ────────────────────────────────────────────────
+  const messageHost = useCallback(async () => {
     if (!currentUser || !data?.host) {
       toast.error("Sign in to message the host");
       return;
@@ -130,60 +162,59 @@ export function DetailScreen() {
     } catch {
       toast.error("Couldn't open chat");
     }
-  };
+  }, [currentUser, data, setSelectedThreadId, setScreen]);
 
-  const share = async () => {
+  // ── Share ───────────────────────────────────────────────────────
+  const share = useCallback(async () => {
     const url = window.location.href;
     try {
       if (navigator.share) {
-        await navigator.share({ title: data?.party.title, url });
+        await navigator.share({ title: data?.party.title ?? "Party", url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success("Link copied!");
       }
-    } catch {
-      /* user cancelled */
-    }
-  };
+    } catch {}
+  }, [data]);
 
-  // ── Intro video upload (reuses /api/upload) ──────────────────────
-  // Hoisted above the loading/error early returns so the useMutation below
-  // respects the rules-of-hooks (hooks must run in the same order every
-  // render, regardless of whether data has loaded yet).
-  const handleIntroVideoPick = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    const file = fileList[0];
-    if (!file.type.startsWith("video/")) {
-      toast.error("Please pick a video file");
-      return;
-    }
-    if (file.size > 60 * 1024 * 1024) {
-      toast.error("Intro video must be under 60 MB", {
-        description: "Trim it to ~30 seconds and try again",
-      });
-      return;
-    }
-    setUploadPct(0);
-    api
-      .uploadMedia([file], (pct) => setUploadPct(pct))
-      .then((res) => {
-        const f = res.files[0];
-        if (!f) return;
-        setIntroVideo({
-          url: f.url,
-          poster: URL.createObjectURL(file),
-          name: file.name,
+  // ── Intro video upload ──────────────────────────────────────────
+  const handleIntroVideoPick = useCallback(
+    (fileList: FileList | null) => {
+      if (!fileList || fileList.length === 0) return;
+      const file = fileList[0];
+      if (!file.type.startsWith("video/")) {
+        toast.error("Please pick a video file");
+        return;
+      }
+      if (file.size > 60 * 1024 * 1024) {
+        toast.error("Intro video must be under 60 MB", {
+          description: "Trim it to ~30 seconds and try again",
         });
-        toast.success("Intro video attached");
-      })
-      .catch((e: Error) =>
-        toast.error(e instanceof Error ? e.message : "Upload failed"),
-      )
-      .finally(() => setUploadPct(null));
-    if (introFileRef.current) introFileRef.current.value = "";
-  };
+        return;
+      }
+      setUploadPct(0);
+      api
+        .uploadMedia([file], (pct) => setUploadPct(pct))
+        .then((res) => {
+          const f = res.files[0];
+          if (!f) return;
+          setIntroVideo({
+            url: f.url,
+            poster: URL.createObjectURL(file),
+            name: file.name,
+          });
+          toast.success("Intro video attached");
+        })
+        .catch((e: Error) =>
+          toast.error(e instanceof Error ? e.message : "Upload failed"),
+        )
+        .finally(() => setUploadPct(null));
+      if (introFileRef.current) introFileRef.current.value = "";
+    },
+    [],
+  );
 
-  // ── Submit the spot request: create thread + JoinRequest + messages ─
+  // ── Submit spot request ─────────────────────────────────────────
   const requestMutation = useMutation({
     mutationFn: async () => {
       if (!currentUser || !data?.host) throw new Error("Missing user or host");
@@ -219,11 +250,13 @@ export function DetailScreen() {
       const msg = e.message || "";
       if (msg.includes("declined")) {
         toast.error("Can't re-apply yet", {
-          description: "You were declined for this event. Try again after it's over.",
+          description:
+            "You were declined for this event. Try again after it's over.",
         });
       } else if (msg.includes("queue") || msg.includes("Queue")) {
         toast.error("Queue is full", {
-          description: "This event has too many pending applications. Try later.",
+          description:
+            "This event has too many pending applications. Try later.",
         });
       } else if (msg.includes("pending") || msg.includes("Pending")) {
         toast.info("You already have a pending request", {
@@ -245,34 +278,22 @@ export function DetailScreen() {
     },
   });
 
-  // ── Loading skeleton ──────────────────────────────────────────────
+  // ── Loading skeleton ────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <div className="animate-screen-in space-y-4 p-4">
-        <div className="vibe-skeleton h-56 w-full rounded-2xl" />
-        <div className="vibe-skeleton h-6 w-3/4 rounded-md" />
-        <div className="vibe-skeleton h-4 w-1/2 rounded-md" />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="vibe-skeleton h-12 rounded-lg" />
-          <div className="vibe-skeleton h-12 rounded-lg" />
-          <div className="vibe-skeleton h-12 rounded-lg" />
-          <div className="vibe-skeleton h-12 rounded-lg" />
-        </div>
-        <div className="vibe-skeleton h-16 w-full rounded-2xl" />
-        <div className="vibe-skeleton h-20 w-full rounded-2xl" />
-        <div className="vibe-skeleton h-24 w-full rounded-2xl" />
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
-  // ── Error state ───────────────────────────────────────────────────
+  // ── Error state ─────────────────────────────────────────────────
   if (isError || !data) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border/60 bg-card/50">
+          <span className="text-3xl">😕</span>
+        </div>
         <p className="text-sm text-muted-foreground">
           Couldn't load this party.
         </p>
-        <Button variant="outline" onClick={goBack}>
+        <Button variant="outline" onClick={goBack} className="rounded-2xl">
           Go back
         </Button>
       </div>
@@ -281,7 +302,7 @@ export function DetailScreen() {
 
   const { party, host, vibes } = data;
   const firstVibe = vibes[0] || parseVibes(party.vibes)[0] || "Chill";
-  const heroBg = VIBE_HERO_BG[firstVibe] || "#1a1035";
+  const heroGradient = VIBE_HERO_GRADIENT[firstVibe] || ["#2d1b69", "#1a0a3e"];
   const heroEmoji = VIBE_EMOJI[firstVibe] || "✨";
   const currency = currencyForCity(party.city);
   const left = slotsLeft(party.maxGuests, party.guestCount);
@@ -289,11 +310,10 @@ export function DetailScreen() {
   const isFull = left === 0;
   const isLow = left > 0 && left <= 2;
   const isOwn = !!currentUser && !!host && currentUser.id === host.id;
+  const liveStatus = partyLiveStatus(party.date, party.time);
+  const countdown = countdownTo(party.date, party.time);
 
-  // ── Media gallery ───────────────────────────────────────────────────
-  // Build the gallery items list: prefer the party's media array, fall back
-  // to a single cover entry, and finally to an empty list which renders the
-  // vibe-color + emoji fallback.
+  // Gallery
   const gallery: PartyMedia[] = (() => {
     if (party.media && party.media.length > 0) return party.media;
     if (party.coverUrl) {
@@ -313,7 +333,7 @@ export function DetailScreen() {
   })();
   const hasGallery = gallery.length > 0;
 
-  // End time = start + 4h (matches the spec's ~4h default party duration)
+  // End time
   const [hStr, mStr] = party.time.split(":");
   const startH = parseInt(hStr, 10) || 0;
   const startM = parseInt(mStr, 10) || 0;
@@ -323,8 +343,17 @@ export function DetailScreen() {
   const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 
   const feeLabel = formatFee(party.fee, party.city);
-  const menuItems = (menuData?.items ?? []).slice(0, 4);
-  const menuOverflow = (menuData?.items ?? []).length - menuItems.length;
+
+  // Menu items grouped by category
+  const allMenuItems = menuData?.items ?? [];
+  const filteredMenu =
+    allMenuItems.length > 0
+      ? allMenuItems.filter((i) => i.category === menuCategory)
+      : [];
+  const hasMenu = allMenuItems.length > 0;
+
+  // Guest avatars
+  const guestAvatars = pickGuestAvatars(party.id, Math.min(going, 5));
 
   const handleJoin = () => {
     if (!currentUser) {
@@ -333,11 +362,10 @@ export function DetailScreen() {
     }
     if (isFull) {
       toast.info("Sold out — join the waitlist", {
-        description: "Send your intro — if a spot opens, the host can approve you.",
+        description:
+          "Send your intro — if a spot opens, the host can approve you.",
       });
     }
-    // Open the "Get your spot" sheet (intro + optional intro video) instead
-    // of jumping straight to payment. Payment unlocks after host approval.
     setSpotSheetOpen(true);
   };
 
@@ -349,344 +377,547 @@ export function DetailScreen() {
   };
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full flex-col">
       {/* Scrollable content */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto pb-44 lg:pb-8">
-        {/* ── HERO / MEDIA GALLERY ───────────────────────────────────── */}
-        <MediaGallery
-          key={party.id}
-          gallery={gallery}
-          hasGallery={hasGallery}
-          heroBg={heroBg}
-          heroEmoji={heroEmoji}
-          coverUrl={party.coverUrl ?? null}
-          goBack={goBack}
-          share={share}
-          firstVibe={firstVibe}
-          isFull={isFull}
-          isLow={isLow}
-          left={left}
-          going={going}
-        />
-
-        {/* Gradient bleed from hero into body */}
-        <div className="relative z-10 -mt-6 h-6 bg-gradient-to-t from-background to-transparent" />
-
-        {/* ── BODY ─────────────────────────────────────────────────── */}
-        <div className="space-y-5 p-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:space-y-0">
-          {/* Left column — party info */}
-          <div className="space-y-5 lg:col-span-3">
-            {/* Title row */}
-            <section className="space-y-2">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <h1 className="flex-1 font-display text-xl font-bold leading-tight text-foreground lg:text-2xl">
-                  {party.title}
-                </h1>
-                <span className="shrink-0 rounded-xl bg-gradient-to-r from-purple-500/25 to-teal-500/20 px-3 py-1.5 text-sm font-semibold text-purple-200 border border-purple-500/30">
-                  {feeLabel} entry
-                </span>
+      <div
+        ref={scrollRef}
+        className="fancy-scrollbar flex-1 overflow-y-auto pb-44 lg:pb-8"
+      >
+        {/* ── HERO WITH PARALLAX ──────────────────────────────────── */}
+        <div className="relative h-[340px] w-full overflow-hidden">
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              scale: heroScale,
+              y: heroTranslateY,
+              opacity: heroOpacity,
+            }}
+          >
+            {hasGallery ? (
+              <HeroGallery gallery={gallery} coverUrl={party.coverUrl ?? null} />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  background: `linear-gradient(135deg, ${heroGradient[0]}, ${heroGradient[1]})`,
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.span
+                    className="text-7xl"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 0.9 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                  >
+                    {heroEmoji}
+                  </motion.span>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Pay once · drinks add-on available after
-              </p>
-            </section>
+            )}
+          </motion.div>
 
-            {/* Section divider */}
-            <div className="h-px bg-gradient-to-r from-transparent via-purple-500/25 to-transparent" />
+          {/* Gradient overlay for text readability */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
-            {/* Meta grid 2×2 */}
-            <section className="grid grid-cols-2 gap-2">
-              <MetaCell
-                emoji="📅"
-                text={`${formatDateLabel(party.date)} · ${formatTime(party.time)}`}
-              />
-              <MetaCell emoji="🕑" text={`Ends ~${formatTime(endTime)}`} />
-              <MetaCell emoji="📍" text={formatLocation(party.area, party.city)} />
-              <MetaCell emoji="👥" text={`Max ${party.maxGuests} guests`} />
-            </section>
+          {/* ── Floating glass buttons ──────────────────────────────── */}
+          <div className="absolute left-4 top-[max(env(safe-area-inset-top),16px)] z-20 flex items-center gap-2">
+            <motion.button
+              onClick={goBack}
+              whileTap={{ scale: 0.9 }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-xl border border-white/20 shadow-lg"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </motion.button>
+          </div>
 
-            {/* Tag row — multi-color vibe chips + visual 21+/Students tags */}
-            <section className="flex flex-wrap gap-1.5">
-              {vibes.map((v) => {
-                const cls =
-                  v === "EDM"
-                    ? "bg-purple-500/15 text-purple-300 font-medium border-purple-500/45"
-                    : VIBE_COLORS[v] ||
-                      "bg-purple-500/15 text-purple-300 border-purple-500/45";
+          <div className="absolute right-4 top-[max(env(safe-area-inset-top),16px)] z-20 flex items-center gap-2">
+            <motion.button
+              onClick={share}
+              whileTap={{ scale: 0.9 }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-xl border border-white/20 shadow-lg"
+              aria-label="Share"
+            >
+              <Share2 className="h-4.5 w-4.5" />
+            </motion.button>
+            <motion.button
+              onClick={handleSaveToggle}
+              whileTap={{ scale: 0.85 }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg"
+              aria-label={saved ? "Unsave" : "Save"}
+            >
+              <motion.div
+                animate={saved ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Heart
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    saved ? "fill-coral text-coral" : "text-white",
+                  )}
+                />
+              </motion.div>
+            </motion.button>
+          </div>
+
+          {/* ── Live / Starting Soon badge ──────────────────────────── */}
+          {(liveStatus === "live" || liveStatus === "starting-soon") && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="absolute left-4 bottom-6 z-20"
+            >
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold backdrop-blur-sm",
+                  liveStatus === "live"
+                    ? "bg-coral/20 border-coral/50 text-coral vibe-live-ring"
+                    : "bg-amber-500/15 border-amber-500/40 text-amber-300",
+                )}
+              >
+                {liveStatus === "live" ? (
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-coral" />
+                  </span>
+                ) : (
+                  <Clock className="h-3 w-3" />
+                )}
+                {countdown}
+              </span>
+            </motion.div>
+          )}
+        </div>
+
+        {/* ── CONTENT ────────────────────────────────────────────────── */}
+        <div className="relative z-10 -mt-8 space-y-6 px-4 lg:px-6">
+          {/* Quick Info Bar */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="flex items-center gap-3 overflow-x-auto no-scrollbar"
+          >
+            <QuickInfoPill
+              icon={<Calendar className="h-3.5 w-3.5" />}
+              text={formatDateLabel(party.date)}
+            />
+            <QuickInfoPill
+              icon={<Clock className="h-3.5 w-3.5" />}
+              text={formatTime(party.time)}
+            />
+            <QuickInfoPill
+              icon={<MapPin className="h-3.5 w-3.5" />}
+              text={formatLocation(party.area, party.city)}
+              tappable
+              onClick={() => {
+                if (party.lat && party.lng) {
+                  window.open(
+                    `https://www.google.com/maps?q=${party.lat},${party.lng}`,
+                    "_blank",
+                  );
+                }
+              }}
+            />
+            <QuickInfoPill
+              icon={<span className="text-sm font-bold">{currency}</span>}
+              text={party.fee > 0 ? String(party.fee) : "Free"}
+              highlight
+            />
+          </motion.div>
+
+          {/* Title Section */}
+          <motion.section
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="space-y-3"
+          >
+            <h1 className="font-display text-2xl font-extrabold leading-tight text-foreground lg:text-3xl">
+              {party.title}
+            </h1>
+            {host && (
+              <div className="flex items-center gap-3">
+                <UserAvatar
+                  name={host.name}
+                  src={host.avatarUrl}
+                  size={36}
+                  ring
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-foreground">
+                      {host.name}
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                    </span>
+                  </div>
+                  <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                    View host profile →
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.section>
+
+          {/* Vibe Tags */}
+          <motion.section
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {vibes.map((v, i) => {
+                const cls = VIBE_COLORS[v] || "bg-purple-500/15 text-purple-300 border-purple-500/45";
                 return (
-                  <span
+                  <motion.span
                     key={v}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.05 * i }}
                     className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap",
                       cls,
                     )}
                   >
+                    <span className="text-sm">{VIBE_EMOJI[v] || "✨"}</span>
                     {v}
-                  </span>
+                  </motion.span>
                 );
               })}
-              {party.fee > 0 && (
-                <span className="rounded-full border border-coral/35 bg-coral/10 px-2.5 py-0.5 text-[11px] font-semibold text-coral">
-                  21+
-                </span>
-              )}
-              <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300">
-                Students
-              </span>
-            </section>
+            </div>
+          </motion.section>
 
-            {/* About this party */}
-            {party.description && (
-              <section className="space-y-2">
-                <span className="eyebrow">About this party</span>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          {/* Divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+
+          {/* Description (expandable) */}
+          {party.description && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="space-y-2"
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                About this party
+              </h3>
+              <div className="relative overflow-hidden">
+                <motion.div
+                  animate={{
+                    maxHeight: descExpanded ? 2000 : 72,
+                  }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="whitespace-pre-line text-sm leading-relaxed text-foreground/80"
+                >
                   {party.description}
-                </p>
-                <div className="h-px bg-gradient-to-r from-transparent via-purple-500/25 to-transparent" />
-              </section>
-            )}
-
-            {/* Menu preview */}
-            <section className="glass rounded-2xl p-3">
-              <span className="eyebrow">Menu preview</span>
-              {menuItems.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  No pre-order menu
-                </p>
-              ) : (
-                <ul className="mt-2.5 space-y-2">
-                  {menuItems.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center justify-between gap-3 text-sm"
-                    >
-                      <span className="flex min-w-0 items-center gap-2 text-foreground">
-                        <span className="text-base leading-none">
-                          {item.emoji}
-                        </span>
-                        <span className="truncate font-medium">{item.name}</span>
-                      </span>
-                      <span className="shrink-0 font-medium text-purple-300">
-                        {currency}
-                        {item.price}
-                      </span>
-                    </li>
-                  ))}
-                  {menuOverflow > 0 && (
-                    <li className="text-xs text-muted-foreground">
-                      +{menuOverflow} more
-                    </li>
-                  )}
-                </ul>
-              )}
-            </section>
-
-            {/* Reviews — KEEP existing ReviewsSection component */}
-            {party.id && <ReviewsSection partyId={party.id} />}
-          </div>
-
-          {/* Right column — host/chat sidebar */}
-          <div className="space-y-5 lg:col-span-2">
-            {/* Host card — with teal Verified badge */}
-            {host && (
-              <section className="glass flex items-center gap-3 rounded-2xl p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-500/30 text-sm font-bold text-purple-200">
-                  {host.name.slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {host.name}
-                    </p>
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
-                      <ShieldCheck className="h-3 w-3" /> Verified
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground/90">
-                    <span className="text-amber-300">★★★★★</span>{" "}
-                    <span className="font-medium text-foreground/80">
-                      {host.rating.toFixed(1)}
-                    </span>{" "}
-                    · {host.hosted} parties
-                  </p>
-                </div>
-                {!isOwn && (
-                  <button
-                    onClick={messageHost}
-                    className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-purple-500/40 bg-purple-500/10 px-2.5 text-[11px] font-semibold text-purple-300 transition active:scale-95 hover:bg-purple-500/15"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    <span className="truncate">Message</span>
-                  </button>
+                </motion.div>
+                {!descExpanded && party.description.length > 120 && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent" />
                 )}
-              </section>
-            )}
+              </div>
+              {party.description.length > 120 && (
+                <button
+                  onClick={() => setDescExpanded(!descExpanded)}
+                  className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  {descExpanded ? "Show less" : "Read more"}
+                </button>
+              )}
+            </motion.section>
+          )}
 
-            {/* Security booking badge — shows when the host has booked a bouncer.
-                This is a major trust signal, especially for women guests. */}
-            {party.securityBooked && (
-              <section className="rounded-2xl border border-teal-500/30 bg-teal-500/8 p-3 flex items-start gap-3 animate-screen-in">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">
-                    Verified security on-site
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    Host has booked a licensed security person for this party.
-                    Go worry-free — show up, vibe, and feel safe.
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
-                  🔒 Safe
+          {/* Who's Going */}
+          <motion.section
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Who's going
+              </h3>
+              {going > 0 && (
+                <span className="text-xs font-semibold text-purple-300">
+                  {going} {going === 1 ? "person" : "people"}
                 </span>
-              </section>
-            )}
-
-            {/* Who's going — guest initials, locked until payment */}
-            <section className="glass rounded-2xl p-3">
-              <span className="eyebrow">Who's going</span>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="flex items-center">
-                  {GUEST_INITIALS.map((letter, i) => (
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center">
+                {going === 0 ? (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border/60 bg-muted/30 text-xs text-muted-foreground">
+                    ?
+                  </div>
+                ) : (
+                  guestAvatars.map((src, i) => (
                     <div
                       key={i}
                       className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-full border border-card text-[11px] font-bold",
-                        GUEST_AVATAR_COLORS[i % GUEST_AVATAR_COLORS.length],
+                        "flex h-9 w-9 items-center justify-center rounded-full border-2 border-background text-xs font-bold overflow-hidden",
+                        GUEST_COLORS[i % GUEST_COLORS.length],
                       )}
                       style={{
                         marginLeft: i === 0 ? 0 : -8,
-                        zIndex: GUEST_INITIALS.length - i,
+                        zIndex: guestAvatars.length - i,
                       }}
                     >
-                      {letter}
+                      <img
+                        src={src}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
                     </div>
-                  ))}
-                  {going > GUEST_INITIALS.length && (
-                    <div
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-card bg-white/5 text-[10px] font-bold text-muted-foreground"
-                      style={{ marginLeft: -8 }}
-                    >
-                      +{going - GUEST_INITIALS.length}
-                    </div>
-                  )}
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {going} going
-                </span>
-              </div>
-              <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <Lock className="h-3 w-3" /> Full names visible after payment
-              </p>
-            </section>
-
-            {/* Desktop CTA — only visible on lg+ screens */}
-            <div className="hidden lg:block">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSaveToggle}
-                  className={cn(
-                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition active:scale-95",
-                    saved
-                      ? "border-coral/50 bg-coral/15 text-coral"
-                      : "border-border bg-card text-muted-foreground hover:text-foreground",
-                  )}
-                  aria-label={saved ? "Unsave" : "Save"}
-                >
-                  <Heart className={cn("h-5 w-5", saved && "fill-coral")} />
-                </button>
-                {isOwn ? (
-                  <button
-                    onClick={() => setScreen("manage-party")}
-                    className="press-feedback glow-violet flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground"
+                  ))
+                )}
+                {going > 5 && (
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-background bg-white/5 text-[10px] font-bold text-muted-foreground"
+                    style={{ marginLeft: -8 }}
                   >
-                    Manage your party
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleJoin}
-                    className={cn(
-                      "press-feedback flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition",
-                      isFull
-                        ? "bg-white/8 text-muted-foreground"
-                        : "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-[0_4px_24px_-4px_rgba(83,74,183,0.5)] hover:shadow-[0_6px_28px_-4px_rgba(83,74,183,0.65)] hover:brightness-110",
-                    )}
-                  >
-                    {isFull ? (
-                      "Sold out — join waitlist"
-                    ) : (
-                      <>
-                        <span className="relative">
-                          Join for {feeLabel}
-                          {!isFull && <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />}
-                        </span>
-                        <span className="opacity-50">·</span>
-                        <span>get your spot</span>
-                      </>
-                    )}
-                  </button>
+                    +{going - 5}
+                  </div>
                 )}
               </div>
+              <div className="flex-1">
+                {going > 0 ? (
+                  <p className="text-sm text-foreground/80">
+                    <span className="font-semibold text-foreground">
+                      Join {going} others
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Be the first to join
+                  </p>
+                )}
+              </div>
+              <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors font-medium">
+                See all
+              </button>
             </div>
-          </div>
+            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Lock className="h-3 w-3" /> Full names visible after payment
+            </p>
+          </motion.section>
+
+          {/* Security badge */}
+          {party.securityBooked && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.32 }}
+              className="rounded-2xl border border-teal-500/25 bg-teal-500/5 p-4 flex items-start gap-3"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/15">
+                <ShieldCheck className="h-5 w-5 text-teal-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Verified security on-site
+                </p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Host has booked a licensed security person. Go worry-free.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-bold text-teal-300">
+                🔒 Safe
+              </span>
+            </motion.section>
+          )}
+
+          {/* Menu Section */}
+          {hasMenu && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.35 }}
+              className="space-y-3"
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Menu
+              </h3>
+              {/* Category tabs */}
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                {MENU_CATEGORIES.map((cat) => {
+                  const count = allMenuItems.filter(
+                    (i) => i.category === cat.key,
+                  ).length;
+                  if (count === 0) return null;
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => setMenuCategory(cat.key)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all",
+                        menuCategory === cat.key
+                          ? "border-purple-500/50 bg-purple-500/15 text-purple-200"
+                          : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span>{cat.emoji}</span>
+                      {cat.label}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                          menuCategory === cat.key
+                            ? "bg-purple-500/20 text-purple-300"
+                            : "bg-muted/30 text-muted-foreground",
+                        )}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Menu cards */}
+              <div className="grid grid-cols-2 gap-2">
+                {filteredMenu.map((item) => (
+                  <MenuCard
+                    key={item.id}
+                    item={item}
+                    currency={currency}
+                  />
+                ))}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Reviews Section */}
+          {party.id && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <ReviewsSection partyId={party.id} />
+            </motion.section>
+          )}
+
+          {/* Host controls (if user is host) */}
+          {isOwn && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.45 }}
+              className="space-y-3"
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Host controls
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <HostControlButton
+                  icon={<Edit3 className="h-4 w-4" />}
+                  label="Edit party"
+                  onClick={() => setScreen("manage-party")}
+                />
+                <HostControlButton
+                  icon={<Users className="h-4 w-4" />}
+                  label="Manage requests"
+                  badge={data.requests?.filter((r: any) => r.status === "pending").length}
+                  onClick={() => setScreen("requests")}
+                />
+                <HostControlButton
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  label="Group chat"
+                  onClick={() => setScreen("group-chat")}
+                />
+                <HostControlButton
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  label="Analytics"
+                  onClick={() => setScreen("host-dashboard")}
+                />
+              </div>
+            </motion.section>
+          )}
+
+          {/* Bottom spacer */}
+          <div className="h-4" />
         </div>
       </div>
 
-      {/* ── STICKY CTA — Join for £N · get your spot (mobile only) ──── */}
+      {/* ── STICKY CTA BAR ──────────────────────────────────────────── */}
       <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 lg:hidden">
-        <div className="glass-strong rounded-2xl p-2.5 flex items-center gap-2">
-          {/* Save / heart toggle */}
-          <button
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+          className="rounded-2xl border border-white/10 bg-background/70 p-2.5 backdrop-blur-2xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.6)] flex items-center gap-2.5"
+        >
+          {/* Save heart */}
+          <motion.button
             onClick={handleSaveToggle}
+            whileTap={{ scale: 0.85 }}
             className={cn(
-              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition active:scale-95",
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border transition",
               saved
-                ? "border-coral/50 bg-coral/15 text-coral"
-                : "border-border bg-card text-muted-foreground hover:text-foreground",
+                ? "border-coral/40 bg-coral/10 text-coral"
+                : "border-border/60 bg-card/50 text-muted-foreground hover:text-foreground",
             )}
             aria-label={saved ? "Unsave" : "Save"}
           >
             <Heart className={cn("h-5 w-5", saved && "fill-coral")} />
-          </button>
+          </motion.button>
 
           {/* Primary CTA */}
           {isOwn ? (
             <button
               onClick={() => setScreen("manage-party")}
-              className="press-feedback glow-violet flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-primary-foreground"
             >
               Manage your party
             </button>
           ) : (
             <button
               onClick={handleJoin}
+              disabled={false}
               className={cn(
-                "press-feedback flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition",
+                "relative flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold transition overflow-hidden",
                 isFull
-                  ? "bg-white/8 text-muted-foreground"
-                  : "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-[0_4px_24px_-4px_rgba(83,74,183,0.5)] hover:shadow-[0_6px_28px_-4px_rgba(83,74,183,0.65)] hover:brightness-110",
+                  ? "bg-white/5 text-muted-foreground"
+                  : "bg-gradient-to-r from-purple-600 via-purple-500 to-violet-500 text-white shadow-[0_4px_20px_-4px_rgba(139,92,246,0.5)]",
               )}
             >
-              {isFull ? (
-                "Sold out — join waitlist"
-              ) : (
-                <>
-                  <span className="relative">
-                    Join for {feeLabel}
-                    {!isFull && <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />}
-                  </span>
-                  <span className="opacity-50">·</span>
-                  <span>get your spot</span>
-                </>
+              {/* Shimmer effect */}
+              {!isFull && (
+                <span className="absolute inset-0 overflow-hidden rounded-xl">
+                  <span className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                </span>
               )}
+              <span className="relative flex items-center gap-2">
+                {isFull ? (
+                  "Sold out — join waitlist"
+                ) : (
+                  <>
+                    Request to Join
+                    <span className="opacity-60">·</span>
+                    <span>{feeLabel}</span>
+                  </>
+                )}
+              </span>
             </button>
           )}
-        </div>
+
+          {/* Spots indicator */}
+          {!isFull && left > 0 && (
+            <div className="flex shrink-0 flex-col items-end justify-center pr-1">
+              <span className="text-[10px] font-bold text-teal-400">
+                {left} left
+              </span>
+              {party.approvalRequired && (
+                <span className="text-[9px] text-amber-400">Approval</span>
+              )}
+            </div>
+          )}
+        </motion.div>
       </div>
 
-      {/* ── "Get your spot" sheet (purchase-flow rewrite) ─────────────── */}
+      {/* ── "Get your spot" sheet ────────────────────────────────────── */}
       <Sheet open={spotSheetOpen} onOpenChange={setSpotSheetOpen}>
         <SheetContent
           side="bottom"
@@ -707,7 +938,7 @@ export function DetailScreen() {
           <div className="space-y-4 px-5 pb-5 pt-1 fancy-scrollbar max-h-[60vh] overflow-y-auto">
             {/* Intro text */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-white">
+              <label className="text-xs font-bold uppercase tracking-wider text-white">
                 Your intro
               </label>
               <Textarea
@@ -725,8 +956,9 @@ export function DetailScreen() {
 
             {/* Intro video */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-white">
-                Intro video <span className="text-muted-foreground">(optional · ≤60 MB)</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-white">
+                Intro video{" "}
+                <span className="text-muted-foreground">(optional · ≤60 MB)</span>
               </label>
               <input
                 ref={introFileRef}
@@ -797,8 +1029,11 @@ export function DetailScreen() {
                 requestMutation.mutate();
               }}
               disabled={requestMutation.isPending || uploadPct !== null}
-              className="press-feedback glow-violet flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
+              className="relative flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60 overflow-hidden"
             >
+              <span className="absolute inset-0 overflow-hidden rounded-2xl">
+                <span className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              </span>
               {requestMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -821,58 +1056,111 @@ export function DetailScreen() {
   );
 }
 
-// ── Meta cell for the 2×2 meta grid ──────────────────────────────────
-function MetaCell({ emoji, text }: { emoji: string; text: string }) {
+// ── Sub-components ─────────────────────────────────────────────────
+
+function QuickInfoPill({
+  icon,
+  text,
+  highlight,
+  tappable,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  text: string;
+  highlight?: boolean;
+  tappable?: boolean;
+  onClick?: () => void;
+}) {
+  const Tag = tappable ? "button" : "div";
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-white/[0.03] p-3 text-xs transition-colors hover:border-purple-500/30 hover:bg-white/[0.05]">
-      <span aria-hidden className="text-sm leading-none">
-        {emoji}
-      </span>
-      <span className="min-w-0 truncate text-foreground/80 font-medium">{text}</span>
+    <Tag
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition",
+        highlight
+          ? "border-purple-500/40 bg-purple-500/15 text-purple-200"
+          : "border-border/40 bg-card/30 text-foreground/80",
+        tappable && "hover:border-purple-500/40 hover:text-foreground cursor-pointer",
+      )}
+    >
+      {icon}
+      {text}
+      {tappable && <ExternalLink className="h-2.5 w-2.5 opacity-50" />}
+    </Tag>
+  );
+}
+
+function MenuCard({
+  item,
+  currency,
+}: {
+  item: MenuItem;
+  currency: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/30 p-3 space-y-2 transition-colors hover:border-purple-500/30 hover:bg-card/50">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">{item.emoji}</span>
+        <span className="flex-1 truncate text-sm font-medium text-foreground">
+          {item.name}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-purple-300">
+          {currency}
+          {item.price}
+        </span>
+        <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-300 transition hover:bg-purple-500/20 active:scale-90">
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
 
-// ── Media gallery hero ─────────────────────────────────────────────────
-// Isolated as its own component so we can `key={party.id}` it on the parent
-// and let React unmount/remount when the user navigates between parties —
-// this naturally resets internal carousel state (activeIdx + scroll position)
-// without needing setState-in-effect (which the lint rule disallows).
-interface MediaGalleryProps {
-  gallery: PartyMedia[];
-  hasGallery: boolean;
-  heroBg: string;
-  heroEmoji: string;
-  coverUrl: string | null;
-  goBack: () => void;
-  share: () => void;
-  firstVibe: string;
-  isFull: boolean;
-  isLow: boolean;
-  left: number;
-  going: number;
+function HostControlButton({
+  icon,
+  label,
+  badge,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative flex flex-col items-center gap-2 rounded-xl border border-border/40 bg-card/30 p-3 text-center transition hover:border-purple-500/30 hover:bg-card/50 active:scale-95"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300">
+        {icon}
+      </span>
+      <span className="text-xs font-semibold text-foreground/80">
+        {label}
+      </span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-coral text-[10px] font-bold text-white">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
 }
 
-function MediaGallery({
+// ── Hero Gallery ───────────────────────────────────────────────────
+function HeroGallery({
   gallery,
-  hasGallery,
-  heroBg,
-  heroEmoji,
   coverUrl,
-  goBack,
-  share,
-  firstVibe,
-  isFull,
-  isLow,
-  left,
-  going,
-}: MediaGalleryProps) {
+}: {
+  gallery: PartyMedia[];
+  coverUrl: string | null;
+}) {
   const [activeIdx, setActiveIdx] = useState(0);
   const galleryRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Compute the active slide on scroll. requestAnimationFrame-debounced so
-  // we don't churn state on every pixel of scroll movement.
   const handleScroll = () => {
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -884,171 +1172,84 @@ function MediaGallery({
     });
   };
 
-  const scrollToSlide = (idx: number) => {
-    const el = galleryRef.current;
-    if (!el) return;
-    el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
-    setActiveIdx(idx);
-  };
-
   return (
     <>
       <div
-        className="relative h-56 w-full overflow-hidden"
-        style={{ background: heroBg }}
+        ref={galleryRef}
+        onScroll={handleScroll}
+        className="h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden no-scrollbar"
       >
-        {hasGallery ? (
-          <div
-            ref={galleryRef}
-            onScroll={handleScroll}
-            className="no-scrollbar h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
-          >
-            <div className="flex h-full">
-              {gallery.map((m, i) => (
-                <div
-                  key={m.id ?? i}
-                  className="relative h-full w-full shrink-0 snap-center snap-always"
-                >
-                  {m.type === "video" ? (
-                    <video
-                      src={m.url}
-                      poster={i === 0 && coverUrl ? coverUrl : undefined}
-                      controls
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={m.url}
-                      alt={m.caption || `Party photo ${i + 1}`}
-                      className="h-full w-full object-cover"
-                      loading={i === 0 ? "eager" : "lazy"}
-                    />
-                  )}
-                  {/* Gradient sheen only over image slides (videos get a
-                      flat gradient that doesn't fight with native controls) */}
-                  {m.type === "image" && (
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
-                  )}
-                  {m.caption && (
-                    <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-2 py-0.5 text-[11px] text-white/90 backdrop-blur-sm">
-                      {m.caption}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          // Fallback: vibe-color background + large emoji centerpiece
-          // (preserves the original hero look when there's no media).
-          <>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="vibe-float text-5xl opacity-90" aria-hidden>
-                {heroEmoji}
-              </span>
-            </div>
-          </>
-        )}
-
-        {/* Back button (top-left, 32px round) */}
-        <button
-          onClick={goBack}
-          className="absolute left-3 top-[max(env(safe-area-inset-top),12px)] z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
-          aria-label="Back"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-
-        {/* Share button (top-right, 32px round) */}
-        <button
-          onClick={share}
-          className="absolute right-3 top-[max(env(safe-area-inset-top),12px)] z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
-          aria-label="Share"
-        >
-          <Share2 className="h-4 w-4" />
-        </button>
-
-        {/* Dot indicator row (only when more than one slide) */}
-        {hasGallery && gallery.length > 1 && (
-          <div className="pointer-events-none absolute left-1/2 top-[max(env(safe-area-inset-top),52px)] z-10 flex -translate-x-1/2 items-center gap-1.5">
-            {gallery.map((_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-200",
-                  i === activeIdx ? "w-4 bg-white" : "w-1.5 bg-white/45",
-                )}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Theme pill (bottom-left) */}
-        <span className="absolute bottom-3 left-3 z-10 rounded-lg bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-          {firstVibe}
-        </span>
-
-        {/* Spots pill (bottom-right) */}
-        {isFull ? (
-          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-coral px-2.5 py-1 text-xs font-semibold text-white">
-            Sold out
-          </span>
-        ) : isLow ? (
-          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-coral/80 px-2.5 py-1 text-xs font-semibold text-white">
-            {left} left!
-          </span>
-        ) : (
-          <span className="absolute bottom-3 right-3 z-10 rounded-lg bg-purple-500/80 px-2.5 py-1 text-xs font-semibold text-white">
-            {going} going · {left} left
-          </span>
-        )}
-      </div>
-
-      {/* Thumbnail strip — only show when more than one media item.
-          Lets the user jump directly to a specific slide. */}
-      {hasGallery && gallery.length > 1 && (
-        <div className="no-scrollbar -mt-3 relative z-10 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="flex h-full">
           {gallery.map((m, i) => (
-            <button
-              key={m.id ?? `thumb-${i}`}
-              onClick={() => scrollToSlide(i)}
-              aria-label={`View media ${i + 1}`}
-              className={cn(
-                "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border transition active:scale-95",
-                i === activeIdx
-                  ? "border-purple-400 ring-2 ring-purple-400/60"
-                  : "border-white/10 hover:border-purple-400/40",
-              )}
+            <div
+              key={m.id ?? i}
+              className="relative h-full w-full shrink-0 snap-center snap-always"
             >
               {m.type === "video" ? (
-                <>
-                  <img
-                    src={i === 0 && coverUrl ? coverUrl : m.url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                    <Play className="h-3.5 w-3.5 fill-white text-white" />
-                  </span>
-                </>
+                <video
+                  src={m.url}
+                  poster={i === 0 && coverUrl ? coverUrl : undefined}
+                  controls
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <img
                   src={m.url}
-                  alt=""
+                  alt={m.caption || `Party photo ${i + 1}`}
                   className="h-full w-full object-cover"
-                  loading="lazy"
+                  loading={i === 0 ? "eager" : "lazy"}
                 />
               )}
-            </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dot indicators */}
+      {gallery.length > 1 && (
+        <div className="pointer-events-none absolute left-1/2 bottom-20 z-10 flex -translate-x-1/2 items-center gap-1.5">
+          {gallery.map((_, i) => (
+            <motion.span
+              key={i}
+              animate={{
+                width: i === activeIdx ? 16 : 6,
+                opacity: i === activeIdx ? 1 : 0.45,
+              }}
+              className="h-1.5 rounded-full bg-white"
+            />
           ))}
         </div>
       )}
     </>
+  );
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────
+function DetailSkeleton() {
+  return (
+    <div className="space-y-0 animate-pulse">
+      <div className="h-[340px] w-full rounded-none bg-muted/20" />
+      <div className="-mt-8 space-y-4 px-4">
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-7 w-20 rounded-full bg-muted/20" />
+          ))}
+        </div>
+        <Skeleton className="h-8 w-3/4 rounded-lg" />
+        <Skeleton className="h-6 w-1/2 rounded-lg" />
+        <div className="flex gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-7 w-16 rounded-full bg-muted/20" />
+          ))}
+        </div>
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-20 w-full rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      </div>
+    </div>
   );
 }

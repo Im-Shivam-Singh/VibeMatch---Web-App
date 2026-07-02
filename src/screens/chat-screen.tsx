@@ -2,16 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
-  Phone,
-  Video,
   MoreVertical,
   Send,
   ShieldAlert,
   Flag,
   Ban,
-  Smile,
   Check,
   CheckCheck,
   Sparkles,
@@ -19,16 +17,17 @@ import {
   Play,
   CreditCard,
   Clock,
+  Camera,
+  MessageSquarePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { useChatSocket, type ChatMessageEvent } from "@/lib/use-chat-socket";
-import { relativeTime, type ChatMessage } from "@/lib/types";
+import { relativeTime, type ChatMessage, formatFee } from "@/lib/types";
 import { UserAvatar } from "@/components/vibe/user-avatar";
 import { RatingPill } from "@/components/vibe/rating-pill";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -47,7 +46,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-const QUICK_EMOJIS = ["🔥", "💜", "🎉", "🍻", "👀", "😂"];
+/* -------------------------------------------------------------------------- */
+/*  Constants                                                                  */
+/* -------------------------------------------------------------------------- */
 
 const QUICK_REPLIES = [
   "I'm in! 🎉",
@@ -57,7 +58,344 @@ const QUICK_REPLIES = [
   "Sounds amazing 🔥",
 ];
 
-const MESSAGE_REACTIONS = ["🔥", "💜", "🎉", "😂", "👀"];
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function dayLabel(d: Date): string {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === -1) return "Yesterday";
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function groupByDay(messages: ChatMessage[]) {
+  const groups: { label: string; items: ChatMessage[] }[] = [];
+  for (const m of messages) {
+    const d = new Date(m.createdAt);
+    const label = dayLabel(d);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.items.push(m);
+    } else {
+      groups.push({ label, items: [m] });
+    }
+  }
+  return groups;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Message bubble — Dribbble quality                                         */
+/* -------------------------------------------------------------------------- */
+
+function MessageBubble({
+  m,
+  mine,
+  showAvatar,
+  otherName,
+  otherAvatar,
+  isLast,
+}: {
+  m: ChatMessage;
+  mine: boolean;
+  showAvatar: boolean;
+  otherName: string;
+  otherAvatar?: string | null;
+  isLast: boolean;
+}) {
+  const kind = (m.kind ?? "text") as "text" | "video" | "system" | "payment";
+
+  // System messages: centered, muted text
+  if (kind === "system") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="my-3 flex justify-center"
+      >
+        <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-white/[0.04] px-3.5 py-1.5 text-center text-[11px] leading-relaxed text-white/50 ring-1 ring-white/[0.08]">
+          <Clock className="h-3 w-3 shrink-0 text-purple-400/70" />
+          {m.content}
+        </span>
+      </motion.div>
+    );
+  }
+
+  // Text + video bubbles
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        "flex items-end gap-2",
+        mine ? "justify-end" : "justify-start",
+      )}
+    >
+      {!mine &&
+        (showAvatar ? (
+          <UserAvatar name={otherName} src={otherAvatar} size={28} />
+        ) : (
+          <span className="w-7" />
+        ))}
+      <div className="max-w-[78%]">
+        {/* Video bubble */}
+        {kind === "video" && m.mediaUrl ? (
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-2xl",
+              mine
+                ? "rounded-br-sm bg-gradient-to-br from-purple-500 to-purple-600"
+                : "rounded-bl-sm bg-white/[0.06] ring-1 ring-white/[0.1]",
+            )}
+          >
+            <div className="relative">
+              <video
+                src={m.mediaUrl}
+                controls
+                playsInline
+                className="h-44 w-full min-w-[180px] bg-black object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
+                  <Play className="h-4 w-4 text-white" fill="white" />
+                </div>
+              </div>
+            </div>
+            <p className="px-3 py-1.5 text-[12px] text-white/80">
+              {m.content}
+            </p>
+            <div className="flex items-center justify-end gap-1 px-3 pb-1.5 text-[10px] text-white/40">
+              {relativeTime(m.createdAt)}
+              {mine &&
+                (m.read ? (
+                  <CheckCheck className="h-3 w-3 text-teal-400" />
+                ) : (
+                  <Check className="h-3 w-3 text-white/30" />
+                ))}
+            </div>
+          </div>
+        ) : (
+          /* Text bubble */
+          <div
+            className={cn(
+              "rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed",
+              mine
+                ? "rounded-br-sm bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-[0_4px_16px_-6px_rgba(83,74,183,0.5)]"
+                : "rounded-bl-sm bg-white/[0.06] text-white/90 ring-1 ring-white/[0.1] backdrop-blur-sm",
+            )}
+          >
+            <p className="whitespace-pre-line break-words">{m.content}</p>
+            <div
+              className={cn(
+                "mt-1 flex items-center justify-end gap-1 text-[10px]",
+                mine ? "text-white/50" : "text-white/30",
+              )}
+            >
+              {relativeTime(m.createdAt)}
+              {mine &&
+                (m.read ? (
+                  <CheckCheck className="h-3 w-3 text-teal-400" />
+                ) : (
+                  <Check className="h-3 w-3 text-white/30" />
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Payment CTA card — WhatsApp-style                                         */
+/* -------------------------------------------------------------------------- */
+
+function PaymentCard({
+  m,
+  paid,
+  requestId,
+  partyId,
+  onPay,
+  mine,
+}: {
+  m: ChatMessage;
+  paid: boolean;
+  requestId?: string | null;
+  partyId: string | null;
+  onPay: () => void;
+  mine: boolean;
+}) {
+  const isPaid = paid && m.requestId === requestId;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      className={cn("my-3 flex", mine ? "justify-start" : "justify-end")}
+    >
+      {isPaid ? (
+        <div className="w-[80%] overflow-hidden rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-purple-500/5 shadow-[0_4px_20px_-6px_rgba(29,158,117,0.3)]">
+          <div className="p-3.5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 text-teal-400">
+                <Check className="h-5 w-5" strokeWidth={3} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-teal-400">
+                  Ticket confirmed! 🎉
+                </p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {m.content}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
+                ✓ Paid
+              </span>
+            </div>
+            <p className="mt-2.5 flex items-center gap-1.5 text-[10px] text-teal-300/70">
+              <Sparkles className="h-3 w-3" />
+              Spot locked · group chat unlocked
+            </p>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onPay}
+          className="w-[80%] overflow-hidden rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-purple-500/5 text-left transition active:scale-[0.99] hover:border-teal-400/50 hover:shadow-[0_4px_24px_-6px_rgba(29,158,117,0.3)] shadow-[0_4px_20px_-6px_rgba(29,158,117,0.2)]"
+        >
+          <div className="p-3.5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 text-teal-400">
+                <CreditCard className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-teal-400">
+                  Payment approved
+                </p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {m.content}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black transition hover:bg-teal-400">
+                Pay
+              </span>
+            </div>
+            <p className="mt-2.5 flex items-center gap-1.5 text-[10px] text-white/40">
+              <Lock className="h-3 w-3" />
+              Tap to pay · spot locks after checkout
+            </p>
+          </div>
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Typing indicator                                                          */
+/* -------------------------------------------------------------------------- */
+
+function TypingIndicator({ name, avatar, avatarUrl }: { name: string; avatar?: boolean; avatarUrl?: string | null }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      className="flex items-end gap-2"
+    >
+      {avatar && <UserAvatar name={name} src={avatarUrl} size={28} />}
+      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white/[0.06] px-4 py-2.5 ring-1 ring-white/[0.1]">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400 [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400 [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400" />
+      </div>
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sheet button                                                              */
+/* -------------------------------------------------------------------------- */
+
+function SheetButton({
+  icon,
+  label,
+  onClick,
+  destructive,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:bg-white/5",
+        destructive ? "text-destructive" : "text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Loading skeleton                                                         */
+/* -------------------------------------------------------------------------- */
+
+function ChatSkeleton() {
+  return (
+    <div className="flex h-full flex-col animate-screen-in">
+      <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
+          <Skeleton className="h-10 w-10 rounded-full vibe-skeleton" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-28 vibe-skeleton" />
+            <Skeleton className="h-2.5 w-16 vibe-skeleton" />
+          </div>
+          <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
+        </div>
+      </header>
+      <div className="flex-1 space-y-3 p-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex",
+              i % 2 === 0 ? "justify-start" : "justify-end",
+            )}
+          >
+            <Skeleton
+              className={cn(
+                "h-12 rounded-2xl vibe-skeleton",
+                i % 2 === 0 ? "w-56" : "w-44",
+              )}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Main Chat Screen                                                          */
+/* -------------------------------------------------------------------------- */
 
 export function ChatScreen() {
   const threadId = useAppStore((s) => s.selectedThreadId);
@@ -69,14 +407,10 @@ export function ChatScreen() {
 
   const { socket, online } = useChatSocket(currentUser?.id);
   const [text, setText] = useState("");
-  const [showEmoji, setShowEmoji] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  // messageId -> emoji -> count (local-only reactions for demo)
-  const [reactions, setReactions] = useState<Record<string, Record<string, number>>>({});
-  const [reactingFor, setReactingFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,24 +423,14 @@ export function ChatScreen() {
 
   const messages = data?.messages ?? [];
   const other = data?.otherUser ?? null;
-  // The thread's party context — needed so the "Pay" CTA can route the guest
-  // to the payment screen with the right party selected.
   const partyId = data?.thread?.partyId ?? null;
-
-  // ── Purchase-flow lock ──────────────────────────────────────────────
-  // "When a person sends a request to the host, no other msg is allowed
-  //  until payment is processed." The composer is locked for BOTH the host
-  // and the guest until the guest pays. The `paid` flag is computed server-
-  // side (GET /api/threads/[id]) by checking for a paid Order on this party
-  // by the requesting guest. Once paid, the lock lifts and a "✅ Payment
-  // confirmed" system message appears in the thread.
   const request = data?.request ?? null;
   const paid = data?.paid ?? false;
   const hasRequest = !!request;
   const requestStatus = request?.status;
   const composerLocked = hasRequest && !paid;
 
-  // Contextual lock hint shown above the composer. `null` when unlocked.
+  // Contextual lock hint
   const lockHint = !hasRequest || paid
     ? null
     : requestStatus === "pending"
@@ -164,7 +488,6 @@ export function ChatScreen() {
         content,
       }),
     onSuccess: (msg) => {
-      // broadcast via socket
       socket?.emit("chat:message", {
         threadId: msg.threadId,
         senderId: msg.senderId,
@@ -186,20 +509,10 @@ export function ChatScreen() {
       const c = (content ?? text).trim();
       if (!c || !currentUser || !other) return;
       setText("");
-      setShowEmoji(false);
       sendMutation.mutate(c);
     },
     [text, currentUser, other, sendMutation, composerLocked],
   );
-
-  const react = useCallback((messageId: string, emoji: string) => {
-    setReactions((prev) => {
-      const msgReactions = { ...(prev[messageId] || {}) };
-      msgReactions[emoji] = (msgReactions[emoji] || 0) + 1;
-      return { ...prev, [messageId]: msgReactions };
-    });
-    setReactingFor(null);
-  }, []);
 
   const onType = (v: string) => {
     setText(v);
@@ -239,22 +552,10 @@ export function ChatScreen() {
     setScreen("inbox");
   };
 
+  /* ── Render states ──────────────────────────────────────────── */
+
   if (isLoading || !data) {
-    return (
-      <div className="flex h-full flex-col animate-screen-in">
-        <ChatHeaderSkeleton />
-        <div className="flex-1 space-y-3 p-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className={cn("flex", i % 2 === 0 ? "justify-start" : "justify-end")}
-            >
-              <Skeleton className="h-10 w-40 rounded-2xl vibe-skeleton" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <ChatSkeleton />;
   }
 
   if (!other) {
@@ -270,38 +571,48 @@ export function ChatScreen() {
     );
   }
 
-  // group messages by day
   const grouped = groupByDay(messages);
 
   return (
     <div className="flex h-full flex-col animate-screen-in">
-      {/* Header */}
-      <header className="sticky top-0 z-20 glass-strong border-b border-white/10 px-2 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
           <button
             onClick={goBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/[0.06] hover:text-white"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+
           <button
             onClick={() => toast.info("Profile view coming soon")}
             className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
           >
-            <span className="relative block rounded-full ring-2 ring-purple-500/60">
-              <UserAvatar name={other.name} src={other.avatarUrl} size={40} />
-            </span>
+            <div className="relative">
+              <div className="rounded-full p-[1.5px] bg-gradient-to-br from-purple-500 to-teal-400">
+                <UserAvatar name={other.name} src={other.avatarUrl} size={38} />
+              </div>
+              {online && (
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-teal-400" />
+              )}
+            </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{other.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-[13px] font-semibold text-white">
+                  {other.name}
+                </p>
+                <RatingPill rating={other.rating} />
+              </div>
               <p
                 className={cn(
                   "flex items-center gap-1 text-[11px] font-medium",
                   isTyping
-                    ? "text-purple-500"
+                    ? "text-purple-400"
                     : online
-                      ? "text-purple-500"
-                      : "text-white/50",
+                      ? "text-teal-400"
+                      : "text-white/35",
                 )}
               >
                 {isTyping ? (
@@ -309,7 +620,7 @@ export function ChatScreen() {
                 ) : (
                   <>
                     {online && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
                     )}
                     {online ? "Online now" : "Active recently"}
                   </>
@@ -317,23 +628,24 @@ export function ChatScreen() {
               </p>
             </div>
           </button>
-          <button
-            onClick={() => toast.info("Calling coming soon")}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-white"
-            aria-label="Call"
-          >
-            <Phone className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => toast.info("Video coming soon")}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-white"
-            aria-label="Video"
-          >
-            <Video className="h-4 w-4" />
-          </button>
+
+          {/* Party context pill */}
+          {partyId && (
+            <button
+              onClick={() => {
+                setSelectedPartyId(partyId);
+                setScreen("detail");
+              }}
+              className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-medium text-purple-300 ring-1 ring-purple-500/25 transition hover:bg-purple-500/20"
+            >
+              <Sparkles className="h-2.5 w-2.5" />
+              Party
+            </button>
+          )}
+
           <button
             onClick={() => setSheetOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white/40 transition hover:bg-white/[0.06] hover:text-white"
             aria-label="More"
           >
             <MoreVertical className="h-4 w-4" />
@@ -341,35 +653,42 @@ export function ChatScreen() {
         </div>
       </header>
 
-      {/* Messages */}
+      {/* ── Messages ────────────────────────────────────────── */}
       <div
         ref={scrollRef}
         className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-4"
       >
-        {/* Intro banner */}
-        <div className="mb-5 flex flex-col items-center gap-2.5 rounded-2xl glass border border-white/10 p-5 text-center vibe-float">
-          <span className="relative block rounded-full ring-2 ring-purple-500/60">
-            <UserAvatar name={other.name} src={other.avatarUrl} size={64} />
-          </span>
-          <div className="flex items-center gap-2">
-            <p className="font-display text-base font-semibold text-white">{other.name}</p>
-            <RatingPill rating={other.rating} />
+        {/* Intro card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+          className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/[0.08] to-teal-500/[0.04] p-5 text-center ring-1 ring-white/[0.08]"
+        >
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
+            <span className="relative block">
+              <UserAvatar name={other.name} src={other.avatarUrl} size={52} />
+            </span>
           </div>
+          <p className="font-display text-base font-semibold text-white">
+            {other.name}
+          </p>
           {other.bio && (
-            <p className="max-w-xs text-[13px] leading-relaxed text-foreground/80">
+            <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-relaxed text-white/50">
               {other.bio}
             </p>
           )}
-          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-purple-500/15 px-3 py-1 text-[11px] font-medium text-purple-300 ring-1 ring-purple-500/30">
-            <Sparkles className="h-3 w-3 text-purple-500" />
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 px-3 py-1.5 text-[11px] font-medium text-purple-300 ring-1 ring-purple-500/20">
+            <Sparkles className="h-3 w-3 text-purple-400" />
             You connected over a party. Be kind, be safe.
           </p>
-        </div>
+        </motion.div>
 
+        {/* Day groups */}
         {grouped.map(({ label, items }) => (
           <div key={label} className="space-y-1">
             <div className="my-3 flex justify-center">
-              <span className="rounded-full glass px-3 py-1 text-[10px] uppercase tracking-wide text-white/50">
+              <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-wide text-white/30 ring-1 ring-white/[0.06]">
                 {label}
               </span>
             </div>
@@ -378,324 +697,140 @@ export function ChatScreen() {
               const prev = items[i - 1];
               const showAvatar =
                 !mine && (!prev || prev.senderId !== m.senderId);
-              const msgReactions = reactions[m.id] || {};
-              const reactionEntries = Object.entries(msgReactions).filter(
-                ([, c]) => c > 0,
-              );
-              const kind = (m.kind ?? "text") as
-                | "text"
-                | "video"
-                | "system"
-                | "payment";
+              const isLast = i === items.length - 1;
+              const kind = (m.kind ?? "text") as "text" | "video" | "system" | "payment";
 
-              // ── System messages: centered pill (approval status notices) ──
-              if (kind === "system") {
-                return (
-                  <div key={m.id} className="my-2 flex justify-center">
-                    <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full glass px-3 py-1.5 text-center text-[11px] leading-relaxed text-white/70 ring-1 ring-white/10">
-                      <Clock className="h-3 w-3 shrink-0 text-purple-400" />
-                      {m.content}
-                    </span>
-                  </div>
-                );
-              }
-
-              // ── Payment CTA: WhatsApp-style "Pay {amount}" card ──────────
               if (kind === "payment") {
-                // Once the guest has paid for this party, render the CTA in a
-                // "✓ Paid" state (non-clickable) so the chat reflects reality.
-                const isPaid = paid && m.requestId === request?.id;
                 return (
-                  <div
+                  <PaymentCard
                     key={m.id}
-                    className={cn(
-                      "my-2 flex",
-                      mine ? "justify-start" : "justify-end",
-                    )}
-                  >
-                    {isPaid ? (
-                      <div className="w-[78%] rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/15 to-purple-500/10 p-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
-                            <Check className="h-4 w-4" strokeWidth={3} />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-300">
-                              Payment confirmed
-                            </p>
-                            <p className="truncate text-sm font-semibold text-foreground">
-                              {m.content}
-                            </p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
-                            ✓ Paid
-                          </span>
-                        </div>
-                        <p className="mt-2 flex items-center gap-1 text-[10px] text-teal-300/80">
-                          <Check className="h-2.5 w-2.5" /> Spot locked · group
-                          chat unlocked
-                        </p>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!partyId) {
-                            toast.error("Couldn't open payment");
-                            return;
-                          }
-                          setSelectedPartyId(partyId);
-                          setScreen("payment");
-                        }}
-                        className="w-[78%] rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/15 to-purple-500/10 p-3.5 text-left transition active:scale-[0.99] hover:border-teal-400/70"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 text-teal-300">
-                            <CreditCard className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-300">
-                              Payment approved
-                            </p>
-                            <p className="truncate text-sm font-semibold text-foreground">
-                              {m.content}
-                            </p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-teal-500 px-3 py-1.5 text-[11px] font-bold text-black">
-                            Pay
-                          </span>
-                        </div>
-                        <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Lock className="h-2.5 w-2.5" /> Tap to pay · spot locks
-                          after checkout
-                        </p>
-                      </button>
-                    )}
-                  </div>
+                    m={m}
+                    paid={paid}
+                    requestId={request?.id}
+                    partyId={partyId}
+                    onPay={() => {
+                      if (!partyId) {
+                        toast.error("Couldn't open payment");
+                        return;
+                      }
+                      setSelectedPartyId(partyId);
+                      setScreen("payment");
+                    }}
+                    mine={mine}
+                  />
                 );
               }
 
-              // ── Video + text bubbles ──────────────────────────────────────
               return (
-                <div
+                <MessageBubble
                   key={m.id}
-                  className={cn(
-                    "group relative flex items-end gap-2",
-                    mine ? "justify-end" : "justify-start",
-                  )}
-                >
-                  {!mine &&
-                    (showAvatar ? (
-                      <UserAvatar
-                        name={other.name}
-                        src={other.avatarUrl}
-                        size={24}
-                      />
-                    ) : (
-                      <span className="w-6" />
-                    ))}
-                  <div className="relative max-w-[75%]">
-                    {kind === "video" && m.mediaUrl ? (
-                      <div
-                        onClick={() =>
-                          setReactingFor((cur) => (cur === m.id ? null : m.id))
-                        }
-                        className={cn(
-                          "relative cursor-pointer overflow-hidden rounded-2xl transition",
-                          mine
-                            ? "rounded-br-md bg-purple-500"
-                            : "rounded-bl-md glass ring-1 ring-white/10",
-                          reactingFor === m.id && "ring-2 ring-purple-500/70",
-                        )}
-                      >
-                        <video
-                          src={m.mediaUrl}
-                          controls
-                          playsInline
-                          className="h-44 w-full min-w-[180px] bg-black object-cover"
-                        />
-                        <p className="px-3 py-1.5 text-[11px] text-white/80">
-                          {m.content}
-                        </p>
-                        <div className="flex items-center justify-end gap-1 px-3 pb-1.5 text-[10px] text-black/60">
-                          {relativeTime(m.createdAt)}
-                          {mine &&
-                            (m.read ? (
-                              <CheckCheck className="h-3 w-3 text-purple-700" />
-                            ) : (
-                              <Check className="h-3 w-3" />
-                            ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() =>
-                          setReactingFor((cur) => (cur === m.id ? null : m.id))
-                        }
-                        className={cn(
-                          "cursor-pointer rounded-2xl px-3 py-2 text-sm transition",
-                          mine
-                            ? "rounded-br-md bg-purple-500 text-black"
-                            : "rounded-bl-md glass text-white ring-1 ring-white/10",
-                          reactingFor === m.id && "ring-2 ring-purple-500/70",
-                        )}
-                      >
-                        <p className="whitespace-pre-line break-words">
-                          {m.content}
-                        </p>
-                        <div
-                          className={cn(
-                            "mt-0.5 flex items-center justify-end gap-1 text-[10px]",
-                            mine ? "text-black/60" : "text-muted-foreground",
-                          )}
-                        >
-                          {relativeTime(m.createdAt)}
-                          {mine &&
-                            (m.read ? (
-                              <CheckCheck className="h-3 w-3 text-purple-700" />
-                            ) : (
-                              <Check className="h-3 w-3" />
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reaction chips under bubble */}
-                    {reactionEntries.length > 0 && (
-                      <div
-                        className={cn(
-                          "mt-1 flex flex-wrap gap-1",
-                          mine ? "justify-end" : "justify-start",
-                        )}
-                      >
-                        {reactionEntries.map(([emoji, count]) => (
-                          <span
-                            key={emoji}
-                            className="inline-flex items-center gap-0.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px]"
-                          >
-                            {emoji} {count > 1 && count}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Reaction picker popover */}
-                    {reactingFor === m.id && (
-                      <div
-                        className={cn(
-                          "absolute -top-10 z-10 flex gap-0.5 rounded-full border border-border/60 glass px-1.5 py-1 shadow-lg",
-                          mine ? "right-0" : "left-0",
-                        )}
-                      >
-                        {MESSAGE_REACTIONS.map((e) => (
-                          <button
-                            key={e}
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              react(m.id, e);
-                            }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-base transition hover:scale-125 hover:bg-white/10"
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  m={m}
+                  mine={mine}
+                  showAvatar={showAvatar}
+                  otherName={other.name}
+                  otherAvatar={other.avatarUrl}
+                  isLast={isLast}
+                />
               );
             })}
           </div>
         ))}
 
-        {isTyping && (
-          <div className="flex items-end gap-2">
-            <UserAvatar name={other.name} src={other.avatarUrl} size={24} />
-            <div className="flex gap-1 rounded-2xl rounded-bl-md glass px-3 py-2.5 ring-1 ring-white/10">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500 [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500 [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500" />
+        {/* Typing indicator */}
+        <AnimatePresence>
+          {isTyping && (
+            <TypingIndicator
+              name={other.name}
+              avatar
+              avatarUrl={other.avatarUrl}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sending indicator */}
+        {sendMutation.isPending && (
+          <div className="flex items-end justify-end gap-2">
+            <div className="rounded-2xl rounded-br-sm bg-purple-500/30 px-3.5 py-2 shadow-[0_4px_12px_-4px_rgba(83,74,183,0.3)]">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-300 [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-300 [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-300" />
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Composer */}
-      <footer className="relative border-t border-white/10 glass-strong px-2 py-2 safe-bottom">
-        {/* Quick reply suggestions — shown when the conversation is short
-            AND the composer is unlocked. NOTE: we intentionally do NOT tie
-            this to `!text.trim()` — that caused the input to jump up/down
-            as the user typed (the row appeared/disappeared on every
-            keystroke). Keeping it stable fixes the "input moves with text"
-            bug. */}
+      {/* ── Composer ────────────────────────────────────────── */}
+      <footer className="relative border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+        {/* Quick reply suggestions */}
         {!composerLocked && messages.length < 6 && (
-          <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-1">
+          <div className="no-scrollbar mb-2 flex gap-1.5 overflow-x-auto px-0.5">
             {QUICK_REPLIES.map((q) => (
               <button
                 key={q}
                 onClick={() => send(q)}
-                className="shrink-0 rounded-full glass px-3 py-1.5 text-xs text-white/80 ring-1 ring-white/10 transition hover:ring-purple-500/50 hover:text-purple-300"
+                className="shrink-0 rounded-full bg-white/[0.04] px-3 py-1.5 text-[11px] text-white/60 ring-1 ring-white/[0.08] transition hover:bg-purple-500/10 hover:text-purple-300 hover:ring-purple-500/25"
               >
                 {q}
               </button>
             ))}
           </div>
         )}
-        {showEmoji && !composerLocked && (
-          <div className="absolute inset-x-2 bottom-full mb-2 flex gap-2 rounded-2xl glass-strong p-2 ring-1 ring-white/10">
-            {QUICK_EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => {
-                  send(e);
-                  setShowEmoji(false);
-                }}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-lg transition hover:scale-125 hover:bg-purple-500/15"
+
+        {/* Lock hint */}
+        <AnimatePresence>
+          {lockHint && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div
+                className={cn(
+                  "mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium ring-1",
+                  lockHint.tint === "amber" &&
+                    "bg-amber-500/10 text-amber-300 ring-amber-500/20",
+                  lockHint.tint === "teal" &&
+                    "bg-teal-500/10 text-teal-300 ring-teal-500/20",
+                  lockHint.tint === "rose" &&
+                    "bg-rose-500/10 text-rose-300 ring-rose-500/20",
+                )}
+                role="status"
               >
-                {e}
-              </button>
-            ))}
+                <lockHint.icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 leading-tight">{lockHint.text}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Request to join quick-action */}
+        {composerLocked && requestStatus === "pending" && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-purple-500/[0.06] px-3 py-2 ring-1 ring-purple-500/20">
+            <MessageSquarePlus className="h-4 w-4 text-purple-400" />
+            <span className="text-[11px] text-purple-300">
+              Join request sent — waiting for host
+            </span>
           </div>
         )}
 
-        {/* Lock hint banner — shown above the input row when the composer
-            is locked (pre-payment). Gives the user a clear reason + next step. */}
-        {lockHint && (
-          <div
-            className={cn(
-              "mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium ring-1",
-              lockHint.tint === "amber" &&
-                "bg-amber-500/10 text-amber-300 ring-amber-500/30",
-              lockHint.tint === "teal" &&
-                "bg-teal-500/10 text-teal-300 ring-teal-500/30",
-              lockHint.tint === "rose" &&
-                "bg-rose-500/10 text-rose-300 ring-rose-500/30",
-            )}
-            role="status"
-          >
-            <lockHint.icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 leading-tight">{lockHint.text}</span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-1.5">
+        {/* Input bar — frosted glass container */}
+        <div className="flex items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
           <button
-            onClick={() => setShowEmoji((s) => !s)}
             disabled={composerLocked}
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full transition",
+              "flex h-9 w-9 items-center justify-center rounded-xl transition",
               composerLocked
-                ? "cursor-not-allowed text-muted-foreground/40"
-                : showEmoji
-                  ? "bg-purple-500/15 text-purple-300"
-                  : "text-muted-foreground hover:bg-white/10 hover:text-white",
+                ? "cursor-not-allowed text-white/20"
+                : "text-white/40 hover:bg-white/[0.06] hover:text-white/70",
             )}
-            aria-label="Emoji"
-            aria-disabled={composerLocked}
+            aria-label="Attach"
           >
-            <Smile className="h-5 w-5" />
+            <Camera className="h-4.5 w-4.5" />
           </button>
-          <Input
+          <input
             value={text}
             onChange={(e) => onType(e.target.value)}
             onKeyDown={(e) => {
@@ -711,30 +846,35 @@ export function ChatScreen() {
                 : `Message ${other.name.split(" ")[0]}…`
             }
             className={cn(
-              "h-10 flex-1 rounded-full border-white/10 bg-card focus-visible:ring-2 focus-visible:ring-purple-500/60 focus-visible:border-purple-500",
-              composerLocked && "cursor-not-allowed opacity-60",
+              "h-9 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none",
+              composerLocked && "cursor-not-allowed opacity-50",
             )}
           />
-          <button
+          <motion.button
             onClick={() => send()}
             disabled={composerLocked || !text.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500 text-black transition active:scale-90 disabled:opacity-40 disabled:shadow-none"
+            whileTap={{ scale: 0.9 }}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl transition",
+              text.trim() && !composerLocked
+                ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-[0_2px_10px_-2px_rgba(83,74,183,0.5)]"
+                : "bg-white/[0.06] text-white/20",
+            )}
             aria-label="Send"
-            aria-disabled={composerLocked || !text.trim()}
           >
             <Send className="h-4 w-4" />
-          </button>
+          </motion.button>
         </div>
       </footer>
 
-      {/* More sheet */}
+      {/* ── More sheet ──────────────────────────────────────── */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="mx-auto max-w-[480px] rounded-t-3xl border-white/10 glass-strong"
+          className="mx-auto max-w-[480px] rounded-t-3xl border-white/[0.08] glass-strong"
         >
           <SheetHeader>
-            <SheetTitle className="font-display text-purple-500">
+            <SheetTitle className="font-display text-purple-400">
               {other.name}
             </SheetTitle>
             <SheetDescription className="sr-only">
@@ -771,12 +911,12 @@ export function ChatScreen() {
         </SheetContent>
       </Sheet>
 
-      {/* Report dialog */}
+      {/* ── Report dialog ───────────────────────────────────── */}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="max-w-[420px] rounded-3xl border-white/10 glass-strong">
+        <DialogContent className="max-w-[420px] rounded-3xl border-white/[0.08] glass-strong">
           <DialogHeader>
             <DialogTitle className="font-display text-white">
-              Report <span className="text-purple-500">{other.name}</span>?
+              Report <span className="text-purple-400">{other.name}</span>?
             </DialogTitle>
             <DialogDescription>
               Help us keep VibeMatch safe. Our team reviews every report.
@@ -794,14 +934,14 @@ export function ChatScreen() {
                 key={r}
                 onClick={() => setReportReason(r)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition glass",
+                  "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition",
                   reportReason === r
-                    ? "border-purple-500 ring-1 ring-purple-500/50 text-purple-300"
-                    : "border-white/10 hover:border-purple-500/40",
+                    ? "border-purple-500/50 bg-purple-500/10 text-purple-300"
+                    : "border-white/[0.08] bg-white/[0.02] hover:border-purple-500/30 hover:bg-white/[0.04]",
                 )}
               >
                 {r}
-                {reportReason === r && <Check className="h-4 w-4 text-purple-500" />}
+                {reportReason === r && <Check className="h-4 w-4 text-purple-400" />}
               </button>
             ))}
           </div>
@@ -824,73 +964,4 @@ export function ChatScreen() {
       </Dialog>
     </div>
   );
-}
-
-function SheetButton({
-  icon,
-  label,
-  onClick,
-  destructive,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  destructive?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:bg-white/5",
-        destructive ? "text-destructive" : "text-foreground",
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function ChatHeaderSkeleton() {
-  return (
-    <header className="sticky top-0 z-20 glass-strong border-b border-white/10 px-2 py-2">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
-        <Skeleton className="h-10 w-10 rounded-full vibe-skeleton" />
-        <div className="flex-1 space-y-1">
-          <Skeleton className="h-3 w-24 vibe-skeleton" />
-          <Skeleton className="h-2 w-16 vibe-skeleton" />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function groupByDay(messages: ChatMessage[]) {
-  const groups: { label: string; items: ChatMessage[] }[] = [];
-  for (const m of messages) {
-    const d = new Date(m.createdAt);
-    const label = dayLabel(d);
-    const last = groups[groups.length - 1];
-    if (last && last.label === label) {
-      last.items.push(m);
-    } else {
-      groups.push({ label, items: [m] });
-    }
-  }
-  return groups;
-}
-
-function dayLabel(d: Date): string {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
-  if (diff === 0) return "Today";
-  if (diff === -1) return "Yesterday";
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
 }
