@@ -65,7 +65,6 @@ import { cn, formatLocation } from "@/lib/utils";
 const VIBE_HERO_GRADIENT: Record<string, [string, string]> = {
   "R&B": ["#2d1b69", "#1a0a3e"],
   Bollywood: ["#1a4a2e", "#0d2a18"],
-  BYOB: ["#3d1b69", "#1a0a3e"],
   Games: ["#0d3a4a", "#0a1f2d"],
   "Lo-fi": ["#2d1b69", "#1a0a3e"],
   Chill: ["#0d3a4a", "#0a2a3a"],
@@ -147,8 +146,14 @@ export function DetailScreen() {
 
   // ── Message host ────────────────────────────────────────────────
   const messageHost = useCallback(async () => {
-    if (!currentUser || !data?.host) {
+    if (!currentUser) {
       toast.error("Sign in to message the host");
+      return;
+    }
+    if (!data?.host?.id) {
+      toast.error("Host profile unavailable", {
+        description: "This host's profile couldn't be found. Try again later.",
+      });
       return;
     }
     try {
@@ -217,7 +222,8 @@ export function DetailScreen() {
   // ── Submit spot request ─────────────────────────────────────────
   const requestMutation = useMutation({
     mutationFn: async () => {
-      if (!currentUser || !data?.host) throw new Error("Missing user or host");
+      if (!currentUser) throw new Error("Please sign in first");
+      if (!data?.host?.id) throw new Error("HOST_NOT_FOUND");
       const threadRes = await api.ensureThread(
         currentUser.id,
         data.host.id,
@@ -253,6 +259,11 @@ export function DetailScreen() {
           description:
             "You were declined for this event. Try again after it's over.",
         });
+      } else if (msg.includes("HOST_NOT_FOUND") || msg.includes("host profile") || msg.includes("Host profile")) {
+        toast.error("Host profile unavailable", {
+          description:
+            "This host's profile couldn't be found. The party may be missing a host account.",
+        });
       } else if (msg.includes("queue") || msg.includes("Queue")) {
         toast.error("Queue is full", {
           description:
@@ -262,9 +273,9 @@ export function DetailScreen() {
         toast.info("You already have a pending request", {
           description: "Opening your chat with the host…",
         });
-        if (data?.host && currentUser) {
+        if (data?.host?.id && currentUser) {
           api
-            .ensureThread(currentUser.id, data.host.id, data.party.id)
+            .ensureThread(currentUser.id, data.host.id!, data.party.id)
             .then((r) => {
               setSelectedThreadId(r.threadId);
               setScreen("chat");
@@ -309,7 +320,7 @@ export function DetailScreen() {
   const going = party.guestCount;
   const isFull = left === 0;
   const isLow = left > 0 && left <= 2;
-  const isOwn = !!currentUser && !!host && currentUser.id === host.id;
+  const isOwn = !!currentUser && !!host?.id && currentUser.id === host.id;
   const liveStatus = partyLiveStatus(party.date, party.time);
   const countdown = countdownTo(party.date, party.time);
 
@@ -377,14 +388,14 @@ export function DetailScreen() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Scrollable content */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 overflow-y-auto pb-44 lg:pb-8"
+        className="fancy-scrollbar flex-1 overflow-y-auto pb-28 lg:pb-20"
       >
         {/* ── HERO WITH PARALLAX ──────────────────────────────────── */}
-        <div className="relative h-[340px] w-full overflow-hidden">
+        <div className="relative h-[340px] w-full max-w-full overflow-hidden">
           <motion.div
             className="absolute inset-0"
             style={{
@@ -534,13 +545,13 @@ export function DetailScreen() {
             transition={{ delay: 0.15 }}
             className="space-y-3"
           >
-            <h1 className="font-display text-2xl font-extrabold leading-tight text-foreground lg:text-3xl">
+            <h1 className="font-display text-2xl font-extrabold leading-tight text-foreground lg:text-3xl break-words">
               {party.title}
             </h1>
             {host && (
               <div className="flex items-center gap-3">
                 <UserAvatar
-                  name={host.name}
+                  name={host.name ?? "Unknown Host"}
                   src={host.avatarUrl}
                   size={36}
                   ring
@@ -548,15 +559,21 @@ export function DetailScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-foreground">
-                      {host.name}
+                      {host.name ?? "Unknown Host"}
                     </span>
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
-                      <ShieldCheck className="h-2.5 w-2.5" /> Verified
-                    </span>
+                    {host.id && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
+                        <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                      </span>
+                    )}
                   </div>
-                  <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                    View host profile →
-                  </button>
+                  {host.id ? (
+                    <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                      View host profile →
+                    </button>
+                  ) : (
+                    <span className="text-xs text-white/40">Host profile unavailable</span>
+                  )}
                 </div>
               </div>
             )}
@@ -568,7 +585,7 @@ export function DetailScreen() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex flex-wrap gap-2 pb-1">
               {vibes.map((v, i) => {
                 const cls = VIBE_COLORS[v] || "bg-purple-500/15 text-purple-300 border-purple-500/45";
                 return (
@@ -610,7 +627,7 @@ export function DetailScreen() {
                     maxHeight: descExpanded ? 2000 : 72,
                   }}
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="whitespace-pre-line text-sm leading-relaxed text-foreground/80"
+                  className="whitespace-pre-line text-sm leading-relaxed text-foreground/80 break-words"
                 >
                   {party.description}
                 </motion.div>
@@ -778,11 +795,12 @@ export function DetailScreen() {
               {/* Menu cards */}
               <div className="grid grid-cols-2 gap-2">
                 {filteredMenu.map((item) => (
-                  <MenuCard
-                    key={item.id}
-                    item={item}
-                    currency={currency}
-                  />
+                  <div key={item.id} className="min-w-0">
+                    <MenuCard
+                      item={item}
+                      currency={currency}
+                    />
+                  </div>
                 ))}
               </div>
             </motion.section>
@@ -842,7 +860,8 @@ export function DetailScreen() {
       </div>
 
       {/* ── STICKY CTA BAR ──────────────────────────────────────────── */}
-      <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 lg:hidden">
+      <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 lg:bottom-6">
+        <div className="mx-auto max-w-2xl lg:max-w-lg">
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -915,6 +934,7 @@ export function DetailScreen() {
             </div>
           )}
         </motion.div>
+        </div>
       </div>
 
       {/* ── "Get your spot" sheet ────────────────────────────────────── */}

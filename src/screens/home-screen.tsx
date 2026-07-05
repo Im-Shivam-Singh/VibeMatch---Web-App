@@ -12,15 +12,12 @@ import {
   Compass,
   Bell,
   Mic,
-  ChevronDown,
   Sparkles,
-  Navigation,
   Clock,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import {
-  CITIES,
   VIBE_TAGS,
   VIBE_EMOJI,
   parseVibes,
@@ -46,7 +43,6 @@ type Tab = "house" | "social";
 const VIBE_GRADIENT_BG: Record<string, string> = {
   "R&B": "from-purple-600 to-indigo-800",
   Bollywood: "from-green-600 to-emerald-800",
-  BYOB: "from-fuchsia-600 to-purple-800",
   Games: "from-teal-600 to-cyan-800",
   "Lo-fi": "from-violet-600 to-slate-800",
   Chill: "from-cyan-600 to-teal-800",
@@ -75,7 +71,6 @@ export function HomeScreen() {
   const setScreen = useAppStore((s) => s.setScreen);
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
   const currentUser = useAppStore((s) => s.currentUser);
-  const userLocation = useAppStore((s) => s.userLocation);
 
   const [tab, setTab] = useState<Tab>("house");
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -162,30 +157,29 @@ export function HomeScreen() {
   const userName = currentUser?.name?.split(" ")[0] ?? "there";
 
   // Search suggestions
-  const recentSearches = ["Lo-fi", "BYOB", "Koramangala", "R&B"];
+  const recentSearches = ["Lo-fi", "Koramangala", "R&B"];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* ====== Sticky Header ====== */}
       <header className="sticky top-0 z-30 glass-strong px-4 pt-3 pb-3 lg:px-6 lg:pt-4 lg:pb-4">
         {/* Top row: Greeting + actions */}
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground/70">{greeting}</p>
-            <h1 className="font-display text-lg font-extrabold tracking-tight text-foreground truncate">
-              Hey, {userName} 👋
+            <h1 className="font-display text-lg font-extrabold tracking-tight text-foreground">
+              VibeMatch
             </h1>
+            <p className="text-xs font-medium text-muted-foreground/70">{greeting}, {userName}</p>
           </div>
           <div className="flex items-center gap-2">
             <MusicPlayerButton />
-            {/* City quick-select dropdown */}
+            {/* Filter button */}
             <button
               onClick={() => setScreen("filter")}
-              className="inline-flex items-center gap-1 rounded-xl bg-secondary px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/80"
+              aria-label="Filters"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors hover:text-foreground"
             >
-              <MapPin className="h-3.5 w-3.5 text-purple-400" />
-              <span className="max-w-[70px] truncate">{cityFilter ?? "All"}</span>
-              <ChevronDown className="h-3 w-3 opacity-50" />
+              <SlidersHorizontal className="h-4 w-4" />
             </button>
             {/* Notification bell */}
             <button
@@ -332,33 +326,13 @@ export function HomeScreen() {
                 {hotTonight.length} events
               </span>
             </div>
-            <div className="no-scrollbar scroll-fade-x mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6">
+            <div className="no-scrollbar scroll-fade-x mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
               {hotTonight.map((p, i) => (
                 <HotTonightCard key={p.id} party={p} onOpen={openParty} index={i} />
               ))}
             </div>
           </section>
         )}
-
-        {/* City Filter — Horizontal pill chips */}
-        <section className="mt-5">
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-6 lg:overflow-visible">
-            <CityChip
-              active={!cityFilter}
-              onClick={() => setCityFilter(null)}
-              label="All"
-              icon="🌍"
-            />
-            {CITIES.map((c) => (
-              <CityChip
-                key={c}
-                active={cityFilter === c}
-                onClick={() => setCityFilter(cityFilter === c ? null : c)}
-                label={c}
-              />
-            ))}
-          </div>
-        </section>
 
         {/* Vibe Filter — Story-style circles */}
         <section className="mt-4">
@@ -428,7 +402,7 @@ export function HomeScreen() {
         {/* Section header */}
         <div className="mb-3 mt-5 flex items-baseline justify-between px-4 lg:px-6">
           <h2 className="font-display text-base font-bold text-foreground">
-            Happening near you
+            Discover parties
           </h2>
           <span className="text-xs font-semibold text-purple-300">
             {filteredParties.length} vibes
@@ -485,7 +459,9 @@ export function HomeScreen() {
         {!isLoading && !isError && filteredParties.length > 0 && (
           <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 lg:px-6">
             {filteredParties.map((p, i) => (
-              <PartyCard key={p.id} party={p} onOpen={openParty} index={i} />
+              <div key={p.id} className="min-w-0">
+                <PartyCard party={p} onOpen={openParty} index={i} />
+              </div>
             ))}
           </div>
         )}
@@ -498,43 +474,6 @@ export function HomeScreen() {
         )}
       </div>
 
-      {/* ====== Sticky Bottom CTA — "Find parties near you" ====== */}
-      <AnimatePresence>
-        {!userLocation && (
-          <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 1 }}
-            className="fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 pointer-events-none lg:bottom-6"
-          >
-            <button
-              onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const { latitude, longitude } = pos.coords;
-                      useAppStore.getState().setUserLocation({
-                        lat: latitude,
-                        lng: longitude,
-                        label: "Your location",
-                      });
-                      toast.success("Location enabled!", { duration: 2000 });
-                    },
-                    () => {
-                      toast.error("Location access denied", { duration: 2000 });
-                    },
-                  );
-                }
-              }}
-              className="float-cta pointer-events-auto inline-flex items-center gap-2 rounded-full bg-purple-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-purple-500/25 ring-1 ring-white/10 backdrop-blur-sm transition-all hover:bg-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 active:scale-95"
-            >
-              <Navigation className="h-4 w-4" />
-              Find parties near you
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -572,34 +511,6 @@ function TabButton({
       </span>
       {children}
     </button>
-  );
-}
-
-function CityChip({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon?: string;
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      whileTap={{ scale: 0.93 }}
-      className={cn(
-        "shrink-0 rounded-full px-4 py-2 text-xs font-medium transition-all duration-250",
-        active
-          ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25 glow-ring-pulse"
-          : "bg-secondary/80 text-muted-foreground border border-white/[0.06] hover:text-foreground hover:border-purple-500/25 hover:bg-secondary",
-      )}
-    >
-      {icon && <span className="mr-1">{icon}</span>}
-      {label}
-    </motion.button>
   );
 }
 
@@ -714,7 +625,7 @@ function HotTonightCard({
       transition={{ duration: 0.4, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.97 }}
-      className="relative w-[280px] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/[0.06] bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(83,74,183,0.2)] transition-shadow duration-300"
+      className="relative w-[280px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/[0.06] bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(83,74,183,0.2)] transition-shadow duration-300"
     >
       {/* Cover */}
       <div className="relative h-36 w-full overflow-hidden">
@@ -815,12 +726,12 @@ function HotTonightCard({
           {party.title}
         </h3>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3 w-3 text-purple-400" />
-            {formatLocation(party.area, party.city)}
+          <span className="flex items-center gap-1 truncate">
+            <MapPin className="h-3 w-3 shrink-0 text-purple-400" />
+            <span className="truncate">{formatLocation(party.area, party.city)}</span>
           </span>
-          <span className="text-white/10">·</span>
-          <span className="flex items-center gap-1">
+          <span className="shrink-0 text-white/10">·</span>
+          <span className="flex shrink-0 items-center gap-1">
             <Clock className="h-3 w-3 text-teal-400" />
             {formatTime(party.time)}
           </span>

@@ -314,7 +314,7 @@ export function CreateScreen() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center gap-3">
@@ -381,7 +381,7 @@ export function CreateScreen() {
             animate="center"
             exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute inset-0 fancy-scrollbar overflow-y-auto px-4 py-5"
+            className="absolute inset-0 fancy-scrollbar overflow-y-auto px-4 py-5 max-w-full"
           >
             {step === 0 && (
               <StepBasics form={form} set={set} coverPresets={COVER_PRESETS} />
@@ -637,7 +637,7 @@ function StepBasics({
             <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Or pick a preset
             </p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
               {coverPresets.map((url, i) => (
                 <motion.button
                   key={i}
@@ -837,7 +837,7 @@ function StepVibeSettings({
                 )}
               >
                 <span className="text-xl">{emoji}</span>
-                <span className="text-sm font-semibold">{vibe}</span>
+                <span className="text-sm font-semibold truncate">{vibe}</span>
                 {active && (
                   <motion.div
                     initial={{ scale: 0 }}

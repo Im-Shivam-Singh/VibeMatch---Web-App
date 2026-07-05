@@ -63,11 +63,31 @@ async function _POST(req: NextRequest) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
 
-  // Look up host user
-  const host = party.hostId ? await User.findById(party.hostId).lean({ virtuals: true }) : null;
+  // Look up host user — try by hostId first, then fall back to name lookup.
+  // If neither works, return a more helpful error so the frontend can show
+  // "Unknown Host" instead of a generic failure.
+  let host: any = null;
+  try {
+    if (party.hostId) {
+      host = await User.findById(party.hostId).lean({ virtuals: true });
+    }
+    if (!host && party.hostName) {
+      host = await User.findOne({ name: party.hostName }).lean({ virtuals: true });
+    }
+  } catch (err) {
+    console.warn(`[requests] Host lookup failed for party ${partyId}:`, err);
+  }
+
   if (!host) {
+    // The host User record is missing — we cannot create a chat thread or
+    // join request without a valid hostId. Return a clear error with the
+    // party's stored hostName so the frontend can display a fallback.
     return NextResponse.json(
-      { error: "This party has no host to message" },
+      {
+        error: "Host profile not found",
+        hostName: party.hostName || "Unknown Host",
+        code: "HOST_NOT_FOUND",
+      },
       { status: 400 },
     );
   }

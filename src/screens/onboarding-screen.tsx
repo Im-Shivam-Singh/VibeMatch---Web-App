@@ -36,7 +36,6 @@ const CITY_GRADIENTS: Record<string, string> = {
 const VIBE_PILL_STYLES: Record<string, { bg: string; border: string; text: string; glow: string }> = {
   "R&B":       { bg: "bg-purple-500/15",  border: "border-purple-500/40", text: "text-purple-300", glow: "shadow-[0_0_12px_-4px_rgba(127,119,221,0.4)]" },
   Bollywood:   { bg: "bg-emerald-500/15",  border: "border-emerald-500/40", text: "text-emerald-300", glow: "shadow-[0_0_12px_-4px_rgba(16,185,129,0.4)]" },
-  BYOB:        { bg: "bg-rose-500/15",     border: "border-rose-500/40", text: "text-rose-300", glow: "shadow-[0_0_12px_-4px_rgba(244,63,94,0.4)]" },
   Games:       { bg: "bg-teal-500/15",     border: "border-teal-500/40", text: "text-teal-300", glow: "shadow-[0_0_12px_-4px_rgba(20,184,166,0.4)]" },
   "Lo-fi":     { bg: "bg-violet-500/15",   border: "border-violet-500/40", text: "text-violet-300", glow: "shadow-[0_0_12px_-4px_rgba(139,92,246,0.4)]" },
   Chill:       { bg: "bg-cyan-500/15",     border: "border-cyan-500/40", text: "text-cyan-300", glow: "shadow-[0_0_12px_-4px_rgba(6,182,212,0.4)]" },
@@ -142,7 +141,7 @@ export function OnboardingScreen() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-[#09080f]">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col overflow-hidden bg-[#09080f]">
       {/* Background ambient orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-bokeh-1 absolute -left-20 top-[10%] h-72 w-72 rounded-full bg-purple-500/[0.06] blur-[100px]" />
@@ -151,7 +150,7 @@ export function OnboardingScreen() {
       </div>
 
       {/* Safe area top padding */}
-      <div className="relative z-10 flex flex-1 flex-col px-6 pb-8 pt-[max(env(safe-area-inset-top),20px)]">
+      <div className="relative z-10 flex flex-1 flex-col px-4 sm:px-6 pb-8 pt-[max(env(safe-area-inset-top),20px)]">
         {/* Progress Dots */}
         <div className="mb-6 flex items-center justify-center gap-2">
           {STEPS.map((s, i) => {

@@ -62,7 +62,12 @@ async function _GET(req: NextRequest) {
   for (const t of threads) {
     const threadId = t.id ?? t._id?.toString();
     const otherId = t.userAId === userId ? t.userBId : t.userAId;
-    const otherUser = await User.findById(otherId).lean({ virtuals: true });
+    let otherUser: any = null;
+    try {
+      otherUser = await User.findById(otherId).lean({ virtuals: true });
+    } catch (err) {
+      console.warn(`[threads] Other user lookup failed for thread ${threadId}:`, err);
+    }
     const lastMessage = await Message.findOne({ threadId })
       .sort({ createdAt: -1 })
       .lean({ virtuals: true });
@@ -78,7 +83,9 @@ async function _GET(req: NextRequest) {
       partyId: t.partyId,
       createdAt: t.createdAt?.toISOString?.() ?? String(t.createdAt ?? ""),
       updatedAt: t.updatedAt?.toISOString?.() ?? String(t.updatedAt ?? ""),
-      otherUser: otherUser ? serializeUser(otherUser) : undefined,
+      otherUser: otherUser
+        ? serializeUser(otherUser)
+        : { id: otherId, name: "Unknown User", vibes: 0, hosted: 0, rating: 0, ratingCount: 0 } as any,
       lastMessage: lastMessage
         ? {
             id: lastMessage.id ?? lastMessage._id?.toString(),

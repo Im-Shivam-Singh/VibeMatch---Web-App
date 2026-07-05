@@ -59,7 +59,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} antialiased overflow-x-hidden max-w-[100vw]`}
       >
         <Providers>{children}</Providers>
         <Toaster />

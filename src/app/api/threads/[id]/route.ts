@@ -24,12 +24,22 @@ async function _GET(
     );
   }
 
-  // Fetch userA and userB
-  const [userA, userB, messages] = await Promise.all([
-    User.findById(thread.userAId).lean({ virtuals: true }),
-    User.findById(thread.userBId).lean({ virtuals: true }),
-    Message.find({ threadId: id }).sort({ createdAt: 1 }).lean({ virtuals: true }),
-  ]);
+  // Fetch userA and userB — wrap in try/catch so a missing user record
+  // doesn't crash the entire thread request.
+  let userA: any = null;
+  let userB: any = null;
+  let messages: any[] = [];
+  try {
+    [userA, userB, messages] = await Promise.all([
+      User.findById(thread.userAId).lean({ virtuals: true }),
+      User.findById(thread.userBId).lean({ virtuals: true }),
+      Message.find({ threadId: id }).sort({ createdAt: 1 }).lean({ virtuals: true }),
+    ]);
+  } catch (err) {
+    console.warn(`[threads/[id]] User lookup failed for thread ${id}:`, err);
+    // Still try to fetch messages even if user lookups fail
+    messages = await Message.find({ threadId: id }).sort({ createdAt: 1 }).lean({ virtuals: true });
+  }
 
   const otherId = userId
     ? thread.userAId === userId
@@ -100,7 +110,22 @@ async function _GET(
           trustScore: other.trustScore,
           trustCount: other.trustCount,
         }
-      : null,
+      : {
+          id: otherId,
+          name: "Unknown User",
+          username: null,
+          bio: null,
+          avatarUrl: null,
+          city: null,
+          instagram: null,
+          vibePrefs: "",
+          vibes: 0,
+          hosted: 0,
+          rating: 0,
+          ratingCount: 0,
+          trustScore: 0,
+          trustCount: 0,
+        },
     messages: messages.map((m) => ({
       ...m,
       id: m.id ?? m._id?.toString(),

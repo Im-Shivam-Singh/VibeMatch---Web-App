@@ -227,7 +227,7 @@ export function ProfileScreen() {
   const isHost = role === "host";
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       {/* ---- Hero header ---- */}
       <div className="relative overflow-hidden">
         {/* Gradient background */}
@@ -335,7 +335,7 @@ export function ProfileScreen() {
       {/* ---- Scrollable body ---- */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto px-4 pb-8 lg:px-6">
         {/* Stats row */}
-        <section className="-mt-2 grid grid-cols-3 gap-3">
+        <section className="-mt-2 grid grid-cols-3 gap-2 sm:gap-3">
           <AnimatedStat
             icon={<Sparkles className="h-4 w-4" />}
             label="Vibes"

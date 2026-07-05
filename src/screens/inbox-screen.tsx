@@ -47,7 +47,7 @@ function OnlineNow({ threads }: { threads: any[] }) {
       <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40">
         Online now
       </p>
-      <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
+      <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1 max-w-full">
         {onlineUsers.map((u) => (
           <div key={u.id} className="flex flex-col items-center gap-1">
             <div className="relative">
@@ -313,7 +313,7 @@ export function InboxScreen() {
   };
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center justify-between">

@@ -155,7 +155,13 @@ async function _POST(req: NextRequest) {
   }
 
   // try to associate with a host user by hostName
-  const host = await User.findOne({ name: hostName }).lean({ virtuals: true });
+  // Wrap in try/catch so a bad hostId or DB glitch doesn't prevent party creation
+  let host: any = null;
+  try {
+    host = await User.findOne({ name: hostName }).lean({ virtuals: true });
+  } catch (err) {
+    console.warn(`[parties] Host lookup failed for name "${hostName}":`, err);
+  }
 
   // If the host didn't pass an explicit coverUrl but added media, the first
   // media item becomes the cover (keeps legacy party-card rendering working).

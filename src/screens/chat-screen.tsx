@@ -146,7 +146,7 @@ function MessageBubble({
         ) : (
           <span className="w-7" />
         ))}
-      <div className="max-w-[78%]">
+      <div className="max-w-[85%]">
         {/* Video bubble */}
         {kind === "video" && m.mediaUrl ? (
           <div
@@ -162,7 +162,7 @@ function MessageBubble({
                 src={m.mediaUrl}
                 controls
                 playsInline
-                className="h-44 w-full min-w-[180px] bg-black object-cover"
+                className="max-w-full h-44 w-full min-w-[180px] bg-black object-cover"
               />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
@@ -170,7 +170,7 @@ function MessageBubble({
                 </div>
               </div>
             </div>
-            <p className="px-3 py-1.5 text-[12px] text-white/80">
+            <p className="break-words overflow-wrap-anywhere px-3 py-1.5 text-[12px] text-white/80">
               {m.content}
             </p>
             <div className="flex items-center justify-end gap-1 px-3 pb-1.5 text-[10px] text-white/40">
@@ -193,7 +193,7 @@ function MessageBubble({
                 : "rounded-bl-sm bg-white/[0.06] text-white/90 ring-1 ring-white/[0.1] backdrop-blur-sm",
             )}
           >
-            <p className="whitespace-pre-line break-words">{m.content}</p>
+            <p className="whitespace-pre-line break-words overflow-wrap-anywhere">{m.content}</p>
             <div
               className={cn(
                 "mt-1 flex items-center justify-end gap-1 text-[10px]",
@@ -359,7 +359,7 @@ function SheetButton({
 
 function ChatSkeleton() {
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2">
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
@@ -422,7 +422,9 @@ export function ChatScreen() {
   });
 
   const messages = data?.messages ?? [];
-  const other = data?.otherUser ?? null;
+  // otherUser is now always provided by the API (fallback to "Unknown User"),
+  // but guard against stale/cached data just in case.
+  const other = data?.otherUser ?? { id: "", name: "Unknown User", vibes: 0, hosted: 0, rating: 0, ratingCount: 0 } as any;
   const partyId = data?.thread?.partyId ?? null;
   const request = data?.request ?? null;
   const paid = data?.paid ?? false;
@@ -507,7 +509,7 @@ export function ChatScreen() {
     (content?: string) => {
       if (composerLocked) return;
       const c = (content ?? text).trim();
-      if (!c || !currentUser || !other) return;
+      if (!c || !currentUser || !other?.id) return;
       setText("");
       sendMutation.mutate(c);
     },
@@ -516,7 +518,7 @@ export function ChatScreen() {
 
   const onType = (v: string) => {
     setText(v);
-    if (!socket || !other) return;
+    if (!socket || !other?.id) return;
     socket.emit("chat:typing", {
       threadId,
       toUserId: other.id,
@@ -545,7 +547,7 @@ export function ChatScreen() {
   };
 
   const confirmBlock = () => {
-    toast.success(`${other?.name} has been blocked`, {
+    toast.success(`${other?.name ?? "Unknown User"} has been blocked`, {
       description: "You won't receive messages from them anymore.",
     });
     setSheetOpen(false);
@@ -574,7 +576,7 @@ export function ChatScreen() {
   const grouped = groupByDay(messages);
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full w-full flex-col overflow-x-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
@@ -592,7 +594,7 @@ export function ChatScreen() {
           >
             <div className="relative">
               <div className="rounded-full p-[1.5px] bg-gradient-to-br from-purple-500 to-teal-400">
-                <UserAvatar name={other.name} src={other.avatarUrl} size={38} />
+                <UserAvatar name={other.name ?? "Unknown User"} src={other.avatarUrl} size={38} />
               </div>
               {online && (
                 <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-teal-400" />
@@ -600,8 +602,8 @@ export function ChatScreen() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="truncate text-[13px] font-semibold text-white">
-                  {other.name}
+                <p className="min-w-0 truncate text-[13px] font-semibold text-white">
+                  {other.name ?? "Unknown User"}
                 </p>
                 <RatingPill rating={other.rating} />
               </div>
@@ -656,7 +658,7 @@ export function ChatScreen() {
       {/* ── Messages ────────────────────────────────────────── */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-4"
+        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Intro card */}
         <motion.div
@@ -667,11 +669,11 @@ export function ChatScreen() {
         >
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
             <span className="relative block">
-              <UserAvatar name={other.name} src={other.avatarUrl} size={52} />
+              <UserAvatar name={other.name ?? "Unknown User"} src={other.avatarUrl} size={52} />
             </span>
           </div>
           <p className="font-display text-base font-semibold text-white">
-            {other.name}
+            {other.name ?? "Unknown User"}
           </p>
           {other.bio && (
             <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-relaxed text-white/50">
@@ -727,7 +729,7 @@ export function ChatScreen() {
                   m={m}
                   mine={mine}
                   showAvatar={showAvatar}
-                  otherName={other.name}
+                  otherName={other.name ?? "Unknown User"}
                   otherAvatar={other.avatarUrl}
                   isLast={isLast}
                 />
@@ -740,7 +742,7 @@ export function ChatScreen() {
         <AnimatePresence>
           {isTyping && (
             <TypingIndicator
-              name={other.name}
+              name={other.name ?? "Unknown User"}
               avatar
               avatarUrl={other.avatarUrl}
             />
@@ -762,10 +764,10 @@ export function ChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+      <footer className="relative w-full max-w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
         {/* Quick reply suggestions */}
         {!composerLocked && messages.length < 6 && (
-          <div className="no-scrollbar mb-2 flex gap-1.5 overflow-x-auto px-0.5">
+          <div className="no-scrollbar mb-2 flex max-w-full gap-1.5 overflow-x-auto px-0.5">
             {QUICK_REPLIES.map((q) => (
               <button
                 key={q}
@@ -817,7 +819,7 @@ export function ChatScreen() {
         )}
 
         {/* Input bar — frosted glass container */}
-        <div className="flex items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
+        <div className="flex w-full items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
           <button
             disabled={composerLocked}
             className={cn(
@@ -843,7 +845,7 @@ export function ChatScreen() {
             placeholder={
               composerLocked
                 ? "Chat locked until payment"
-                : `Message ${other.name.split(" ")[0]}…`
+                : `Message ${(other.name ?? "Unknown User").split(" ")[0]}…`
             }
             className={cn(
               "h-9 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none",
@@ -875,7 +877,7 @@ export function ChatScreen() {
         >
           <SheetHeader>
             <SheetTitle className="font-display text-purple-400">
-              {other.name}
+              {other.name ?? "Unknown User"}
             </SheetTitle>
             <SheetDescription className="sr-only">
               Chat options
@@ -916,7 +918,7 @@ export function ChatScreen() {
         <DialogContent className="max-w-[420px] rounded-3xl border-white/[0.08] glass-strong">
           <DialogHeader>
             <DialogTitle className="font-display text-white">
-              Report <span className="text-purple-400">{other.name}</span>?
+              Report <span className="text-purple-400">{other.name ?? "Unknown User"}</span>?
             </DialogTitle>
             <DialogDescription>
               Help us keep VibeMatch safe. Our team reviews every report.

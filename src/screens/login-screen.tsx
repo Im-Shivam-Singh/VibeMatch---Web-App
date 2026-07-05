@@ -167,7 +167,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col overflow-hidden">
       {/* Animated mesh gradient bg */}
       <MeshGradient />
 
@@ -180,7 +180,7 @@ export function LoginScreen() {
       <BokehParticles />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-1 flex-col justify-center px-6 pt-12 pb-8">
+      <div className="relative z-10 flex flex-1 flex-col justify-center px-4 sm:px-6 pt-12 pb-8">
         {/* Logo + Brand */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

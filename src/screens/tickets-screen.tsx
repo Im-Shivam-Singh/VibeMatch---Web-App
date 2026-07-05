@@ -321,7 +321,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 
         {/* QR code + countdown (always visible) */}
         <div className="mt-4 flex items-center gap-4">
-          <QRPlaceholder hash={ticket.qrHash} size={90} />
+          <QRPlaceholder hash={ticket.qrHash} size={80} />
           <div className="flex flex-1 flex-col gap-2">
             {/* Countdown */}
             {status === "valid" && countdown !== "Ended" && (
@@ -390,7 +390,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
             <div className="border-t border-white/[0.06] px-5 py-5 space-y-4">
               {/* Full-size QR */}
               <div className="flex flex-col items-center gap-3">
-                <QRPlaceholder hash={ticket.qrHash} size={160} />
+                <QRPlaceholder hash={ticket.qrHash} size={140} />
                 <p className="text-xs text-white/40">
                   Scan this QR code at the door
                 </p>
@@ -492,7 +492,7 @@ export function TicketsScreen() {
   }, [tickets, filter]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Sticky header */}
       <header className="sticky top-0 z-10 glass-strong border-b border-white/[0.06] px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center justify-between">
@@ -531,7 +531,7 @@ export function TicketsScreen() {
       </header>
 
       {/* Scrollable body */}
-      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar w-full flex-1 space-y-4 overflow-y-auto p-4 pb-32">
         {isLoading && (
           <>
             <TicketSkeleton />

@@ -106,7 +106,7 @@ export function FilterScreen() {
     "[&_[data-slot=slider-thumb]]:focus-visible:ring-purple-300/50";
 
   return (
-    <div className="relative flex h-full flex-col">
+    <div className="relative flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}

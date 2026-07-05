@@ -372,7 +372,7 @@ function GroupMessageBubble({
         ) : (
           <span className="w-7" />
         ))}
-      <div className="max-w-[78%]">
+      <div className="max-w-[85%]">
         {!mine && showAvatar && (
           <p className={cn("mb-0.5 ml-1 text-[10px] font-semibold", color)}>
             {senderName}
@@ -386,7 +386,7 @@ function GroupMessageBubble({
               : "rounded-bl-sm bg-white/[0.06] text-white/90 ring-1 ring-white/[0.1] backdrop-blur-sm",
           )}
         >
-          <p className="whitespace-pre-line break-words">{m.content}</p>
+          <p className="whitespace-pre-line break-words overflow-wrap-anywhere">{m.content}</p>
           <div
             className={cn(
               "mt-1 flex items-center justify-end gap-1 text-[10px]",
@@ -503,7 +503,7 @@ export function GroupChatScreen() {
   const memberCount = members.length;
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex h-full w-full flex-col overflow-x-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
@@ -517,7 +517,7 @@ export function GroupChatScreen() {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="truncate text-[13px] font-semibold text-white">
+              <p className="min-w-0 truncate text-[13px] font-semibold text-white">
                 {party?.title || "Group chat"}
               </p>
               <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-300 ring-1 ring-purple-500/20">
@@ -639,8 +639,8 @@ export function GroupChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
-        <div className="flex items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
+      <footer className="relative w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+        <div className="flex w-full items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
           <button
             className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"
             aria-label="Attach"

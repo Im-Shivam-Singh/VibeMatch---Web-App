@@ -55,8 +55,20 @@ async function _GET(
   }
 
   // Fetch host, requests, and media in parallel
-  const [host, requests, media] = await Promise.all([
-    party.hostId ? User.findById(party.hostId).lean({ virtuals: true }) : null,
+  // Try hostId first; if that fails or is missing, fall back to a name lookup
+  let host: any = null;
+  try {
+    if (party.hostId) {
+      host = await User.findById(party.hostId).lean({ virtuals: true });
+    }
+    if (!host && party.hostName) {
+      host = await User.findOne({ name: party.hostName }).lean({ virtuals: true });
+    }
+  } catch (err) {
+    console.warn(`[parties/[id]] Host lookup failed for party ${id}:`, err);
+  }
+
+  const [requests, media] = await Promise.all([
     JoinRequest.find({ partyId: id }).sort({ createdAt: -1 }).lean({ virtuals: true }),
     PartyMediaModel.find({ partyId: id }).sort({ position: 1 }).lean({ virtuals: true }),
   ]);
@@ -64,28 +76,50 @@ async function _GET(
   // Attach media to party for serialization
   (party as any).media = media;
 
+  // Build the host response — if the User record is missing, provide a
+  // graceful fallback using the party's stored hostName so the UI never
+  // crashes with a null host.
+  const hostResponse = host
+    ? {
+        id: host.id ?? host._id?.toString(),
+        name: host.name,
+        username: host.username,
+        bio: host.bio,
+        avatarUrl: host.avatarUrl,
+        city: host.city,
+        instagram: host.instagram,
+        vibePrefs: host.vibePrefs,
+        profession: host.profession,
+        role: host.role,
+        vibes: host.vibes,
+        hosted: host.hosted,
+        rating: host.rating,
+        ratingCount: host.ratingCount,
+        trustScore: host.trustScore,
+        trustCount: host.trustCount,
+      }
+    : {
+        id: party.hostId ?? null,
+        name: party.hostName || "Unknown Host",
+        username: null,
+        bio: null,
+        avatarUrl: null,
+        city: null,
+        instagram: null,
+        vibePrefs: "",
+        profession: null,
+        role: null as string | null,
+        vibes: 0,
+        hosted: 0,
+        rating: 0,
+        ratingCount: 0,
+        trustScore: 0,
+        trustCount: 0,
+      };
+
   return NextResponse.json({
     party: serialize(party),
-    host: host
-      ? {
-          id: host.id ?? host._id?.toString(),
-          name: host.name,
-          username: host.username,
-          bio: host.bio,
-          avatarUrl: host.avatarUrl,
-          city: host.city,
-          instagram: host.instagram,
-          vibePrefs: host.vibePrefs,
-          profession: host.profession,
-          role: host.role,
-          vibes: host.vibes,
-          hosted: host.hosted,
-          rating: host.rating,
-          ratingCount: host.ratingCount,
-          trustScore: host.trustScore,
-          trustCount: host.trustCount,
-        }
-      : null,
+    host: hostResponse,
     requests: requests.map((r: any) => ({
       ...r,
       id: r.id ?? r._id?.toString(),

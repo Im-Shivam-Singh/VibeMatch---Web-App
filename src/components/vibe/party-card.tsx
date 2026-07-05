@@ -47,7 +47,6 @@ interface PartyCardProps {
 const VIBE_GRADIENTS: Record<string, string> = {
   "R&B": "from-purple-900/80 via-purple-800/60 to-indigo-950/80",
   Bollywood: "from-green-900/80 via-emerald-800/60 to-teal-950/80",
-  BYOB: "from-purple-900/80 via-fuchsia-800/60 to-pink-950/80",
   Games: "from-teal-900/80 via-cyan-800/60 to-blue-950/80",
   "Lo-fi": "from-violet-900/80 via-purple-800/60 to-slate-950/80",
   Chill: "from-cyan-900/80 via-teal-800/60 to-emerald-950/80",
