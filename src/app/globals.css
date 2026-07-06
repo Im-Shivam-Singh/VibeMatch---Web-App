@@ -73,76 +73,63 @@
 }
 
 :root {
-  /* VibeMatch — multi-color palette on near-black (per app-flow spec) */
   --radius: 0.875rem;
-
-  /* Desktop sidebar width — used for lg:pl-[var] in responsive layout */
   --sidebar-width: 280px;
 
-  /* Brand accent — purple (primary CTAs, FAB, active states) */
+  /* Brand colors - same in both modes */
   --purple: #534ab7;
   --purple-light: #eeedfe;
   --purple-deep: #26215c;
-  --purple-bright: #7f77dd; /* lighter purple for active nav, inline prices */
-
-  /* Success — teal (verified, approve, going, earnings) */
+  --purple-bright: #7f77dd;
   --teal: #1d9e75;
   --teal-light: #e1f5ee;
   --teal-bright: #5dcaa5;
-
-  /* Upsell — amber (menu tags, pending, pre-order, warnings) */
   --amber: #ef9f27;
   --amber-light: #faeeda;
   --amber-bright: #fac775;
-
-  /* Urgency — coral (low-spots, location drop, inbox badge) */
   --coral: #d85a30;
   --coral-light: #faece7;
   --coral-bright: #f0997b;
-
-  /* Alt success — green */
   --green: #639922;
   --green-light: #eaf3de;
-
-  /* Danger — red */
   --red: #a32d2d;
   --red-bright: #f09595;
 
-  /* Surfaces — near-black with subtle purple tint (NOT pure black) */
-  --bg: #09080f;
-  --bg2: #110f1f;
-  --bg3: #18152e;
+  /* Light mode surfaces */
+  --bg: #faf9fe;
+  --bg2: #f0eeff;
+  --bg3: #e8e5f8;
 
-  --background: #09080f;
-  --foreground: #f0eeff;
-  --card: #110f1f;
-  --card-foreground: #f0eeff;
-  --popover: #110f1f;
-  --popover-foreground: #f0eeff;
+  --background: #faf9fe;
+  --foreground: #1a1632;
+  --card: #ffffff;
+  --card-foreground: #1a1632;
+  --popover: #ffffff;
+  --popover-foreground: #1a1632;
   --primary: #534ab7;
-  --primary-foreground: #eeedfe;
-  --secondary: #18152e;
-  --secondary-foreground: #f0eeff;
-  --muted: #18152e;
-  --muted-foreground: rgba(240, 238, 255, 0.75);
+  --primary-foreground: #ffffff;
+  --secondary: #f0eeff;
+  --secondary-foreground: #1a1632;
+  --muted: #f0eeff;
+  --muted-foreground: #5c567a;
   --accent: #534ab7;
-  --accent-foreground: #eeedfe;
-  --destructive: #a32d2d;
-  --border: rgba(83, 74, 183, 0.2);
-  --input: rgba(83, 74, 183, 0.18);
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --border: rgba(83, 74, 183, 0.15);
+  --input: rgba(83, 74, 183, 0.12);
   --ring: #534ab7;
   --chart-1: #534ab7;
   --chart-2: #1d9e75;
   --chart-3: #ef9f27;
   --chart-4: #d85a30;
   --chart-5: #639922;
-  --sidebar: #09080f;
-  --sidebar-foreground: #f0eeff;
+  --sidebar: #faf9fe;
+  --sidebar-foreground: #1a1632;
   --sidebar-primary: #534ab7;
-  --sidebar-primary-foreground: #eeedfe;
-  --sidebar-accent: #18152e;
-  --sidebar-accent-foreground: #f0eeff;
-  --sidebar-border: rgba(83, 74, 183, 0.2);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0eeff;
+  --sidebar-accent-foreground: #1a1632;
+  --sidebar-border: rgba(83, 74, 183, 0.15);
   --sidebar-ring: #534ab7;
 }
 
@@ -185,6 +172,19 @@
   --border: rgba(83, 74, 183, 0.2);
   --input: rgba(83, 74, 183, 0.18);
   --ring: #534ab7;
+  --chart-1: #534ab7;
+  --chart-2: #1d9e75;
+  --chart-3: #ef9f27;
+  --chart-4: #d85a30;
+  --chart-5: #639922;
+  --sidebar: #09080f;
+  --sidebar-foreground: #f0eeff;
+  --sidebar-primary: #534ab7;
+  --sidebar-primary-foreground: #eeedfe;
+  --sidebar-accent: #18152e;
+  --sidebar-accent-foreground: #f0eeff;
+  --sidebar-border: rgba(83, 74, 183, 0.2);
+  --sidebar-ring: #534ab7;
 }
 
 @layer base {
@@ -194,7 +194,7 @@
   html,
   body {
     height: 100%;
-    background-color: #09080f;
+    background-color: var(--background);
   }
   body {
     @apply bg-background text-foreground;
@@ -204,7 +204,7 @@
   }
   ::selection {
     background: #534ab7;
-    color: #eeedfe;
+    color: #ffffff;
   }
 }
 
@@ -263,14 +263,22 @@
 
   /* Glass surfaces — subtle, purple-tinted */
   .glass {
-    background: rgba(17, 15, 31, 0.6);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(83, 74, 183, 0.2);
+    background: rgba(250, 249, 254, 0.7);
+  }
+  :is(.dark *) .glass,
+  .dark .glass {
+    background: rgba(17, 15, 31, 0.6);
   }
   .glass-strong {
-    background: rgba(9, 8, 15, 0.85);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(83, 74, 183, 0.25);
+    background: rgba(250, 249, 254, 0.85);
+  }
+  :is(.dark *) .glass-strong,
+  .dark .glass-strong {
+    background: rgba(9, 8, 15, 0.85);
   }
 
   /* Pale tint surfaces (semantic) */
@@ -651,12 +659,16 @@
 
 /* Premium glass with stronger blur and subtle inner glow */
 .glass-premium {
-  background: rgba(17, 15, 31, 0.65);
   backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(83, 74, 183, 0.25);
+  background: rgba(250, 249, 254, 0.75);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 4px 16px -4px rgba(0, 0, 0, 0.4);
+}
+:is(.dark *) .glass-premium,
+.dark .glass-premium {
+  background: rgba(17, 15, 31, 0.65);
 }
 
 /* Glass with colored tint */
@@ -931,6 +943,117 @@
 }
 .animate-check-ring {
   animation: check-ring-expand 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ===== Enhanced Login Screen Animations ===== */
+
+/* Animated gradient border rotation for glass card */
+@keyframes gradient-border-rotate {
+  0% { --gradient-angle: 0deg; }
+  100% { --gradient-angle: 360deg; }
+}
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.animate-gradient-border {
+  position: relative;
+  border: none !important;
+}
+.animate-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    rgba(127, 119, 221, 0.1),
+    rgba(127, 119, 221, 0.5),
+    rgba(93, 202, 165, 0.3),
+    rgba(127, 119, 221, 0.1),
+    rgba(127, 119, 221, 0.5),
+    rgba(93, 202, 165, 0.3),
+    rgba(127, 119, 221, 0.1)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: gradient-border-rotate 4s linear infinite;
+  pointer-events: none;
+}
+
+/* Logo premium entrance — subtle rotation + scale */
+@keyframes logo-premium-enter {
+  0% { opacity: 0; transform: scale(0.6) rotate(-15deg); }
+  50% { opacity: 1; transform: scale(1.05) rotate(3deg); }
+  70% { transform: scale(0.98) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.animate-logo-premium {
+  animation: logo-premium-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* OTP error shake — smoother than generic shake */
+@keyframes otp-error-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(5px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(1px); }
+}
+.animate-otp-shake {
+  animation: otp-error-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Step dot — completed checkmark pulse */
+@keyframes step-dot-complete {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+.animate-step-complete {
+  animation: step-dot-complete 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Counter increment — for social proof number */
+@keyframes counter-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-counter-in {
+  animation: counter-fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Feature icon float — gentle bob */
+@keyframes feature-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.animate-feature-float {
+  animation: feature-icon-float 3s ease-in-out infinite;
+}
+
+/* Tab indicator slide */
+@keyframes tab-slide {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-tab-indicator {
+  animation: tab-slide 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Inline error message entrance */
+@keyframes error-message-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-error-in {
+  animation: error-message-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

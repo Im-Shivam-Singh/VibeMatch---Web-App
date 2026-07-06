@@ -547,7 +547,7 @@ export function GroupChatScreen() {
       {/* ── Messages ────────────────────────────────────────── */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
+        className="fancy-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Welcome banner */}
         <motion.div
@@ -639,7 +639,7 @@ export function GroupChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative z-10 shrink-0 w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+      <footer className="relative z-10 shrink-0 w-full border-t border-white/[0.08] glass-strong px-3 py-2 pb-[max(env(safe-area-inset-bottom),8px)]">
         <div className="flex w-full items-center gap-2 overflow-hidden rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
           <button
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"

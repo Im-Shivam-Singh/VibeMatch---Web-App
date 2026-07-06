@@ -93,7 +93,7 @@ export function SidebarNav() {
 
   return (
     <aside
-      className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-white/[0.06] bg-[#0a0910]/95 backdrop-blur-xl lg:flex"
+      className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-border bg-background/95 backdrop-blur-xl lg:flex"
       aria-label="Primary navigation"
     >
       {/* ── Logo + Wordmark ──────────────────────────────────────────── */}

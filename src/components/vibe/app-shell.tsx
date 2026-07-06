@@ -197,7 +197,7 @@ export function AppShell() {
   const v = isForward ? variantsForward : variantsBack;
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-[#09080f]">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-background">
       {/* Desktop sidebar — hidden on mobile/tablet */}
       <SidebarNav />
 

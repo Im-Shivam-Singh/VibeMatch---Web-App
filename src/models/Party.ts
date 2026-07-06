@@ -141,6 +141,8 @@ const PartySchema = new Schema<IParty>(
 PartySchema.index({ city: 1 });
 PartySchema.index({ hostId: 1 });
 PartySchema.index({ date: 1 });
+PartySchema.index({ city: 1, date: 1 }); // City-based date filtering (common query)
+PartySchema.index({ hostId: 1, createdAt: -1 }); // Host party list sorted by creation
 
 export const Party =
   mongoose.models.Party || mongoose.model<IParty>('Party', PartySchema);

@@ -42,3 +42,6 @@ export type { IPartyMedia } from './PartyMedia';
 
 export { GroupChat } from './GroupChat';
 export type { IGroupChat, IGroupChatMember, IGroupChatMessage } from './GroupChat';
+
+export { default as Notification } from './Notification';
+export type { INotification } from './Notification';

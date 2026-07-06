@@ -114,6 +114,8 @@ const UserSchema = new Schema<IUser>(
 
 // Indexes (phone and username already have unique:true in the schema above,
 // so we only add compound indexes or additional ones here)
+UserSchema.index({ city: 1 }); // Location-based user queries
+UserSchema.index({ role: 1 }); // Host/partier filtering
 
 // Virtual for blocked user IDs array
 UserSchema.virtual('blockedIds').get(function (this: IUser) {

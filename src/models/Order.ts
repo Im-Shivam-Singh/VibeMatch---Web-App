@@ -86,8 +86,9 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 // Indexes
-OrderSchema.index({ userId: 1 });
-OrderSchema.index({ partyId: 1 });
+OrderSchema.index({ userId: 1 }); // User orders
+OrderSchema.index({ partyId: 1 }); // Party orders
+OrderSchema.index({ partyId: 1, status: 1 }); // Pending orders per party
 
 export const Order =
   mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);

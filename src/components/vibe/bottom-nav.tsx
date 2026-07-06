@@ -71,7 +71,7 @@ export function BottomNav() {
       aria-label="Primary"
     >
       {/* ── Frosted glass shell ──────────────────────────────────────── */}
-      <div className="relative mx-3 mb-2 rounded-t-2xl border-t border-white/[0.08] bg-background/70 backdrop-blur-[24px] supports-[backdrop-filter]:bg-background/60">
+      <div className="relative mx-3 mb-2 rounded-t-2xl border-t border-border bg-background/70 backdrop-blur-[24px] supports-[backdrop-filter]:bg-background/60">
         {/* Top accent line — purple gradient */}
         <div
           aria-hidden

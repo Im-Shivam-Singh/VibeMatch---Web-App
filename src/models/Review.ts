@@ -34,8 +34,10 @@ const ReviewSchema = new Schema<IReview>(
   }
 );
 
+// Indexes
 // Unique compound index: one review per user per party
 ReviewSchema.index({ partyId: 1, userId: 1 }, { unique: true });
+ReviewSchema.index({ partyId: 1, createdAt: -1 }); // Sorted party reviews
 
 export const Review =
   mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -54,7 +54,7 @@ const VIBE_GRADIENTS: Record<string, string> = {
   Retro: "from-amber-900/80 via-orange-800/60 to-red-950/80",
 };
 
-export function PartyCard({ party, onOpen, className, featured = false, index = 0 }: PartyCardProps) {
+export const PartyCard = React.memo(function PartyCard({ party, onOpen, className, featured = false, index = 0 }: PartyCardProps) {
   const vibes = parseVibes(party.vibes);
   const displayVibes = vibes.slice(0, 3);
   const extraVibes = vibes.length - 3;
@@ -329,7 +329,7 @@ export function PartyCard({ party, onOpen, className, featured = false, index = 
               </span>
             ))}
             {extraVibes > 0 && (
-              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center rounded-full border border-border bg-card/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 +{extraVibes}
               </span>
             )}
@@ -343,4 +343,6 @@ export function PartyCard({ party, onOpen, className, featured = false, index = 
       </div>
     </motion.div>
   );
-}
+});
+
+PartyCard.displayName = 'PartyCard';

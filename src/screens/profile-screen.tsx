@@ -33,6 +33,8 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { UserAvatar } from "@/components/vibe/user-avatar";
 import { RatingPill } from "@/components/vibe/rating-pill";
+import { ThemeToggle } from "@/components/vibe/theme-toggle";
+import { NotificationBell } from "@/components/vibe/notification-bell";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -209,6 +211,7 @@ function MenuRow({
 export function ProfileScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const userRole = useAppStore((s) => s.userRole);
+  const setUserRole = useAppStore((s) => s.setUserRole);
   const setScreen = useAppStore((s) => s.setScreen);
   const logout = useAppStore((s) => s.logout);
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
@@ -240,13 +243,10 @@ export function ProfileScreen() {
             <h1 className="font-display text-xl font-bold text-white">
               Profile
             </h1>
-            <button
-              onClick={() => toast.info("Settings coming soon")}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/60 transition hover:bg-white/[0.14] hover:text-white"
-              aria-label="Settings"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
 
           {/* Avatar + info */}
@@ -447,9 +447,19 @@ export function ProfileScreen() {
               icon={<ArrowLeftRight className="h-4 w-4" />}
               label="Change Role"
               sub={isHost ? "Switch to Partier" : "Switch to Host"}
-              onClick={() =>
-                toast.info("Role switching coming soon")
-              }
+              onClick={() => {
+                const newRole = isHost ? 'partier' : 'host';
+                setUserRole(newRole);
+                // Also update on server
+                if (currentUser?.id) {
+                  fetch(`/api/users?id=${currentUser.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole }),
+                  }).catch(() => {});
+                }
+                toast.success(`Switched to ${newRole === 'host' ? '🎉 Host' : '🎊 Partier'} mode`);
+              }}
             />
             <MenuRow
               icon={<Bell className="h-4 w-4" />}

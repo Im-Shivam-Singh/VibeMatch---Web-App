@@ -105,7 +105,7 @@ export function FilterScreen() {
     "[&_[data-slot=slider-thumb]]:focus-visible:ring-purple-300/50";
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -133,7 +133,7 @@ export function FilterScreen() {
       </motion.header>
 
       {/* Body */}
-      <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-40">
+      <div className="fancy-scrollbar flex-1 min-h-0 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-40">
         {/* Search */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Search</span>

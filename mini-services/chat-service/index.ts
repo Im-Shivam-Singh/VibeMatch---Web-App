@@ -92,6 +92,14 @@ io.on("connection", (socket) => {
     },
   );
 
+  // Notification relay — server emits this when a notification is created
+  socket.on(
+    "notification",
+    (data: { userId: string; type: string; title: string; body: string }) => {
+      emitToUser(data.userId, "notification", data);
+    },
+  );
+
   socket.on("disconnect", (reason) => {
     if (currentUserId) {
       leaveUser(currentUserId, socket.id);

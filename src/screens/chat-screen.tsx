@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -95,7 +95,7 @@ function groupByDay(messages: ChatMessage[]) {
 /*  Message bubble — Dribbble quality                                         */
 /* -------------------------------------------------------------------------- */
 
-function MessageBubble({
+const MessageBubble = React.memo(function MessageBubble({
   m,
   mine,
   showAvatar,
@@ -213,7 +213,9 @@ function MessageBubble({
       </div>
     </motion.div>
   );
-}
+});
+
+MessageBubble.displayName = 'MessageBubble';
 
 /* -------------------------------------------------------------------------- */
 /*  Payment CTA card — WhatsApp-style                                         */
@@ -418,7 +420,7 @@ export function ChatScreen() {
     queryKey: ["thread", threadId, currentUser?.id],
     queryFn: () => api.getThread(threadId!, currentUser!.id),
     enabled: !!threadId && !!currentUser,
-    refetchInterval: 10_000,
+    refetchInterval: 30_000, // Polling fallback (Socket.IO provides real-time updates)
   });
 
   const messages = data?.messages ?? [];
@@ -658,7 +660,7 @@ export function ChatScreen() {
       {/* ── Messages ────────────────────────────────────────── */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
+        className="fancy-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Intro card */}
         <motion.div
@@ -764,7 +766,7 @@ export function ChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative z-10 shrink-0 w-full max-w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+      <footer className="relative z-10 shrink-0 w-full max-w-full border-t border-white/[0.08] glass-strong px-3 py-2 pb-[max(env(safe-area-inset-bottom),8px)]">
         {/* Quick reply suggestions */}
         {!composerLocked && messages.length < 6 && (
           <div className="no-scrollbar mb-2 flex max-w-full gap-1.5 overflow-x-auto px-0.5">

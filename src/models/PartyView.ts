@@ -23,6 +23,7 @@ const PartyViewSchema = new Schema<IPartyView>(
 
 // Indexes
 PartyViewSchema.index({ partyId: 1 });
+PartyViewSchema.index({ partyId: 1, createdAt: -1 }); // View analytics per party
 
 export const PartyView =
   mongoose.models.PartyView ||

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/mongodb";
-import { Message, ChatThread } from "@/models";
+import { Message, ChatThread, User } from "@/models";
+import { createNotification } from "@/lib/notifications";
 
 // POST /api/messages — persist a message (used as fallback when WS unavailable)
 async function _POST(req: NextRequest) {
@@ -32,6 +33,20 @@ async function _POST(req: NextRequest) {
   });
 
   await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
+
+  // ── Notify the receiver about the new message ─────────────────────
+  // Only for real text/video messages (not system or payment messages)
+  if (msg.kind === "text" || msg.kind === "video" || !msg.kind) {
+    const sender = await User.findById(senderId).lean({ virtuals: true });
+    const thread = await ChatThread.findById(threadId).lean({ virtuals: true });
+    await createNotification({
+      userId: receiverId,
+      type: "message",
+      title: "New Message",
+      body: `${sender?.name ?? "Someone"}: ${content.slice(0, 50)}${content.length > 50 ? "..." : ""}`,
+      data: { threadId, partyId: thread?.partyId?.toString() ?? "" },
+    });
+  }
 
   return NextResponse.json(
     {

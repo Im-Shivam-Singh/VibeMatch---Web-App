@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/mongodb";
 import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
 import type { JoinRequestInput } from "@/lib/types";
+import { createNotification } from "@/lib/notifications";
 
 // ── Purchase-flow rewrite ─────────────────────────────────────────────
 // Guest clicks "Get your spot" on the detail screen → writes an intro +
@@ -235,6 +236,17 @@ async function _POST(req: NextRequest) {
     await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
   }
 
+  // ── Notify the host about the new spot request ──────────────────
+  if (hostId) {
+    await createNotification({
+      userId: hostId,
+      type: "spot_request",
+      title: "New Spot Request",
+      body: `${requesterName} wants to join ${party.title}`,
+      data: { partyId: party._id.toString(), requestId: requestId ?? "" },
+    });
+  }
+
   // NOTE: guestCount is intentionally NOT bumped here. The spot is only
   // reserved once the host accepts AND the guest pays (POST /api/orders).
 
@@ -261,10 +273,23 @@ async function _GET(req: NextRequest) {
     .sort({ createdAt: -1 })
     .lean({ virtuals: true });
 
+  // Enrich requesterName with actual user names from User collection
+  const requesterIds = requests
+    .map((r) => r.requesterId)
+    .filter(Boolean) as string[];
+
+  const users = requesterIds.length > 0
+    ? await User.find({ _id: { $in: requesterIds } }).lean({ virtuals: true })
+    : [];
+
+  const userMap = new Map(users.map((u) => [u.id ?? u._id?.toString(), u.name]));
+
   return NextResponse.json({
     requests: requests.map((r) => ({
       ...r,
       id: r.id ?? r._id?.toString(),
+      // Use actual user name if available, fallback to stored requesterName
+      requesterName: r.requesterId && userMap.get(r.requesterId) || r.requesterName,
       createdAt: r.createdAt?.toISOString?.() ?? String(r.createdAt ?? ""),
       updatedAt: r.updatedAt?.toISOString?.() ?? String(r.updatedAt ?? ""),
     })),

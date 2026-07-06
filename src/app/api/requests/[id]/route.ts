@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/mongodb";
 import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
+import { createNotification } from "@/lib/notifications";
 
 // ── PATCH /api/requests/[id]  { status: "accepted" | "rejected" } ─────
 // Host action from the requests screen. On accept we post a WhatsApp-style
@@ -94,6 +95,19 @@ async function _PATCH(
       });
     }
     await ChatThread.findByIdAndUpdate(threadId, { $set: { updatedAt: new Date() } });
+  }
+
+  // ── Notify the requester about acceptance or rejection ─────────
+  if (existing.requesterId) {
+    await createNotification({
+      userId: existing.requesterId,
+      type: status === "accepted" ? "spot_accepted" : "spot_rejected",
+      title: status === "accepted" ? "Spot Approved!" : "Request Declined",
+      body: status === "accepted"
+        ? `${party?.title ?? "The party"} — pay now to lock your spot.`
+        : `Your request for ${party?.title ?? "the party"} was declined.`,
+      data: { partyId: existing.partyId?.toString() ?? "", requestId: id },
+    });
   }
 
   return NextResponse.json({ id, status });

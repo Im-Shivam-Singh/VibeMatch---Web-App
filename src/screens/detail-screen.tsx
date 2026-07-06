@@ -409,7 +409,7 @@ export function DetailScreen() {
       {/* Scrollable content */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-28 lg:pb-20"
+        className="fancy-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-28 lg:pb-20"
       >
         {/* ── HERO WITH PARALLAX ──────────────────────────────────── */}
         <div className="relative h-[340px] w-full max-w-full overflow-hidden">

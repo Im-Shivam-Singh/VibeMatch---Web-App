@@ -10,7 +10,6 @@ import {
   Heart,
   SlidersHorizontal,
   Compass,
-  Bell,
   Mic,
   Sparkles,
   Clock,
@@ -34,6 +33,8 @@ import {
 import { EmptyState } from "@/components/vibe/empty-state";
 import { MusicPlayerButton } from "@/components/vibe/music-player";
 import { PartyCard } from "@/components/vibe/party-card";
+import { ThemeToggle } from "@/components/vibe/theme-toggle";
+import { NotificationBell } from "@/components/vibe/notification-bell";
 import { cn, formatLocation } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -167,6 +168,7 @@ export function HomeScreen() {
           </div>
           <div className="flex items-center gap-2">
             <MusicPlayerButton />
+            <ThemeToggle />
             {/* Filter button */}
             <button
               onClick={() => setScreen("filter")}
@@ -176,13 +178,7 @@ export function HomeScreen() {
               <SlidersHorizontal className="h-4 w-4" />
             </button>
             {/* Notification bell */}
-            <button
-              aria-label="Notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-coral-500 ring-2 ring-background" />
-            </button>
+            <NotificationBell />
             {/* Saved */}
             <button
               onClick={() => setScreen("saved")}
@@ -259,7 +255,7 @@ export function HomeScreen() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#18152e]/95 backdrop-blur-xl shadow-2xl"
+                className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-background/95 backdrop-blur-xl shadow-2xl"
               >
                 <div className="p-3">
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">

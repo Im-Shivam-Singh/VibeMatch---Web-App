@@ -327,4 +327,20 @@ export const api = {
       xhr.onerror = () => reject(new Error("Network error during upload"));
       xhr.send(fd);
     }),
+
+  // Notifications
+  getNotifications: async (userId: string) => {
+    const res = await fetch(`/api/notifications?userId=${userId}&limit=30`);
+    if (!res.ok) throw new Error("Failed to fetch notifications");
+    return res.json();
+  },
+  markNotificationsRead: async (userId: string) => {
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) throw new Error("Failed to mark notifications read");
+    return res.json();
+  },
 };

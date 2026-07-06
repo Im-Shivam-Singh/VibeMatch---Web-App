@@ -52,8 +52,9 @@ const JoinRequestSchema = new Schema<IJoinRequest>(
 );
 
 // Indexes
-JoinRequestSchema.index({ partyId: 1 });
-JoinRequestSchema.index({ requesterId: 1 });
+JoinRequestSchema.index({ partyId: 1 }); // Party request list
+JoinRequestSchema.index({ requesterId: 1 }); // User's request history
+JoinRequestSchema.index({ partyId: 1, status: 1 }); // Pending requests per party
 
 export const JoinRequest =
   mongoose.models.JoinRequest ||

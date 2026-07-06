@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/mongodb";
 import { Order, Party, User, Ticket, JoinRequest, Message, ChatThread, GroupChat } from "@/models";
 import { currencyForCity } from "@/lib/types";
+import { createNotification } from "@/lib/notifications";
 
 // GET /api/orders?userId=...  → list a user's orders (with items + party)
 // GET /api/orders?partyId=... → list orders for a party (host view)
@@ -134,6 +135,18 @@ async function _POST(req: NextRequest) {
     await ensureGroupChat(partyId, userId, party.hostId);
   } catch (err) {
     console.warn("[orders] Failed to bootstrap group chat (non-fatal):", err);
+  }
+
+  // ── Notify the host about payment received ──────────────────────
+  if (party.hostId) {
+    const payer = await User.findById(userId).lean({ virtuals: true });
+    await createNotification({
+      userId: party.hostId.toString(),
+      type: "payment_received",
+      title: "Payment Received",
+      body: `${payer?.name ?? "A guest"} paid for ${party.title}`,
+      data: { partyId: party._id.toString(), orderId },
+    });
   }
 
   const leanOrder = order.toObject({ virtuals: true });

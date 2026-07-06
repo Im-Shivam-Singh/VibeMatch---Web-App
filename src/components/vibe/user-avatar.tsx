@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { cn } from "@/lib/utils";
 
 interface UserAvatarProps {
@@ -16,7 +17,7 @@ function initials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function UserAvatar({
+export const UserAvatar = React.memo(function UserAvatar({
   name,
   src,
   size = 40,
@@ -63,4 +64,6 @@ export function UserAvatar({
       )}
     </div>
   );
-}
+});
+
+UserAvatar.displayName = 'UserAvatar';

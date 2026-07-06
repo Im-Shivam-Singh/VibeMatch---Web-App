@@ -27,8 +27,10 @@ const ChatThreadSchema = new Schema<IChatThread>(
   }
 );
 
-// Compound index to find threads between two users
-ChatThreadSchema.index({ userAId: 1, userBId: 1 });
+// Indexes
+// Compound index to find threads between two users (unique constraint)
+ChatThreadSchema.index({ userAId: 1, userBId: 1 }, { unique: true });
+ChatThreadSchema.index({ updatedAt: -1 }); // For sorting recent threads
 
 export const ChatThread =
   mongoose.models.ChatThread ||
