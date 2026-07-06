@@ -14,8 +14,6 @@ import {
   ShieldCheck,
   MessageCircle,
   Eye,
-  Trophy,
-  ArrowUpRight,
   RefreshCw,
   type LucideIcon,
 } from "lucide-react";
@@ -383,63 +381,12 @@ export function HostDashboardScreen() {
           </div>
         </motion.section>
 
-        {/* ── Top parties list ───────────────────────────────────── */}
-        {analytics && analytics.topParties.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.4 }}
-            className="space-y-3"
-          >
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
-              Top Parties
-            </span>
-            <div className="space-y-2">
-              {analytics.topParties.slice(0, 3).map((p, idx) => {
-                const rank = idx + 1;
-                const isTop = rank === 1;
-                return (
-                  <motion.button
-                    key={p.partyId}
-                    onClick={() => {
-                      setSelectedPartyId(p.partyId);
-                      setScreen("detail");
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-left transition hover:border-purple-500/20 hover:bg-white/[0.06]"
-                  >
-                    <span
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold",
-                        isTop
-                          ? "bg-amber-500/20 text-amber-300"
-                          : "bg-white/5 text-muted-foreground",
-                      )}
-                    >
-                      {isTop ? <Trophy className="h-3.5 w-3.5" /> : rank}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {p.title}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {p.views} views · {p.requests} requests · {p.guests} guests
-                      </p>
-                    </div>
-                    <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.section>
-        )}
-
         {/* ── Recent activity (orders) ───────────────────────────── */}
         {orders.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.4 }}
+            transition={{ delay: 0.35, duration: 0.4 }}
             className="space-y-3"
           >
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
@@ -473,7 +420,7 @@ export function HostDashboardScreen() {
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.4 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
           className="space-y-3"
         >
           <div className="flex items-center justify-between">
@@ -533,23 +480,11 @@ export function HostDashboardScreen() {
           )}
         </motion.section>
 
-        {/* ── Trust rating section ────────────────────────────────── */}
-        {acceptedRequests.length > 0 && (
-          <TrustRatingSection
-            partyId={selectedPartyId!}
-            hostId={currentUser?.id ?? ""}
-            guests={acceptedRequests.map((r) => ({
-              guestId: r.requesterId ?? "",
-              guestName: r.requesterName,
-            }))}
-          />
-        )}
-
         {/* ── Prep list ──────────────────────────────────────────── */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.4 }}
+          transition={{ delay: 0.45, duration: 0.4 }}
           className="space-y-3"
         >
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
@@ -751,120 +686,5 @@ function HostDashboardSkeleton() {
         ))}
       </div>
     </div>
-  );
-}
-
-/* ─── Trust rating section ──────────────────────────────────────── */
-
-function TrustRatingSection({
-  partyId,
-  hostId,
-  guests,
-}: {
-  partyId: string;
-  hostId: string;
-  guests: { guestId: string; guestName: string }[];
-}) {
-  const qc = useQueryClient();
-  const [ratings, setRatings] = useState<Record<string, { score: number; saved: boolean }>>({});
-
-  const mutation = useMutation({
-    mutationFn: (input: { guestId: string; guestName: string; rating: number }) =>
-      api.createTrustRating({
-        partyId,
-        hostId,
-        guestId: input.guestId,
-        rating: input.rating,
-      }),
-    onSuccess: (_data, vars) => {
-      setRatings((prev) => ({
-        ...prev,
-        [vars.guestId]: { score: vars.rating, saved: true },
-      }));
-      qc.invalidateQueries({ queryKey: ["party", partyId] });
-      toast.success(`TRUST rating saved for ${vars.guestName}`, {
-        description: "Helps future hosts know they're reliable.",
-        duration: 2500,
-      });
-    },
-    onError: (err: Error) => {
-      toast.error("Couldn't save rating", { description: err.message });
-    },
-  });
-
-  const setScore = (guestId: string, guestName: string, score: number) => {
-    setRatings((prev) => ({
-      ...prev,
-      [guestId]: { score, saved: false },
-    }));
-    mutation.mutate({ guestId, guestName, rating: score });
-  };
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.5, duration: 0.4 }}
-      className="space-y-3"
-    >
-      <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
-          <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
-          Rate guests · TRUST
-        </span>
-        <span className="text-[10px] text-muted-foreground">Hosts only</span>
-      </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground -mt-1">
-        Give each guest a TRUST score. Helps future hosts know who&apos;s reliable.
-      </p>
-      <div className="space-y-2">
-        {guests
-          .filter((g) => g.guestId && g.guestId !== hostId)
-          .map((g) => {
-            const state = ratings[g.guestId];
-            return (
-              <div
-                key={g.guestId}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-sm font-bold text-teal-200">
-                  {g.guestName?.slice(0, 1).toUpperCase() ?? "?"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {g.guestName}
-                  </p>
-                  {state?.saved && (
-                    <p className="text-[10px] text-teal-300">✓ Rated</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((star) => {
-                    const active = (state?.score ?? 0) >= star;
-                    return (
-                      <button
-                        key={star}
-                        onClick={() => setScore(g.guestId, g.guestName, star)}
-                        disabled={mutation.isPending}
-                        aria-label={`Rate ${g.guestName} ${star} stars`}
-                        className="p-0.5 transition active:scale-90 disabled:opacity-50"
-                      >
-                        <Star
-                          className={cn(
-                            "h-4 w-4 transition",
-                            active
-                              ? "fill-teal-400 text-teal-400"
-                              : "text-muted-foreground/30 hover:text-teal-400/50",
-                          )}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-      </div>
-    </motion.section>
   );
 }

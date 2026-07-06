@@ -343,4 +343,10 @@ export const api = {
     if (!res.ok) throw new Error("Failed to mark notifications read");
     return res.json();
   },
+
+  // Check if user is already in a party (accepted request or has ticket)
+  getUserPartyStatus: (userId: string, partyId: string) =>
+    jfetch<{ isInParty: boolean; hasTicket: boolean; requestStatus: string | null; requestId: string | null; ticketId: string | null }>(
+      `/api/user-party-status?userId=${userId}&partyId=${partyId}`
+    ),
 };

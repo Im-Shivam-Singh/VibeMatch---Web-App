@@ -322,3 +322,67 @@ Stage Summary:
 - MongoDB optimized with indexes for fast queries
 - UI performance improved with React.memo on key components
 - All features verified working via agent-browser end-to-end testing
+
+---
+Task ID: Session-2024
+Agent: main
+Task: User-requested fixes - login centering, tickets data, notifications, host dashboard, video upload
+
+Work Log:
+1. Login Page Centered:
+   - Modified AppShell to handle auth flow screens differently (login/onboarding)
+   - Added `isAuthFlow` flag to hide sidebar/nav during login
+   - Applied `items-center justify-center` + `max-w-md mx-auto` to center login content
+   - Added cn import to app-shell.tsx
+
+2. Tickets List - Real Data:
+   - Verified tickets API already fetches from MongoDB with party/order enrichment
+   - API route `/api/tickets/route.ts` joins Party and Order collections
+   - Data is real and not static - confirmed via network requests
+
+3. Realtime Notification System Fixed:
+   - Added `/notify` HTTP endpoint to chat service for API-to-socket communication
+   - Updated notifications.ts to call socket service after creating notification
+   - Socket service now emits `notification` event to connected users
+   - Verified: NotificationBell present, Socket.IO connects to port 3003
+
+4. Host-Party Dashboard Simplified:
+   - Removed "Top Parties" section (not relevant for single-party view)
+   - Removed "Trust Rating Section" (complex, unnecessary for MVP)
+   - Removed unused imports (Trophy, ArrowUpRight)
+   - Removed TrustRatingSection function entirely
+   - Adjusted animation delays for remaining sections
+
+5. Remove Join Option If Already In Party:
+   - Created `/api/user-party-status/route.ts` to check user's party status
+   - Added `getUserPartyStatus` method to api.ts
+   - Updated detail-screen.tsx to query user's status
+   - CTA button now shows: "Manage your party" (host), "You're in!/View Ticket" (member), or "Request to Join" (new)
+
+6. Video Upload to Host Fixed:
+   - Created `/api/upload/route.ts` - was missing entirely!
+   - Handles multipart/form-data with files up to 10MB (images), 60MB (videos)
+   - Stores files to `/public/uploads/` with unique filenames
+   - Returns public URLs for frontend use
+   - Created `/public/uploads` directory
+
+7. Testing and Verification:
+   - Ran lint check - zero errors
+   - Used agent-browser to test all features
+   - Verified: login centered, tickets real data, notifications working, dashboard simplified, join button logic, upload functionality
+
+Stage Summary:
+- Login screen properly centered on viewport
+- Tickets display real data from MongoDB API
+- Realtime notifications work via Socket.IO + HTTP bridge
+- Host dashboard simplified (removed Top Parties + Trust Rating)
+- Join button conditionally shows based on user's party status
+- Video/image upload now functional with file storage
+- All 6 fixes verified working via agent-browser end-to-end testing
+- Zero lint errors, dev server stable
+
+Unresolved Issues or Risks:
+- None critical - all user-reported issues resolved
+- Consider adding S3/cloud storage for production uploads
+- Consider pagination for large notification lists
+- Consider adding notification preferences/settings

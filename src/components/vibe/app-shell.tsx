@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { BottomNav } from "./bottom-nav";
 import { SidebarNav } from "./sidebar-nav";
 import { LoginScreen } from "@/screens/login-screen";
@@ -196,15 +197,23 @@ export function AppShell() {
   // Pick transition direction
   const v = isForward ? variantsForward : variantsBack;
 
+  // Login and onboarding screens should be full-width centered
+  const isAuthFlow = current === "login" || current === "onboarding";
+
   return (
     <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-background">
-      {/* Desktop sidebar — hidden on mobile/tablet */}
-      <SidebarNav />
+      {/* Desktop sidebar — hidden on mobile/tablet and during auth flow */}
+      {!isAuthFlow && <SidebarNav />}
 
-      {/* Main content area — shifts right on desktop to make room for sidebar */}
-      <div className="lg:pl-[280px]">
+      {/* Main content area */}
+      <div className={isAuthFlow ? "" : "lg:pl-[280px]"}>
         <main
-          className="relative mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col overflow-x-hidden lg:max-w-6xl bg-background"
+          className={cn(
+            "relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-background",
+            isAuthFlow
+              ? "max-w-[100vw] items-center justify-center"
+              : "max-w-2xl mx-auto lg:max-w-6xl"
+          )}
           style={{
             paddingBottom: showNav
               ? "calc(5rem + env(safe-area-inset-bottom, 0px))"
@@ -218,7 +227,10 @@ export function AppShell() {
               animate={v.animate}
               exit={v.exit}
               transition={transition}
-              className="flex flex-1 flex-col"
+              className={cn(
+                "flex flex-1 flex-col",
+                isAuthFlow && "w-full max-w-md mx-auto"
+              )}
             >
               <ScreenContent screen={current} />
             </motion.div>

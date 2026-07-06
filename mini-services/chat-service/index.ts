@@ -12,6 +12,31 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     res.end(JSON.stringify({ ok: true, connections: userSockets.size }));
     return;
   }
+
+  // HTTP endpoint for notifications from Next.js API routes
+  // POST /notify { userId, type, title, body, data }
+  if (req.method === "POST" && req.url?.startsWith("/notify")) {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      try {
+        const data = JSON.parse(body);
+        if (data.userId) {
+          emitToUser(data.userId, "notification", data);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, delivered: userSockets.has(data.userId) }));
+        } else {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "userId required" }));
+        }
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
+    return;
+  }
+
   res.writeHead(404);
   res.end();
 });

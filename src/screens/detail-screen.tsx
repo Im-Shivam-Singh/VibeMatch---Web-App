@@ -139,6 +139,13 @@ export function DetailScreen() {
     enabled: !!id,
   });
 
+  // Check if user is already in this party (accepted request or has ticket)
+  const { data: userPartyStatus } = useQuery({
+    queryKey: ["user-party-status", currentUser?.id, id],
+    queryFn: () => api.getUserPartyStatus(currentUser!.id, id!),
+    enabled: !!currentUser?.id && !!id && !isLoading,
+  });
+
   // Record view
   useEffect(() => {
     if (!id) return;
@@ -934,6 +941,14 @@ export function DetailScreen() {
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-primary-foreground"
             >
               Manage your party
+            </button>
+          ) : userPartyStatus?.isInParty ? (
+            <button
+              onClick={() => setScreen("tickets")}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-teal-600 text-sm font-bold text-white"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {userPartyStatus.hasTicket ? "View Ticket" : "You're in!"}
             </button>
           ) : (
             <button
