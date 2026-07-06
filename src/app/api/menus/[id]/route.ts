@@ -20,4 +20,4 @@ async function _DELETE(
   return NextResponse.json({ id });
 }
 
-export const DELETE = withDB(_DELETE as (req: Request) => Promise<Response>);
+export const DELETE = withDB(_DELETE);

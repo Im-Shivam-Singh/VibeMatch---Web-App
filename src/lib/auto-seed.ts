@@ -114,7 +114,7 @@ const DEMO_USERS = [
     hosted: 1,
     rating: 5.0,
     ratingCount: 2,
-    vibePrefs: "BYOB,Chill",
+    vibePrefs: "Games,Chill",
     role: "partier" as const,
   },
   {
@@ -152,6 +152,7 @@ const DEMO_PARTIES = [
     lng: -3.1739,
     guestCount: 8,
     locationRevealHoursBefore: 3,
+    spotifyPlaylistUrl: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
     menu: [
       { name: "Jack Daniels shot", price: 2, emoji: "🥃", category: "drink" },
       { name: "Small Norfolk can", price: 1, emoji: "🍺", category: "drink" },
@@ -177,6 +178,7 @@ const DEMO_PARTIES = [
     lng: -3.1832,
     guestCount: 5,
     locationRevealHoursBefore: 3,
+    spotifyPlaylistUrl: "",
     menu: [
       { name: "Craft beer can", price: 2, emoji: "🍺", category: "drink" },
       { name: "Crisps bowl", price: 1, emoji: "🥨", category: "snack" },
@@ -201,6 +203,7 @@ const DEMO_PARTIES = [
     lng: -3.1933,
     guestCount: 11,
     locationRevealHoursBefore: 3,
+    spotifyPlaylistUrl: "https://open.spotify.com/playlist/37i9dQZF1DWSV3Tk4GO2fq",
     menu: [
       { name: "Kingfisher can", price: 2, emoji: "🍺", category: "drink" },
       { name: "Samosa plate", price: 3, emoji: "🥟", category: "snack" },
@@ -225,6 +228,7 @@ const DEMO_PARTIES = [
     lng: -0.0777,
     guestCount: 14,
     locationRevealHoursBefore: 6,
+    spotifyPlaylistUrl: "https://open.spotify.com/playlist/37i9dQZF1DX4o1oenSJRJd",
     menu: [
       { name: "Craft lager", price: 3, emoji: "🍺", category: "drink" },
       { name: "Olives bowl", price: 3, emoji: "🫒", category: "snack" },
@@ -249,6 +253,7 @@ const DEMO_PARTIES = [
     lng: -2.2333,
     guestCount: 6,
     locationRevealHoursBefore: 4,
+    spotifyPlaylistUrl: "https://open.spotify.com/playlist/37i9dQZF1DX4o1oenSJRJd",
     menu: [
       { name: "Gin & tonic", price: 4, emoji: "🍸", category: "drink" },
       { name: "Cheese board", price: 5, emoji: "🧀", category: "snack" },
@@ -256,23 +261,24 @@ const DEMO_PARTIES = [
     ],
   },
   {
-    slug: "party_byob_delhi",
-    title: "Sam's BYOB terrace",
+    slug: "party_games_delhi",
+    title: "Sam's Games Night",
     city: "Delhi",
     area: "Hauz Khas, Delhi",
     date: relDate(4),
     time: "21:00",
     fee: 3,
     maxGuests: 16,
-    vibes: "BYOB,Chill",
+    vibes: "Games,Chill",
     description:
-      "BYOB terrace session in Hauz Khas. Bring your own bottle, we'll handle the ice and mixers.",
+      "Board games & card games night in Hauz Khas. We've got the games, you bring the energy!",
     hostName: "Sam Wilson",
     hostIndex: 5,
     lat: 28.5494,
     lng: 77.2001,
     guestCount: 10,
     locationRevealHoursBefore: 3,
+    spotifyPlaylistUrl: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
     menu: [
       { name: "Ice bucket", price: 1, emoji: "🧊", category: "soft" },
       { name: "Mixers set", price: 2, emoji: "🥤", category: "soft" },
@@ -294,10 +300,10 @@ const DEMO_JOIN_REQUESTS = [
   { partySlug: "party_lofi_london", requesterName: "You", requesterIndex: 6, introMessage: "Lo-fi + rooftop = dream night", status: "pending" },
   { partySlug: "party_retro_manchester", requesterName: "Jamie Thompson", requesterIndex: 3, introMessage: "Retro vinyl? I have some 80s records 📼", status: "accepted" },
   { partySlug: "party_retro_manchester", requesterName: "Sam Wilson", requesterIndex: 5, introMessage: "Manchester road trip! What's the dress code?", status: "pending" },
-  { partySlug: "party_byob_delhi", requesterName: "Raj Malhotra", requesterIndex: 2, introMessage: "Hauz Khas nights are the best 🍺", status: "accepted" },
-  { partySlug: "party_byob_delhi", requesterName: "Priya Sharma", requesterIndex: 1, introMessage: "BYOB + terrace = sign me up!", status: "pending" },
-  { partySlug: "party_byob_delhi", requesterName: "Aaditya Rao", requesterIndex: 0, introMessage: "Delhi underground is my scene!", status: "pending" },
-  { partySlug: "party_byob_delhi", requesterName: "You", requesterIndex: 6, introMessage: "Never been to a BYOB party — sounds fun!", status: "pending" },
+  { partySlug: "party_games_delhi", requesterName: "Raj Malhotra", requesterIndex: 2, introMessage: "Hauz Khas nights are the best 🎲", status: "accepted" },
+  { partySlug: "party_games_delhi", requesterName: "Priya Sharma", requesterIndex: 1, introMessage: "Games night + terrace = sign me up!", status: "pending" },
+  { partySlug: "party_games_delhi", requesterName: "Aaditya Rao", requesterIndex: 0, introMessage: "Delhi underground is my scene!", status: "pending" },
+  { partySlug: "party_games_delhi", requesterName: "You", requesterIndex: 6, introMessage: "Never been to a games night — sounds fun!", status: "pending" },
 ];
 
 const DEMO_REVIEWS = [
@@ -315,6 +321,10 @@ export async function autoSeed(): Promise<void> {
   const userCount = await User.countDocuments();
   if (userCount > 0) {
     console.log("📊 Database already seeded, skipping auto-seed");
+    // Even if already seeded, verify hostId integrity — parties may reference
+    // user IDs that no longer exist (e.g. after a partial re-seed or manual
+    // DB wipe). Repair any broken references before returning.
+    await repairHostIntegrity();
     seeded = true;
     return;
   }
@@ -358,6 +368,7 @@ export async function autoSeed(): Promise<void> {
         acceptJoiners: true,
         menuOpen: true,
         locationRevealAt: revealAt,
+        spotifyPlaylistUrl: p.spotifyPlaylistUrl || '',
       });
 
       partyIdMap[p.slug] = party._id.toString();
@@ -476,5 +487,76 @@ export async function autoSeed(): Promise<void> {
   } catch (error: any) {
     console.error("❌ Auto-seed error:", error.message);
     throw error;
+  }
+}
+
+/**
+ * Verify that every party's hostId references an existing User document.
+ * If a party has a broken hostId (user was deleted, DB was partially wiped),
+ * try to re-link by hostName. If no user matches the name, create a stub
+ * host user so the party is never orphaned.
+ */
+async function repairHostIntegrity(): Promise<void> {
+  try {
+    const parties = await Party.find({}).lean({ virtuals: true });
+    if (parties.length === 0) return;
+
+    // Collect all unique hostIds that are set
+    const hostIds = [...new Set(parties.map((p) => p.hostId).filter(Boolean))] as string[];
+    if (hostIds.length === 0) return;
+
+    // Check which hostIds actually resolve to users
+    const existingHosts = await User.find({ _id: { $in: hostIds } }).lean({ virtuals: true });
+    const existingHostIdSet = new Set(existingHosts.map((h) => (h.id ?? h._id?.toString())));
+
+    let repaired = 0;
+    for (const party of parties) {
+      const pid = party.id ?? party._id?.toString();
+      if (!party.hostId) {
+        // No hostId at all — try to find user by name
+        if (party.hostName) {
+          const hostByName = await User.findOne({ name: party.hostName }).lean({ virtuals: true });
+          if (hostByName) {
+            const hid = hostByName.id ?? hostByName._id?.toString();
+            await Party.findByIdAndUpdate(pid, { $set: { hostId: hid } });
+            repaired++;
+          }
+        }
+      } else if (!existingHostIdSet.has(party.hostId)) {
+        // hostId is broken — try name lookup, or create a stub host
+        let fixed = false;
+        if (party.hostName) {
+          const hostByName = await User.findOne({ name: party.hostName }).lean({ virtuals: true });
+          if (hostByName) {
+            const hid = hostByName.id ?? hostByName._id?.toString();
+            await Party.findByIdAndUpdate(pid, { $set: { hostId: hid } });
+            fixed = true;
+            repaired++;
+          }
+        }
+        if (!fixed) {
+          // Create a stub host user so the party is not orphaned
+          const stub = await User.create({
+            phone: `+4477009stub${pid.slice(-6)}`,
+            name: party.hostName || "Unknown Host",
+            role: "host" as const,
+            vibes: 0,
+            hosted: 1,
+            rating: 5.0,
+            ratingCount: 0,
+            vibePrefs: "",
+          });
+          const stubId = stub._id.toString();
+          await Party.findByIdAndUpdate(pid, { $set: { hostId: stubId } });
+          repaired++;
+        }
+      }
+    }
+
+    if (repaired > 0) {
+      console.log(`🔧 Host integrity repair: fixed ${repaired} broken hostId reference(s)`);
+    }
+  } catch (err) {
+    console.warn("⚠️ Host integrity repair failed (non-fatal):", err);
   }
 }

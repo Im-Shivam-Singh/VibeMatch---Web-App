@@ -218,7 +218,7 @@ export function MapScreen() {
   const mapLinkUrl = buildMapLinkUrl(center.lat, center.lng, zoom);
 
   return (
-    <div className="flex h-full flex-col bg-black">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col bg-black">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -519,7 +519,7 @@ export function MapScreen() {
           <span className="text-[11px] text-muted-foreground/50">sorted by distance</span>
         </div>
 
-        <div className="fancy-scrollbar flex-1 space-y-2 overflow-y-auto px-3 pb-6">
+        <div className="fancy-scrollbar flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-3 pb-6">
           {isLoading && (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (

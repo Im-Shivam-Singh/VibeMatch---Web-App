@@ -116,7 +116,7 @@ export function PaymentScreen() {
   // Guard
   if (!partyId || !currentUser) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-sm text-muted-foreground">Pick a party to confirm your spot.</p>
         <Button variant="outline" onClick={() => setScreen("home")}>Browse parties</Button>
       </div>
@@ -126,7 +126,7 @@ export function PaymentScreen() {
   // Loading
   if (partyQuery.isLoading || !party) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-xl" />
@@ -148,7 +148,7 @@ export function PaymentScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -180,7 +180,7 @@ export function PaymentScreen() {
       </motion.header>
 
       {/* Body */}
-      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Order summary */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}

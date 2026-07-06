@@ -9,7 +9,9 @@ import {
   type PartyCreateInput,
 } from "@/lib/types";
 
-function serialize(p: any): Party {
+function serialize(p: any, hostMap?: Map<string, any>): Party {
+  const hostId = p.hostId;
+  const hostUser = hostId ? hostMap?.get(hostId) : undefined;
   return {
     id: p.id ?? p._id?.toString(),
     title: p.title,
@@ -31,10 +33,17 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     groupChatEnabled: p.groupChatEnabled,
+    spotifyPlaylistUrl: p.spotifyPlaylistUrl || '',
     createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     // Intentionally empty in list payloads to keep the response small.
     // The full media list is only included on the GET /api/parties/[id] route.
     media: [],
+    // Inline host snapshot — denormalized so the frontend can render host
+    // info (avatar, rating, verified badge) without a separate lookup.
+    hostAvatarUrl: hostUser?.avatarUrl ?? null,
+    hostRating: hostUser?.rating ?? null,
+    hostHosted: hostUser?.hosted ?? null,
+    hostVerified: !!hostUser,
   };
 }
 
@@ -65,13 +74,30 @@ async function _GET(req: NextRequest) {
     .limit(200)
     .lean({ virtuals: true });
 
-  // If profession filter is active, we need to look up host users
+  // Batch-resolve host users for inline host data in the response.
+  // This avoids N+1 lookups and lets the frontend show host avatars,
+  // ratings, and verified badges without a separate API call.
+  const allHostIds = [...new Set(parties.map((p) => p.hostId).filter(Boolean))] as string[];
+  let hostMap = new Map<string, any>();
+  if (allHostIds.length > 0) {
+    try {
+      const hosts = await User.find({ _id: { $in: allHostIds } }).lean({ virtuals: true });
+      for (const h of hosts) {
+        hostMap.set(h.id ?? h._id?.toString(), h);
+      }
+    } catch (err) {
+      console.warn("[parties] Host batch lookup failed (non-fatal):", err);
+    }
+  }
+
+  // If profession filter is active, filter by host profession
   if (profession && parties.length > 0) {
-    const hostIds = [...new Set(parties.map((p) => p.hostId).filter(Boolean))] as string[];
-    const hosts = await User.find({ _id: { $in: hostIds }, profession }).lean({ virtuals: true });
-    const hostIdSet = new Set(hosts.map((h) => h.id));
+    const professionHostIds = new Set<string>();
+    for (const [hid, h] of hostMap) {
+      if (h.profession === profession) professionHostIds.add(hid);
+    }
     parties = parties.map((p) => {
-      (p as any).host = p.hostId && hostIdSet.has(p.hostId) ? { profession } : null;
+      (p as any).host = p.hostId && professionHostIds.has(p.hostId) ? { profession } : null;
       return p;
     });
   }
@@ -116,7 +142,7 @@ async function _GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ parties: filtered.map(serialize) });
+  return NextResponse.json({ parties: filtered.map((p) => serialize(p, hostMap)) });
 }
 
 // POST /api/parties
@@ -145,6 +171,7 @@ async function _POST(req: NextRequest) {
     securityBooked,
     securityFee,
     media,
+    spotifyPlaylistUrl,
   } = body;
 
   if (!title || !city || !area || !date || !time || !hostName) {
@@ -188,6 +215,7 @@ async function _POST(req: NextRequest) {
     securityBooked: Boolean(securityBooked),
     securityFee: Number(securityFee) || 0,
     securityStatus: securityBooked ? "requested" : "",
+    spotifyPlaylistUrl: spotifyPlaylistUrl || '',
   });
 
   // Persist the media gallery (sorted by position).

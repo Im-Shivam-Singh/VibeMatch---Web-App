@@ -114,19 +114,27 @@ async function _POST(req: NextRequest) {
     .lean({ virtuals: true });
 
   if (joinRequest?.threadId && party.hostId) {
-    await Message.create({
-      threadId: joinRequest.threadId,
-      senderId: party.hostId,
-      receiverId: userId,
-      content: "✅ Payment confirmed — chat unlocked. Say hi to your host 👋",
-      kind: "system",
-      requestId: joinRequest.id ?? joinRequest._id?.toString(),
-    });
-    await ChatThread.findByIdAndUpdate(joinRequest.threadId, { $set: { updatedAt: new Date() } });
+    try {
+      await Message.create({
+        threadId: joinRequest.threadId,
+        senderId: party.hostId,
+        receiverId: userId,
+        content: "✅ Payment confirmed — chat unlocked. Say hi to your host 👋",
+        kind: "system",
+        requestId: joinRequest.id ?? joinRequest._id?.toString(),
+      });
+      await ChatThread.findByIdAndUpdate(joinRequest.threadId, { $set: { updatedAt: new Date() } });
+    } catch (err) {
+      console.warn("[orders] Failed to post payment confirmation message (non-fatal):", err);
+    }
   }
 
   // ── Unlock the group chat for this party + add the paying guest ──
-  await ensureGroupChat(partyId, userId, party.hostId);
+  try {
+    await ensureGroupChat(partyId, userId, party.hostId);
+  } catch (err) {
+    console.warn("[orders] Failed to bootstrap group chat (non-fatal):", err);
+  }
 
   const leanOrder = order.toObject({ virtuals: true });
   const leanTicket = ticket.toObject({ virtuals: true });

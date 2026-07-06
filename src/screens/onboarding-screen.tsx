@@ -11,7 +11,7 @@ import {
   Crown,
   Compass,
 } from "lucide-react";
-import { CITIES, VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS, REGIONS } from "@/lib/types";
+import { VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -19,18 +19,6 @@ import { toast } from "sonner";
 
 const STEPS = ["role", "vibes", "city", "done"] as const;
 type Step = (typeof STEPS)[number];
-
-// Region-based gradient tints for city cards
-const CITY_GRADIENTS: Record<string, string> = {
-  Edinburgh: "from-purple-500/10 to-blue-500/5",
-  London: "from-purple-500/10 to-indigo-500/5",
-  Manchester: "from-purple-500/10 to-slate-500/5",
-  Delhi: "from-amber-500/10 to-orange-500/5",
-  Mumbai: "from-amber-500/10 to-rose-500/5",
-  Bangalore: "from-teal-500/10 to-green-500/5",
-  Goa: "from-teal-500/10 to-cyan-500/5",
-  Pune: "from-amber-500/10 to-yellow-500/5",
-};
 
 // Vibe-specific unique color mapping (per vibe pill)
 const VIBE_PILL_STYLES: Record<string, { bg: string; border: string; text: string; glow: string }> = {
@@ -71,7 +59,7 @@ export function OnboardingScreen() {
   const [role, setRole] = useState<"host" | "partier" | null>(
     currentUser?.role ?? null
   );
-  const [city, setCity] = useState<string>(currentUser?.city || "Mumbai");
+  const [city, setCity] = useState<string>(currentUser?.city || "");
   const [picks, setPicks] = useState<string[]>([]);
   const [direction, setDirection] = useState(1);
   const [bouncingVibe, setBouncingVibe] = useState<string | null>(null);
@@ -478,9 +466,9 @@ export function OnboardingScreen() {
                     <MapPin className="h-7 w-7 text-white" />
                   </motion.div>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-white">
-                    Choose your{" "}
+                    Where are you{" "}
                     <span className="bg-gradient-to-r from-purple-300 to-teal-300 bg-clip-text text-transparent">
-                      city
+                      based?
                     </span>
                   </h2>
                   <p className="mt-2 text-sm text-white/40">
@@ -488,61 +476,37 @@ export function OnboardingScreen() {
                   </p>
                 </div>
 
-                {/* City Grid */}
-                <div className="max-h-72 overflow-y-auto fancy-scrollbar">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {CITIES.map((c, i) => {
-                      const isActive = city === c;
-                      const region = REGIONS[c];
-                      const gradient = CITY_GRADIENTS[c] || "";
-                      return (
-                        <motion.button
-                          key={c}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{
-                            delay: i * 0.04,
-                            duration: 0.3,
-                            ease: [0.22, 1, 0.36, 1],
-                          }}
-                          onClick={() => setCity(c)}
-                          className={cn(
-                            "relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300",
-                            isActive
-                              ? "border-2 border-purple-400/60 bg-purple-500/10 animate-city-pulse"
-                              : `border border-white/[0.08] bg-gradient-to-br ${gradient} hover:border-purple-400/30`
-                          )}
-                        >
-                          {isActive && (
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="animate-check-ring absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-purple-500"
-                            >
-                              <Check className="h-3 w-3 text-white" />
-                            </motion.span>
-                          )}
-                          <MapPin
-                            className={cn(
-                              "h-4 w-4 transition-colors duration-300",
-                              isActive ? "text-purple-400" : "text-white/25"
-                            )}
-                          />
-                          <p
-                            className={cn(
-                              "mt-2 font-display text-base font-bold transition-colors duration-300",
-                              isActive ? "text-purple-300" : "text-white/80"
-                            )}
-                          >
-                            {c}
-                          </p>
-                          <p className="text-[10px] text-white/20">
-                            {region}
-                          </p>
-                        </motion.button>
-                      );
-                    })}
+                {/* City Text Input */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="Enter your city"
+                      className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] pl-11 pr-4 text-base font-medium text-white placeholder:text-white/25 focus:border-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-400/25 transition-all"
+                    />
                   </div>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          () => {
+                            setCity("Current Location");
+                          },
+                          () => {
+                            toast.error("Could not get your location");
+                          }
+                        );
+                      }
+                    }}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] text-sm font-medium text-white/40 transition-all hover:border-purple-400/30 hover:text-white/60 active:scale-[0.97]"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Use current location
+                  </motion.button>
                 </div>
               </motion.div>
             )}

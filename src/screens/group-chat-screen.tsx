@@ -287,8 +287,8 @@ function HeaderSkeleton() {
 function LockedState() {
   const goBack = useAppStore((s) => s.goBack);
   return (
-    <div className="flex h-full flex-col animate-screen-in">
-      <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
           <button
             onClick={goBack}
@@ -470,7 +470,7 @@ export function GroupChatScreen() {
 
   if (groupChatQuery.isLoading || partyQuery.isLoading) {
     return (
-      <div className="flex h-full flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
         <HeaderSkeleton />
         <div className="flex-1 space-y-3 p-4">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -503,9 +503,9 @@ export function GroupChatScreen() {
   const memberCount = members.length;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-x-hidden animate-screen-in">
+    <div className="flex h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
           <button
             onClick={goBack}
@@ -547,7 +547,7 @@ export function GroupChatScreen() {
       {/* ── Messages ────────────────────────────────────────── */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-4"
+        className="fancy-scrollbar flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Welcome banner */}
         <motion.div
@@ -639,10 +639,10 @@ export function GroupChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
-        <div className="flex w-full items-center gap-2 rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
+      <footer className="relative z-10 shrink-0 w-full border-t border-white/[0.08] glass-strong px-3 py-2 safe-bottom">
+        <div className="flex w-full items-center gap-2 overflow-hidden rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"
             aria-label="Attach"
           >
             <Camera className="h-4.5 w-4.5" />
@@ -657,14 +657,14 @@ export function GroupChatScreen() {
               }
             }}
             placeholder="Message the group…"
-            className="h-9 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none"
+            className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none"
           />
           <motion.button
             onClick={send}
             disabled={!text.trim() || sendMutation.isPending}
             whileTap={{ scale: 0.9 }}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl transition",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
               text.trim() && !sendMutation.isPending
                 ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-[0_2px_10px_-2px_rgba(83,74,183,0.5)]"
                 : "bg-white/[0.06] text-white/20",

@@ -352,7 +352,7 @@ export function MusicPlayerBar() {
       />
 
       {(isPlaying || expanded) && (
-        <div className="fixed inset-x-0 bottom-[76px] z-40 mx-auto max-w-[480px] px-3 animate-screen-in">
+        <div className="fixed inset-x-0 bottom-[76px] z-40 mx-auto px-3 animate-screen-in" style={{ maxWidth: "min(480px, calc(100vw - 24px))" }}>
           <div
             className="overflow-hidden rounded-2xl border glass-strong shadow-2xl transition-all"
             style={{

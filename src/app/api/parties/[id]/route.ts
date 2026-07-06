@@ -25,6 +25,7 @@ function serialize(p: any): Party {
     securityFee: p.securityFee,
     securityStatus: p.securityStatus,
     groupChatEnabled: p.groupChatEnabled,
+    spotifyPlaylistUrl: p.spotifyPlaylistUrl || '',
     createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     media: Array.isArray(p.media)
       ? (p.media
@@ -39,6 +40,12 @@ function serialize(p: any): Party {
           }))
           .sort((a: PartyMedia, b: PartyMedia) => a.position - b.position) as PartyMedia[])
       : [],
+    // Inline host snapshot left null here — the full host object is returned
+    // alongside the party in the detail response. The list API populates these.
+    hostAvatarUrl: null,
+    hostRating: null,
+    hostHosted: null,
+    hostVerified: null,
   };
 }
 
@@ -130,4 +137,4 @@ async function _GET(
   });
 }
 
-export const GET = withDB(_GET as (req: Request) => Promise<Response>);
+export const GET = withDB(_GET);

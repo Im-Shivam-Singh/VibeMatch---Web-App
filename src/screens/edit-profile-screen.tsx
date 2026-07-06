@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { CITIES, PROFESSIONS, VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS, parseVibes } from "@/lib/types";
+import { PROFESSIONS, VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS, parseVibes } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,7 +43,7 @@ export function EditProfileScreen() {
   const [name, setName] = useState(currentUser?.name || "");
   const [username, setUsername] = useState(currentUser?.username || "");
   const [bio, setBio] = useState(currentUser?.bio || "");
-  const [city, setCity] = useState(currentUser?.city || "Mumbai");
+  const [city, setCity] = useState(currentUser?.city || "");
   const [profession, setProfession] = useState(currentUser?.profession || "");
   const [instagram, setInstagram] = useState(currentUser?.instagram || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || AVATAR_PRESETS[0]);
@@ -103,7 +103,7 @@ export function EditProfileScreen() {
   if (!currentUser) return null;
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       {/* ---- Sticky header ---- */}
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/[0.08] px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <button
@@ -142,7 +142,7 @@ export function EditProfileScreen() {
       </header>
 
       {/* ---- Scrollable body ---- */}
-      <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto p-4 pb-12">
+      <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-12">
         {/* ---- Avatar section ---- */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
@@ -234,17 +234,13 @@ export function EditProfileScreen() {
 
           {/* City */}
           <Field label="City">
-            <select
+            <Input
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-purple-bright/60 focus:ring-2 focus:ring-purple-bright/40"
-            >
-              {CITIES.map((c) => (
-                <option key={c} value={c} className="bg-[#110f1f] text-white">
-                  {c}
-                </option>
-              ))}
-            </select>
+              placeholder="Enter your city"
+              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60"
+              maxLength={60}
+            />
           </Field>
 
           {/* Profession */}

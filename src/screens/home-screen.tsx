@@ -37,8 +37,6 @@ import { PartyCard } from "@/components/vibe/party-card";
 import { cn, formatLocation } from "@/lib/utils";
 import { toast } from "sonner";
 
-type Tab = "house" | "social";
-
 // Vibe gradient map for story circles
 const VIBE_GRADIENT_BG: Record<string, string> = {
   "R&B": "from-purple-600 to-indigo-800",
@@ -72,7 +70,6 @@ export function HomeScreen() {
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
   const currentUser = useAppStore((s) => s.currentUser);
 
-  const [tab, setTab] = useState<Tab>("house");
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -110,7 +107,7 @@ export function HomeScreen() {
     const center = CITY_CENTERS[cityFilter];
     if (!center) return allParties;
     return allParties.filter((p) => {
-      if (p.lat == null || p.lng == null) return false;
+      if (p.lat == null || p.lng == null) return true; // include parties without coordinates
       return haversineKm(center, { lat: p.lat, lng: p.lng }) <= radiusKm;
     });
   }, [allParties, cityFilter, radiusKm]);
@@ -129,11 +126,8 @@ export function HomeScreen() {
     [parties],
   );
 
-  // Filter by tab
-  const filteredParties = useMemo(() => {
-    if (tab === "house") return parties.filter((p) => p.maxGuests <= 30);
-    return parties.filter((p) => p.maxGuests > 30 || p.fee === 0);
-  }, [parties, tab]);
+  // All parties (no tab filtering)
+  const filteredParties = parties;
 
   const onSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +154,7 @@ export function HomeScreen() {
   const recentSearches = ["Lo-fi", "Koramangala", "R&B"];
 
   return (
-    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* ====== Sticky Header ====== */}
       <header className="sticky top-0 z-30 glass-strong px-4 pt-3 pb-3 lg:px-6 lg:pt-4 lg:pb-4">
         {/* Top row: Greeting + actions */}
@@ -293,21 +287,12 @@ export function HomeScreen() {
           </AnimatePresence>
         </div>
 
-        {/* ====== Tabs — House / Social ====== */}
-        <div className="mt-3 flex gap-1 rounded-xl bg-secondary/80 p-1 border border-white/[0.04]">
-          <TabButton active={tab === "house"} onClick={() => setTab("house")} emoji="🏠">
-            House parties
-          </TabButton>
-          <TabButton active={tab === "social"} onClick={() => setTab("social")} emoji="☕">
-            Social meetups
-          </TabButton>
-        </div>
       </header>
 
       {/* ====== Scrollable Feed ====== */}
       <div
         ref={feedRef}
-        className="fancy-scrollbar flex-1 overflow-y-auto pb-32 lg:pb-8"
+        className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-32 lg:pb-8"
       >
         {/* Hot Tonight — Horizontal scroll */}
         {hotTonight.length > 0 && (
@@ -359,7 +344,7 @@ export function HomeScreen() {
 
         {/* Active filter bar */}
         <AnimatePresence>
-          {(cityFilter || vibeFilter || searchQuery) && (
+          {(vibeFilter || searchQuery) && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
               animate={{ opacity: 1, height: "auto", marginTop: 16 }}
@@ -370,11 +355,6 @@ export function HomeScreen() {
               <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-purple-500/10 p-3 border border-purple-500/20">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-purple-400" />
                 <span className="text-xs text-muted-foreground">Filters:</span>
-                {cityFilter && (
-                  <FilterTag onClear={() => setCityFilter(null)}>
-                    📍 {cityFilter}
-                  </FilterTag>
-                )}
                 {vibeFilter && (
                   <FilterTag onClear={() => setVibeFilter(null)}>
                     {VIBE_EMOJI[vibeFilter]} {vibeFilter}
@@ -385,7 +365,6 @@ export function HomeScreen() {
                 )}
                 <button
                   onClick={() => {
-                    setCityFilter(null);
                     setVibeFilter(null);
                     setSearchQuery("");
                     setLocalSearch("");
@@ -437,11 +416,10 @@ export function HomeScreen() {
             <EmptyState
               icon={Compass}
               title="No parties match"
-              description="Try clearing filters or exploring a different city."
+              description="Try clearing filters or search for something else."
               action={
                 <button
                   onClick={() => {
-                    setCityFilter(null);
                     setVibeFilter(null);
                     setSearchQuery("");
                     setLocalSearch("");
@@ -479,40 +457,6 @@ export function HomeScreen() {
 }
 
 /* ====== Sub-components ====== */
-
-function TabButton({
-  active,
-  onClick,
-  children,
-  emoji,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  emoji: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex-1 rounded-lg py-2.5 text-xs font-medium transition-all duration-250",
-        active
-          ? "bg-purple-500/25 text-purple-200 shadow-sm shadow-purple-500/10 border border-purple-500/20"
-          : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent",
-      )}
-    >
-      <span
-        className={cn(
-          "mr-1 inline-block transition-transform duration-200",
-          active && "scale-110",
-        )}
-      >
-        {emoji}
-      </span>
-      {children}
-    </button>
-  );
-}
 
 function VibeStory({
   active,

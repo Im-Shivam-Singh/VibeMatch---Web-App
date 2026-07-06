@@ -37,7 +37,17 @@ async function _PATCH(
   }
 
   const party = await Party.findById(existing.partyId).lean({ virtuals: true });
-  const host = party?.hostId ? await User.findById(party.hostId).lean({ virtuals: true }) : null;
+  let host: any = null;
+  try {
+    if (party?.hostId) {
+      host = await User.findById(party.hostId).lean({ virtuals: true });
+    }
+    if (!host && party?.hostName) {
+      host = await User.findOne({ name: party.hostName }).lean({ virtuals: true });
+    }
+  } catch (err) {
+    console.warn(`[requests/[id]] Host lookup failed for party ${existing.partyId}:`, err);
+  }
 
   await JoinRequest.findByIdAndUpdate(id, { $set: { status } });
 
@@ -46,6 +56,7 @@ async function _PATCH(
     const threadId = existing.threadId;
     const hostId = host.id ?? host._id?.toString();
     const guestId = existing.requesterId;
+    const hostDisplayName = host.name || party?.hostName || "Host";
 
     if (status === "accepted") {
       // System notice
@@ -53,13 +64,13 @@ async function _PATCH(
         threadId,
         senderId: hostId,
         receiverId: guestId,
-        content: `✅ ${host.name} approved your request. Pay below to lock your spot.`,
+        content: `✅ ${hostDisplayName} approved your request. Pay below to lock your spot.`,
         kind: "system",
       });
       // Payment CTA — the guest taps this to go to checkout. The amount is
       // the party entry fee; we embed it in the content for the chat UI.
       const currency = ["Delhi", "Mumbai", "Bangalore", "Goa", "Pune"].includes(
-        party!.city,
+        party?.city ?? "",
       )
         ? "₹"
         : "£";
@@ -67,7 +78,7 @@ async function _PATCH(
         threadId,
         senderId: hostId,
         receiverId: guestId,
-        content: `Pay ${currency}${party!.fee}${party!.fee === 0 ? " (free entry — tap to confirm)" : " to confirm your spot"}`,
+        content: `Pay ${currency}${party?.fee ?? 0}${(party?.fee ?? 0) === 0 ? " (free entry — tap to confirm)" : " to confirm your spot"}`,
         kind: "payment",
         requestId: id,
       });
@@ -88,4 +99,4 @@ async function _PATCH(
   return NextResponse.json({ id, status });
 }
 
-export const PATCH = withDB(_PATCH as (req: Request) => Promise<Response>);
+export const PATCH = withDB(_PATCH);

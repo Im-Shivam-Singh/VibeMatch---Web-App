@@ -203,7 +203,7 @@ function ThreadCard({
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p
             className={cn(
-              "line-clamp-2 text-xs leading-relaxed",
+              "line-clamp-2 break-words text-xs leading-relaxed",
               unread ? "text-white/70" : "text-white/40",
             )}
           >
@@ -313,9 +313,9 @@ export function InboxScreen() {
   };
 
   return (
-    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)]">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
@@ -345,13 +345,13 @@ export function InboxScreen() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search messages…"
-            className="h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-4 text-sm text-white placeholder:text-white/30 transition focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+            className="h-10 w-full min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-4 text-sm text-white placeholder:text-white/30 transition focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
           />
         </div>
       </header>
 
       {/* ── Content ────────────────────────────────────────────── */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading && <InboxSkeleton />}
 
         {!isLoading && (
@@ -363,7 +363,7 @@ export function InboxScreen() {
             <TabBar active={tab} onChange={setTab} unreadCount={totalUnread} />
 
             {/* Thread list */}
-            <div className="space-y-1.5 px-3 pt-2 pb-4">
+            <div className="space-y-1.5 px-3 pt-2 pb-24">
               <AnimatePresence mode="popLayout">
                 {threads.length === 0 && (
                   <motion.div

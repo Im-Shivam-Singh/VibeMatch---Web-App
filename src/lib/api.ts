@@ -73,7 +73,7 @@ export const api = {
 
   // requests
   sendRequest: (input: JoinRequestInput) =>
-    jfetch<{ id: string; message: string; status: string; threadId?: string }>(`/api/requests`, {
+    jfetch<{ id: string; message: string; status: string; threadId?: string; code?: string }>(`/api/requests`, {
       method: "POST",
       body: JSON.stringify(input),
     }),

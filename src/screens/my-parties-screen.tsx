@@ -99,7 +99,7 @@ export function MyPartiesScreen() {
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* ── Frosted header ───────────────────────────────────────── */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -140,7 +140,7 @@ export function MyPartiesScreen() {
       </motion.header>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Analytics summary */}
         {currentUser && (
           <motion.section

@@ -258,7 +258,7 @@ export function ManagePartyScreen() {
   // ── Empty state ────────────────────────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -292,7 +292,7 @@ export function ManagePartyScreen() {
   // ── Error ──────────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -327,7 +327,7 @@ export function ManagePartyScreen() {
   ];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -381,7 +381,7 @@ export function ManagePartyScreen() {
       </motion.header>
 
       {/* Content */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
         <AnimatePresence mode="wait">
           {activeTab === "menu" && (
             <motion.div
@@ -842,7 +842,7 @@ export function ManagePartyScreen() {
 
 function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
@@ -857,7 +857,7 @@ function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </header>
-      <div className="fancy-scrollbar flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {[0, 1, 2].map((i) => (
           <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3">
             <div className="flex items-center gap-2">

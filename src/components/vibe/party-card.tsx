@@ -271,13 +271,27 @@ export function PartyCard({ party, onOpen, className, featured = false, index = 
 
         {/* Host info row */}
         <div className="flex items-center gap-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 ring-1 ring-purple-500/30">
-            <Sparkles className="h-2.5 w-2.5 text-purple-400" />
-          </div>
+          {party.hostAvatarUrl ? (
+            <img
+              src={party.hostAvatarUrl}
+              alt={party.hostName}
+              className="h-5 w-5 rounded-full ring-1 ring-purple-500/30 object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 ring-1 ring-purple-500/30">
+              <Sparkles className="h-2.5 w-2.5 text-purple-400" />
+            </div>
+          )}
           <span className="text-xs text-muted-foreground">
             Hosted by{" "}
             <span className="font-medium text-foreground/90">{party.hostName}</span>
           </span>
+          {party.hostVerified && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1 py-0.5 text-[8px] font-bold text-teal-300">
+              ✓
+            </span>
+          )}
         </div>
 
         {/* Metadata — location, date, time */}
@@ -299,7 +313,7 @@ export function PartyCard({ party, onOpen, className, featured = false, index = 
         </div>
 
         {/* Vibe tags + guest avatars */}
-        <div className="flex items-center justify-between gap-2 pt-0.5">
+        <div className="flex items-center justify-between gap-2 pt-0.5 overflow-hidden">
           {/* Vibe pills */}
           <div className="flex min-w-0 flex-wrap gap-1.5">
             {displayVibes.map((v) => (

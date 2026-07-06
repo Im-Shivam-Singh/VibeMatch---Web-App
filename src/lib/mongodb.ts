@@ -155,15 +155,21 @@ async function forceReseed(): Promise<void> {
  * Wrapper for API route handlers that ensures MongoDB connection
  * and returns proper error responses if the connection fails.
  *
+ * Supports both simple handlers `(req) => ...` and dynamic route handlers
+ * `(req, context) => ...` where context contains `{ params }`.
+ *
  * Usage:
  *   async function _GET(req: NextRequest) { ... }
  *   export const GET = withDB(_GET);
+ *
+ *   async function _GET(req, { params }) { ... }
+ *   export const GET = withDB(_GET);
  */
-function withDB(handler: (req: Request) => Promise<Response>): (req: Request) => Promise<Response> {
-  return async (req: Request) => {
+function withDB(handler: (...args: any[]) => Promise<Response>): (...args: any[]) => Promise<Response> {
+  return async (...args: any[]) => {
     try {
       await connectDB();
-      return await handler(req);
+      return await handler(...args);
     } catch (error: any) {
       console.error("API Error:", error.message);
 

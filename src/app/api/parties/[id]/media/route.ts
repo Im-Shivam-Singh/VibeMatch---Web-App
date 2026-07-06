@@ -121,6 +121,6 @@ async function _PATCH(
   });
 }
 
-export const POST = withDB(_POST as (req: Request) => Promise<Response>);
-export const DELETE = withDB(_DELETE as (req: Request) => Promise<Response>);
-export const PATCH = withDB(_PATCH as (req: Request) => Promise<Response>);
+export const POST = withDB(_POST);
+export const DELETE = withDB(_DELETE);
+export const PATCH = withDB(_PATCH);

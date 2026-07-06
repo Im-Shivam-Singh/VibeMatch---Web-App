@@ -137,4 +137,4 @@ async function _GET(
   });
 }
 
-export const GET = withDB(_GET as (req: Request) => Promise<Response>);
+export const GET = withDB(_GET);

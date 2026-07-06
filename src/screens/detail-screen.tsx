@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Plus,
   ExternalLink,
+  Music,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -120,7 +121,7 @@ export function DetailScreen() {
 
   // ── Scroll ref for parallax ─────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll({ container: scrollRef });
+  const { scrollY } = useScroll();
   const heroScale = useTransform(scrollY, [0, 300], [1, 1.15]);
   const heroOpacity = useTransform(scrollY, [0, 200, 300], [1, 0.6, 0]);
   const heroTranslateY = useTransform(scrollY, [0, 300], [0, -60]);
@@ -223,34 +224,50 @@ export function DetailScreen() {
   const requestMutation = useMutation({
     mutationFn: async () => {
       if (!currentUser) throw new Error("Please sign in first");
-      if (!data?.host?.id) throw new Error("HOST_NOT_FOUND");
-      const threadRes = await api.ensureThread(
-        currentUser.id,
-        data.host.id,
-        data.party.id,
-      );
+
+      // If the host User record exists, ensure a 1:1 chat thread first.
+      // If the host profile is missing, skip thread creation — the API will
+      // still accept the join request (it stores it as pending without a thread).
+      let threadId: string | undefined;
+      if (data?.host?.id) {
+        const threadRes = await api.ensureThread(
+          currentUser.id,
+          data.host.id,
+          data.party.id,
+        );
+        threadId = threadRes.threadId;
+      }
+
       const res = await api.sendRequest({
         partyId: data.party.id,
         requesterName: currentUser.name,
         introMessage: intro.trim(),
         requesterId: currentUser.id,
-        threadId: threadRes.threadId,
+        threadId,
         introVideoUrl: introVideo?.url,
         introVideoPoster: introVideo?.poster,
       });
-      return { threadId: res.threadId ?? threadRes.threadId };
+      return { threadId: res.threadId ?? threadId ?? null, code: res.code };
     },
-    onSuccess: ({ threadId }) => {
-      toast.success("Intro sent to the host! 🎬", {
-        description: "Payment unlocks here once they approve.",
-      });
+    onSuccess: ({ threadId, code }) => {
+      if (code === "HOST_NOT_LINKED") {
+        toast.success("Intro recorded! 🎬", {
+          description: "The host will see your request once their profile is available.",
+        });
+      } else {
+        toast.success("Intro sent to the host! 🎬", {
+          description: "Payment unlocks here once they approve.",
+        });
+      }
       setSpotSheetOpen(false);
       setIntro("");
       setIntroVideo(null);
       qc.invalidateQueries({ queryKey: ["parties"] });
       qc.invalidateQueries({ queryKey: ["threads", currentUser?.id] });
-      setSelectedThreadId(threadId);
-      setScreen("chat");
+      if (threadId) {
+        setSelectedThreadId(threadId);
+        setScreen("chat");
+      }
     },
     onError: (e: Error) => {
       const msg = e.message || "";
@@ -388,11 +405,11 @@ export function DetailScreen() {
   };
 
   return (
-    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Scrollable content */}
       <div
         ref={scrollRef}
-        className="fancy-scrollbar flex-1 overflow-y-auto pb-28 lg:pb-20"
+        className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-28 lg:pb-20"
       >
         {/* ── HERO WITH PARALLAX ──────────────────────────────────── */}
         <div className="relative h-[340px] w-full max-w-full overflow-hidden">
@@ -548,35 +565,33 @@ export function DetailScreen() {
             <h1 className="font-display text-2xl font-extrabold leading-tight text-foreground lg:text-3xl break-words">
               {party.title}
             </h1>
-            {host && (
-              <div className="flex items-center gap-3">
-                <UserAvatar
-                  name={host.name ?? "Unknown Host"}
-                  src={host.avatarUrl}
-                  size={36}
-                  ring
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-foreground">
-                      {host.name ?? "Unknown Host"}
+            <div className="flex items-center gap-3">
+              <UserAvatar
+                name={host?.name ?? party.hostName ?? "Unknown Host"}
+                src={host?.avatarUrl}
+                size={36}
+                ring
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    {host?.name ?? party.hostName ?? "Unknown Host"}
+                  </span>
+                  {host?.id && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Verified
                     </span>
-                    {host.id && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-teal-500/15 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Verified
-                      </span>
-                    )}
-                  </div>
-                  {host.id ? (
-                    <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                      View host profile →
-                    </button>
-                  ) : (
-                    <span className="text-xs text-white/40">Host profile unavailable</span>
                   )}
                 </div>
+                {host?.id ? (
+                  <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                    View host profile →
+                  </button>
+                ) : (
+                  <span className="text-xs text-white/40">Host profile unavailable</span>
+                )}
               </div>
-            )}
+            </div>
           </motion.section>
 
           {/* Vibe Tags */}
@@ -817,6 +832,36 @@ export function DetailScreen() {
             </motion.section>
           )}
 
+          {/* Spotify Playlist Embed */}
+          {party.spotifyPlaylistUrl && (
+            <motion.section
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.42 }}
+              className="space-y-3"
+            >
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Music className="h-3.5 w-3.5 text-green-400" />
+                Party Playlist 🎵
+              </h3>
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-card/30">
+                <iframe
+                  src={party.spotifyPlaylistUrl.replace(
+                    "https://open.spotify.com/playlist/",
+                    "https://open.spotify.com/embed/playlist/"
+                  )}
+                  width="100%"
+                  height="152"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="w-full"
+                  title="Spotify Playlist"
+                />
+              </div>
+            </motion.section>
+          )}
+
           {/* Host controls (if user is host) */}
           {isOwn && (
             <motion.section
@@ -854,14 +899,13 @@ export function DetailScreen() {
             </motion.section>
           )}
 
-          {/* Bottom spacer */}
-          <div className="h-4" />
+          {/* Bottom spacer for CTA */}
+          <div className="h-24" />
         </div>
       </div>
 
-      {/* ── STICKY CTA BAR ──────────────────────────────────────────── */}
-      <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 lg:bottom-6">
-        <div className="mx-auto max-w-2xl lg:max-w-lg">
+      {/* ── INLINE CTA BAR ──────────────────────────────────────────── */}
+      <div className="px-4 pb-6 lg:px-6">
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -934,7 +978,6 @@ export function DetailScreen() {
             </div>
           )}
         </motion.div>
-        </div>
       </div>
 
       {/* ── "Get your spot" sheet ────────────────────────────────────── */}

@@ -184,7 +184,7 @@ export function HostDashboardScreen() {
   // ── Empty state: no party selected ─────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -235,7 +235,7 @@ export function HostDashboardScreen() {
   // ── Error state ─────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -280,7 +280,7 @@ export function HostDashboardScreen() {
 
   // ── Main render ─────────────────────────────────────────────────
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -312,7 +312,7 @@ export function HostDashboardScreen() {
       </motion.header>
 
       {/* Scrollable body */}
-      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* ── Summary stat cards (4-up) ──────────────────────────── */}
         <motion.section
           variants={stagger}
@@ -721,7 +721,7 @@ function EarningRow({ label, value }: { label: string; value: string }) {
 
 function HostDashboardSkeleton() {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
@@ -732,7 +732,7 @@ function HostDashboardSkeleton() {
           </div>
         </div>
       </header>
-      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
         <div className="grid grid-cols-2 gap-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">

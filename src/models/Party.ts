@@ -24,6 +24,7 @@ export interface IParty extends Document {
   securityStatus: string;
   locationRevealAt?: Date;
   groupChatEnabled: boolean;
+  spotifyPlaylistUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -125,6 +126,10 @@ const PartySchema = new Schema<IParty>(
     groupChatEnabled: {
       type: Boolean,
       default: false,
+    },
+    spotifyPlaylistUrl: {
+      type: String,
+      default: '',
     },
   },
   {

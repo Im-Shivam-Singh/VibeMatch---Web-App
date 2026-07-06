@@ -27,12 +27,12 @@ import {
   ArrowRight,
   ArrowLeft,
   PartyPopper,
+  Music,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import {
-  CITIES,
   VIBE_TAGS,
   VIBE_EMOJI,
   VIBE_COLORS,
@@ -103,6 +103,7 @@ interface FormState {
   fee: number;
   approvalRequired: boolean;
   acceptJoiners: boolean;
+  spotifyPlaylistUrl: string;
   menuItems: {
     id: string;
     name: string;
@@ -127,6 +128,7 @@ const defaultForm: FormState = {
   fee: 0,
   approvalRequired: false,
   acceptJoiners: true,
+  spotifyPlaylistUrl: "",
   menuItems: [],
 };
 
@@ -204,6 +206,7 @@ export function CreateScreen() {
         securityFee: form.securityBooked ? 25 : undefined,
         media:
           form.mediaFiles.length > 0 ? form.mediaFiles : undefined,
+        spotifyPlaylistUrl: form.spotifyPlaylistUrl.trim() || undefined,
       };
       const res = await api.createParty(input);
       return res.party;
@@ -314,7 +317,7 @@ export function CreateScreen() {
   };
 
   return (
-    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center gap-3">
@@ -371,7 +374,7 @@ export function CreateScreen() {
       </div>
 
       {/* ── Step content ────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-hidden relative">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
@@ -381,13 +384,13 @@ export function CreateScreen() {
             animate="center"
             exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute inset-0 fancy-scrollbar overflow-y-auto px-4 py-5 max-w-full"
+            className="absolute inset-0 fancy-scrollbar overflow-y-auto overflow-x-hidden px-4 py-5 max-w-full"
           >
             {step === 0 && (
               <StepBasics form={form} set={set} coverPresets={COVER_PRESETS} />
             )}
             {step === 1 && (
-              <StepWhenWhere form={form} set={set} />
+              <StepWhenWhere form={form} set={set} currency={currency} />
             )}
             {step === 2 && (
               <StepVibeSettings
@@ -665,9 +668,11 @@ function StepBasics({
 function StepWhenWhere({
   form,
   set,
+  currency,
 }: {
   form: FormState;
   set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  currency: string;
 }) {
   return (
     <div className="space-y-6">
@@ -710,20 +715,13 @@ function StepWhenWhere({
         </Label>
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <select
+          <Input
             value={form.city}
             onChange={(e) => set("city", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-border/50 bg-card/40 pl-10 pr-4 text-sm text-foreground appearance-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none"
-          >
-            <option value="" disabled>
-              Select city
-            </option>
-            {CITIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            placeholder="Enter city"
+            className="h-12 w-full rounded-2xl border-border/50 bg-card/40 pl-10 text-sm focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+            maxLength={60}
+          />
         </div>
       </div>
 
@@ -959,6 +957,25 @@ function StepVibeSettings({
             onCheckedChange={(v) => set("acceptJoiners", v)}
           />
         </div>
+      </div>
+
+      {/* Spotify Playlist */}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Spotify Playlist
+        </Label>
+        <div className="relative">
+          <Music className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-400" />
+          <Input
+            value={form.spotifyPlaylistUrl}
+            onChange={(e) => set("spotifyPlaylistUrl", e.target.value)}
+            placeholder="Paste a Spotify playlist link"
+            className="h-12 rounded-2xl border-border/50 bg-card/40 pl-10 text-sm focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20"
+          />
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Optional — embed a playlist so guests can preview the vibes
+        </p>
       </div>
     </div>
   );

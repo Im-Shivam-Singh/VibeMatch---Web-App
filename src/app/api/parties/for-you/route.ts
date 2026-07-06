@@ -3,7 +3,9 @@ import { withDB } from "@/lib/mongodb";
 import { Party as PartyModel, User } from "@/models";
 import { parseVibes, type Party } from "@/lib/types";
 
-function serialize(p: any): Party {
+function serialize(p: any, hostMap?: Map<string, any>): Party {
+  const hostId = p.hostId;
+  const hostUser = hostId ? hostMap?.get(hostId) : undefined;
   return {
     id: p.id ?? p._id?.toString(),
     title: p.title,
@@ -27,6 +29,10 @@ function serialize(p: any): Party {
     groupChatEnabled: p.groupChatEnabled,
     createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     media: [],
+    hostAvatarUrl: hostUser?.avatarUrl ?? null,
+    hostRating: hostUser?.rating ?? null,
+    hostHosted: hostUser?.hosted ?? null,
+    hostVerified: !!hostUser,
   };
 }
 
@@ -68,10 +74,23 @@ async function _GET(req: NextRequest) {
     })
     .sort((a, b) => b.score - a.score);
 
-  // If user has no vibe prefs, fall back to all parties sorted by recent activity
-  const rankedParties = (userVibes.length > 0 ? scored : [...scored].sort((a, b) => new Date(b.party.createdAt).getTime() - new Date(a.party.createdAt).getTime()))
-    .slice(0, 20)
-    .map((s) => serialize(s.party));
+  // Batch-resolve host users for inline host data
+  const topParties = (userVibes.length > 0 ? scored : [...scored].sort((a, b) => new Date(b.party.createdAt).getTime() - new Date(a.party.createdAt).getTime()))
+    .slice(0, 20);
+  const hostIds = [...new Set(topParties.map((s) => s.party.hostId).filter(Boolean))] as string[];
+  let hostMap = new Map<string, any>();
+  if (hostIds.length > 0) {
+    try {
+      const hosts = await User.find({ _id: { $in: hostIds } }).lean({ virtuals: true });
+      for (const h of hosts) {
+        hostMap.set(h.id ?? h._id?.toString(), h);
+      }
+    } catch (err) {
+      console.warn("[parties/for-you] Host batch lookup failed (non-fatal):", err);
+    }
+  }
+
+  const rankedParties = topParties.map((s) => serialize(s.party, hostMap));
 
   return NextResponse.json({
     parties: rankedParties,

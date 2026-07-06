@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ChevronLeft, Settings2, MapPin, Navigation, Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
+import { ChevronLeft, Settings2, MapPin, Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { CITIES, PROFESSIONS, VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS } from "@/lib/types";
+import { PROFESSIONS, VIBE_TAGS, VIBE_EMOJI, VIBE_COLORS } from "@/lib/types";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -24,8 +24,7 @@ const PRICE_LABELS = ["Free", "£4", "£8", "£12", "£15+"] as const;
 export function FilterScreen() {
   const cityFilter = useAppStore((s) => s.cityFilter);
   const setCityFilter = useAppStore((s) => s.setCityFilter);
-  const radiusKm = useAppStore((s) => s.radiusKm);
-  const setRadiusKm = useAppStore((s) => s.setRadiusKm);
+
   const searchQuery = useAppStore((s) => s.searchQuery);
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
   const professionFilter = useAppStore((s) => s.professionFilter);
@@ -106,7 +105,7 @@ export function FilterScreen() {
     "[&_[data-slot=slider-thumb]]:focus-visible:ring-purple-300/50";
 
   return (
-    <div className="relative flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -134,7 +133,7 @@ export function FilterScreen() {
       </motion.header>
 
       {/* Body */}
-      <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto p-4 pb-40">
+      <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-40">
         {/* Search */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Search</span>
@@ -159,57 +158,29 @@ export function FilterScreen() {
           </div>
         </motion.section>
 
-        {/* City selector — radio-style cards */}
+        {/* City input */}
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">City</span>
-          <div className="grid grid-cols-2 gap-2">
-            {CITIES.map((c) => {
-              const selected = cityFilter === c;
-              return (
-                <motion.button
-                  key={c}
-                  type="button"
-                  onClick={() => setCityFilter(selected ? null : c)}
-                  whileTap={{ scale: 0.97 }}
-                  aria-pressed={selected}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition",
-                    selected
-                      ? "border-purple-500/30 bg-purple-500/10 text-purple-200 shadow-[0_0_16px_-4px_rgba(83,74,183,0.2)]"
-                      : "border-white/[0.06] bg-white/[0.03] text-muted-foreground hover:text-foreground hover:border-white/[0.12]",
-                  )}
-                >
-                  <MapPin className={cn("h-3.5 w-3.5 shrink-0", selected ? "text-purple-400" : "text-muted-foreground/50")} />
-                  {c}
-                </motion.button>
-              );
-            })}
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-400" />
+            <Input
+              value={cityFilter || ""}
+              onChange={(e) => setCityFilter(e.target.value || null)}
+              placeholder="Enter a city…"
+              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] pl-9 pr-9 text-foreground placeholder:text-muted-foreground/50 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/25"
+              maxLength={60}
+            />
+            {cityFilter && (
+              <button
+                type="button"
+                onClick={() => setCityFilter(null)}
+                aria-label="Clear city"
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-
-          {/* Radius slider */}
-          {cityFilter && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-purple-300/80 font-medium">
-                  <Navigation className="h-3.5 w-3.5" />
-                  Nearby
-                </span>
-                <span className="text-sm font-medium text-purple-300 tabular-nums">
-                  {radiusKm === 0 ? "City-wide" : `Within ${radiusKm} km`}
-                </span>
-              </div>
-              <Slider value={[radiusKm]} onValueChange={(v) => setRadiusKm(v[0] ?? 0)} min={0} max={50} step={1} aria-label="Nearby radius" className={sliderClasses} />
-              <div className="flex justify-between text-[10px] uppercase tracking-[0.12em] text-muted-foreground/40">
-                <span>City-wide</span>
-                <span>25</span>
-                <span>50 km</span>
-              </div>
-            </motion.div>
-          )}
         </motion.section>
 
         {/* Vibe multi-select */}

@@ -492,7 +492,7 @@ export function TicketsScreen() {
   }, [tickets, filter]);
 
   return (
-    <div className="flex h-full w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Sticky header */}
       <header className="sticky top-0 z-10 glass-strong border-b border-white/[0.06] px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center justify-between">
@@ -531,7 +531,7 @@ export function TicketsScreen() {
       </header>
 
       {/* Scrollable body */}
-      <div className="fancy-scrollbar w-full flex-1 space-y-4 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar w-full flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {isLoading && (
           <>
             <TicketSkeleton />

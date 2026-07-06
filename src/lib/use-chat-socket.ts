@@ -7,7 +7,7 @@ let socket: Socket | null = null;
 
 function getSocket(): Socket {
   if (socket) return socket;
-  // Path "/" + XTransformPort=3003 so Caddy forwards to the chat mini-service.
+  // Connect via "/" path + XTransformPort=3003 so Caddy forwards to the chat mini-service.
   socket = io("/", {
     path: "/",
     query: { XTransformPort: "3003" },
@@ -15,6 +15,7 @@ function getSocket(): Socket {
     reconnection: true,
     reconnectionDelay: 800,
     reconnectionAttempts: 20,
+    timeout: 10000,
   });
   return socket;
 }
@@ -38,22 +39,31 @@ export function useChatSocket(userId: string | null | undefined) {
 
     const onConnect = () => {
       setOnline(true);
-      if (!identified.current) {
-        s.emit("identify", { userId });
-        s.once("identified", () => {
-          identified.current = true;
-        });
-      }
+      // Re-identify on every connect (including reconnects) so the server
+      // always knows which user this socket belongs to.
+      s.emit("identify", { userId });
+      s.once("identified", () => {
+        identified.current = true;
+      });
     };
-    const onDisconnect = () => setOnline(false);
+    const onDisconnect = () => {
+      setOnline(false);
+      identified.current = false;
+    };
+    const onConnectError = (err: Error) => {
+      console.warn("[chat-socket] connection error:", err.message);
+      setOnline(false);
+    };
 
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
+    s.on("connect_error", onConnectError);
     if (s.connected) onConnect();
 
     return () => {
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
+      s.off("connect_error", onConnectError);
     };
   }, [userId]);
 

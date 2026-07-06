@@ -105,7 +105,7 @@ function StepRow({ step, state, isLast }: { step: TrackerStep; state: StepState;
 
 function CountdownSkeleton() {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
@@ -116,7 +116,7 @@ function CountdownSkeleton() {
           <div className="h-6 w-20 rounded-full bg-white/[0.06] animate-pulse" />
         </div>
       </header>
-      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         <div className="h-40 rounded-2xl bg-white/[0.03] animate-pulse" />
         <div className="h-20 rounded-2xl bg-white/[0.03] animate-pulse" />
         <div className="h-24 rounded-2xl bg-white/[0.03] animate-pulse" />
@@ -128,7 +128,7 @@ function CountdownSkeleton() {
 
 function EmptyState({ goBack }: { goBack: () => void }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
@@ -210,7 +210,7 @@ export function CountdownScreen() {
   const partyCountdown = countdownTo(party.date, party.time);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -12 }}
@@ -233,7 +233,7 @@ export function CountdownScreen() {
       </motion.header>
 
       {/* Body */}
-      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* No-ticket banner */}
         {!hasTicket && currentUser && (
           <motion.section

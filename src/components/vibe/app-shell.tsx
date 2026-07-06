@@ -197,14 +197,14 @@ export function AppShell() {
   const v = isForward ? variantsForward : variantsBack;
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-background">
+    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-[#09080f]">
       {/* Desktop sidebar — hidden on mobile/tablet */}
       <SidebarNav />
 
       {/* Main content area — shifts right on desktop to make room for sidebar */}
       <div className="lg:pl-[280px]">
         <main
-          className="relative mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col overflow-x-hidden lg:max-w-6xl"
+          className="relative mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col overflow-x-hidden lg:max-w-6xl bg-background"
           style={{
             paddingBottom: showNav
               ? "calc(5rem + env(safe-area-inset-bottom, 0px))"

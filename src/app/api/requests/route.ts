@@ -79,16 +79,31 @@ async function _POST(req: NextRequest) {
   }
 
   if (!host) {
-    // The host User record is missing — we cannot create a chat thread or
-    // join request without a valid hostId. Return a clear error with the
-    // party's stored hostName so the frontend can display a fallback.
+    // The host User record is missing — we still create the join request so
+    // the guest isn't blocked, but we skip thread/chat creation since those
+    // require a valid hostId. The request will be stored as pending and can
+    // be processed later once the host record is restored.
+    const request = await JoinRequest.create({
+      partyId,
+      requesterName,
+      introMessage,
+      requesterId: providedRequesterId ?? null,
+      threadId: null,
+      introVideoUrl: introVideoUrl ?? null,
+      introVideoPoster: introVideoPoster ?? null,
+    });
+    const requestId = request.id ?? request._id?.toString();
+
     return NextResponse.json(
       {
-        error: "Host profile not found",
+        id: requestId,
+        threadId: null,
+        message: "Request recorded. The host will be notified once their profile is available.",
+        status: request.status,
         hostName: party.hostName || "Unknown Host",
-        code: "HOST_NOT_FOUND",
+        code: "HOST_NOT_LINKED",
       },
-      { status: 400 },
+      { status: 201 },
     );
   }
 

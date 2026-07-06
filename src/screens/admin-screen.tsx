@@ -138,7 +138,7 @@ export function AdminScreen() {
   // ── Empty state: no party selected ──────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex h-full flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
         <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <button
             onClick={goBack}
@@ -173,7 +173,7 @@ export function AdminScreen() {
   // ── Error state ─────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex h-full flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
         <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <button
             onClick={goBack}
@@ -211,7 +211,7 @@ export function AdminScreen() {
   const pendingCount = pending.length;
 
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       {/* ── Sticky header ────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <button
@@ -233,7 +233,7 @@ export function AdminScreen() {
       </header>
 
       {/* ── Scrollable body ──────────────────────────────────────── */}
-      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* ── Pending approval warning banner ────────────────────── */}
         {pendingCount > 0 && (
           <div className="amber-foil flex items-center gap-2 rounded-2xl p-3">
@@ -495,7 +495,7 @@ function ToggleRow({
 
 function AdminSkeleton() {
   return (
-    <div className="flex h-full flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="h-9 w-9" />
         <div className="flex-1 space-y-1.5">
@@ -504,7 +504,7 @@ function AdminSkeleton() {
           <Skeleton className="h-2.5 w-32 vibe-skeleton" />
         </div>
       </header>
-      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Warning banner skeleton */}
         <Skeleton className="h-12 w-full rounded-2xl vibe-skeleton" />
 

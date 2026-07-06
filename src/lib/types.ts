@@ -32,7 +32,6 @@ export function currencyForCity(city: string): "£" | "₹" {
 export const VIBE_TAGS = [
   "R&B",
   "Bollywood",
-  "BYOB",
   "Games",
   "Lo-fi",
   "Chill",
@@ -45,7 +44,6 @@ export type VibeTag = (typeof VIBE_TAGS)[number];
 export const VIBE_EMOJI: Record<string, string> = {
   "R&B": "🎵",
   Bollywood: "🌿",
-  BYOB: "🍾",
   Games: "🎮",
   "Lo-fi": "🌙",
   Chill: "🧊",
@@ -58,7 +56,6 @@ export const VIBE_EMOJI: Record<string, string> = {
 export const VIBE_COLORS: Record<string, string> = {
   "R&B": "bg-purple-500/15 text-purple-300 border-purple-500/45",
   Bollywood: "bg-green-600/15 text-green-400 border-green-600/45",
-  BYOB: "bg-purple-500/15 text-purple-300 border-purple-500/45",
   Games: "bg-teal-500/15 text-teal-300 border-teal-500/45",
   "Lo-fi": "bg-purple-500/15 text-purple-300 border-purple-500/45",
   Chill: "bg-cyan-500/15 text-cyan-300 border-cyan-500/45",
@@ -115,10 +112,18 @@ export interface Party {
   locationRevealAt?: string | null; // ISO datetime when exact address drops
   // New (purchase-flow rewrite) — unlocks group chat once first guest pays
   groupChatEnabled?: boolean;
+  spotifyPlaylistUrl?: string;
   createdAt: string;
   // Media gallery — full list (image + video). Empty in list payloads,
   // populated on the GET /api/parties/[id] route.
   media?: PartyMedia[];
+  // Inline host snapshot — denormalized from the User collection so the
+  // frontend can render host info without a separate lookup. Populated by
+  // the API when available; falls back to hostName-only when null.
+  hostAvatarUrl?: string | null;
+  hostRating?: number | null;
+  hostHosted?: number | null;
+  hostVerified?: boolean | null;
 }
 
 export interface PartyCreateInput {
@@ -138,6 +143,7 @@ export interface PartyCreateInput {
   securityBooked?: boolean;
   securityFee?: number;
   media?: { url: string; type: "image" | "video"; caption?: string }[];
+  spotifyPlaylistUrl?: string;
 }
 
 export interface JoinRequest {

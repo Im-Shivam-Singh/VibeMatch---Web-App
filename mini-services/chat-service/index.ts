@@ -1,11 +1,21 @@
-import { createServer } from "http";
+import { createServer, IncomingMessage, ServerResponse } from "http";
 import { Server } from "socket.io";
 
 // VibeMatch chat service — real-time 1:1 messaging relay.
 // Persists nothing itself; the Next.js app persists via /api/messages.
 // Port 3003 (Caddy forwards via ?XTransformPort=3003, path "/").
 
-const httpServer = createServer();
+const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+  // Simple health-check endpoint
+  if (req.url?.startsWith("/health")) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, connections: userSockets.size }));
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
+
 const io = new Server(httpServer, {
   path: "/",
   cors: { origin: "*", methods: ["GET", "POST"] },
@@ -36,14 +46,17 @@ io.on("connection", (socket) => {
   let currentUserId: string | null = null;
 
   socket.on("identify", (data: { userId: string }) => {
+    // Clean up any previous mapping for this socket (re-identification on reconnect)
+    if (currentUserId) {
+      leaveUser(currentUserId, socket.id);
+    }
     currentUserId = data.userId;
     joinUser(currentUserId, socket.id);
     socket.emit("identified", { ok: true });
   });
 
   // A client sends a chat message. Payload mirrors /api/messages body.
-  // We persist via the Next API is the client's responsibility (or we can do it here).
-  // For simplicity the client POSTs to /api/messages AND emits "chat:message".
+  // The client POSTs to /api/messages AND emits "chat:message".
   socket.on(
     "chat:message",
     (data: {
@@ -58,7 +71,6 @@ io.on("connection", (socket) => {
       socket.emit("chat:message", data);
       // deliver to receiver if online
       emitToUser(data.receiverId, "chat:message", data);
-      // typing indicators & read receipts handled below
     },
   );
 
@@ -75,15 +87,17 @@ io.on("connection", (socket) => {
   socket.on(
     "chat:read",
     (data: { threadId: string; byUserId: string }) => {
-      // notify the other participant that messages were read
-      // (we don't know sender here; client includes byUserId = reader)
-      // We broadcast read receipts to all sockets except sender.
+      // Broadcast read receipts to all sockets except sender.
       io.emit("chat:read", data);
     },
   );
 
-  socket.on("disconnect", () => {
-    if (currentUserId) leaveUser(currentUserId, socket.id);
+  socket.on("disconnect", (reason) => {
+    if (currentUserId) {
+      leaveUser(currentUserId, socket.id);
+      currentUserId = null;
+    }
+    console.log(`socket ${socket.id} disconnected: ${reason}`);
   });
 
   socket.on("error", (err) => {
