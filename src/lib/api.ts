@@ -14,26 +14,32 @@ import type {
   GroupChat,
   GroupChatMessage,
 } from "@/lib/types";
+import { trackRequestStart, trackRequestEnd } from "@/lib/loading-context";
 
 async function jfetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    let msg = `Request failed (${res.status})`;
-    try {
-      const j = await res.json();
-      if (j.error) msg = j.error;
-    } catch {
-      /* ignore */
+  trackRequestStart();
+  try {
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`;
+      try {
+        const j = await res.json();
+        if (j.error) msg = j.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
     }
-    throw new Error(msg);
+    return res.json() as Promise<T>;
+  } finally {
+    trackRequestEnd();
   }
-  return res.json() as Promise<T>;
 }
 
 export const api = {
@@ -304,6 +310,7 @@ export const api = {
     files: { url: string; type: "image" | "video"; name: string; size: number }[];
   }> =>
     new Promise((resolve, reject) => {
+      trackRequestStart();
       const fd = new FormData();
       for (const f of files) fd.append("file", f, f.name);
       const xhr = new XMLHttpRequest();
@@ -315,6 +322,7 @@ export const api = {
         }
       };
       xhr.onload = () => {
+        trackRequestEnd();
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(xhr.response as any);
         } else {
@@ -324,24 +332,37 @@ export const api = {
           reject(new Error(msg));
         }
       };
-      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onerror = () => {
+        trackRequestEnd();
+        reject(new Error("Network error during upload"));
+      };
       xhr.send(fd);
     }),
 
   // Notifications
   getNotifications: async (userId: string) => {
-    const res = await fetch(`/api/notifications?userId=${userId}&limit=30`);
-    if (!res.ok) throw new Error("Failed to fetch notifications");
-    return res.json();
+    trackRequestStart();
+    try {
+      const res = await fetch(`/api/notifications?userId=${userId}&limit=30`);
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+      return res.json();
+    } finally {
+      trackRequestEnd();
+    }
   },
   markNotificationsRead: async (userId: string) => {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    if (!res.ok) throw new Error("Failed to mark notifications read");
-    return res.json();
+    trackRequestStart();
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) throw new Error("Failed to mark notifications read");
+      return res.json();
+    } finally {
+      trackRequestEnd();
+    }
   },
 
   // Check if user is already in a party (accepted request or has ticket)

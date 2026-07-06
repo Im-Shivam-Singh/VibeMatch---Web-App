@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { LoadingProvider } from "@/lib/loading-context";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <LoadingProvider>
+          {children}
+        </LoadingProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
