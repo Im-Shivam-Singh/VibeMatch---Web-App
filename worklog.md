@@ -386,3 +386,31 @@ Unresolved Issues or Risks:
 - Consider adding S3/cloud storage for production uploads
 - Consider pagination for large notification lists
 - Consider adding notification preferences/settings
+
+---
+Task ID: Session-Loading-State
+Agent: main
+Task: Add page loading state if already signed in
+
+Work Log:
+- Identified issue: When user is already signed in, login page briefly shows before app redirects to home
+- Root cause: Auth validation happens asynchronously in useEffect, but login screen shows immediately
+- Solution: Added isInitializing state with LoadingScreen component
+- Added useState, useRef imports to app-shell.tsx
+- Added Loader2 icon from lucide-react
+- Created LoadingScreen component with animated spinner and "Loading VibeMatch..." text
+- Added isInitializing state that tracks auth check completion
+- Modified auth validation effect:
+  - Uses hasCheckedAuth ref to ensure effect only runs once on mount
+  - If no persisted auth, setTimeout(0) to finish initialization (avoids lint error)
+  - If persisted auth, calls getUser API and finishes initialization on success/failure
+- Added isInitializing check to all auth-dependent effects (force login, route away from login, show onboarding)
+- Returns LoadingScreen component while isInitializing is true
+- Lint passes with zero errors
+
+Stage Summary:
+- When app loads, shows loading spinner briefly while checking persisted auth
+- If user is already signed in, loading shows then redirects to home (no login flash)
+- If user is not signed in, loading shows then displays login screen
+- Smooth UX improvement - no jarring login screen flash for authenticated users
+- Verified working via agent-browser

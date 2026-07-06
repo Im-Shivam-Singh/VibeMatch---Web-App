@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,28 @@ const transition = {
   duration: slideDuration,
 };
 
+// ── Loading Screen Component ────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+            <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading VibeMatch...</p>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main AppShell ──────────────────────────────────────────────────────────
 export function AppShell() {
   const screen = useAppStore((s) => s.screen);
@@ -146,48 +169,73 @@ export function AppShell() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setScreen = useAppStore((s) => s.setScreen);
 
+  // Track initialization state for auth check
+  const [isInitializing, setIsInitializing] = useState(true);
+  const hasCheckedAuth = useRef(false);
+
   // Track direction for animation — derived directly from store values
   const isForward =
     !prevScreen || screenIndex(screen) >= screenIndex(prevScreen);
 
-  // If not authed, force login screen
+  // Validate persisted user on app load - runs once
   useEffect(() => {
-    if (!authed && screen !== "login") {
-      setScreen("login");
-    }
-  }, [authed, screen, setScreen]);
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
 
-  // Validate persisted user on app load
-  useEffect(() => {
-    if (!authed || !currentUser?.id) return;
+    // If no persisted auth, immediately finish initialization
+    if (!authed || !currentUser?.id) {
+      // Use setTimeout to defer setState outside the effect
+      const timer = setTimeout(() => setIsInitializing(false), 0);
+      return () => clearTimeout(timer);
+    }
+
     let cancelled = false;
     api
       .getUser({ id: currentUser.id })
       .then(() => {
-        // user exists
+        if (cancelled) return;
+        // User exists and is valid, finish initialization
+        setIsInitializing(false);
       })
       .catch(() => {
         if (cancelled) return;
+        // User is invalid, logout and finish initialization
         useAppStore.getState().logout();
+        setIsInitializing(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [authed, currentUser?.id]);
+  }, []); // Only run once on mount
+
+  // If not authed, force login screen
+  useEffect(() => {
+    if (isInitializing) return;
+    if (!authed && screen !== "login") {
+      setScreen("login");
+    }
+  }, [isInitializing, authed, screen, setScreen]);
 
   // After auth, route away from login
   useEffect(() => {
+    if (isInitializing) return;
     if (authed && screen === "login") {
       setScreen(onboarded ? "home" : "onboarding");
     }
-  }, [authed, screen, onboarded, setScreen]);
+  }, [isInitializing, authed, screen, onboarded, setScreen]);
 
   // After auth but before onboarding, show onboarding
   useEffect(() => {
+    if (isInitializing) return;
     if (authed && !onboarded && screen === "home") {
       setScreen("onboarding");
     }
-  }, [authed, onboarded, screen, setScreen]);
+  }, [isInitializing, authed, onboarded, screen, setScreen]);
+
+  // Show loading screen while checking auth
+  if (isInitializing) {
+    return <LoadingScreen />;
+  }
 
   const current = !authed ? "login" : screen;
 
