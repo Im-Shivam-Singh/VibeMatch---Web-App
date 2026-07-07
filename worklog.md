@@ -414,3 +414,64 @@ Stage Summary:
 - If user is not signed in, loading shows then displays login screen
 - Smooth UX improvement - no jarring login screen flash for authenticated users
 - Verified working via agent-browser
+
+---
+Task ID: Session-Restructure
+Agent: main
+Task: Reorganize project into feature-based folder structure
+
+Work Log:
+- Reorganized 22 screens from flat src/screens/ into feature folders under src/features/:
+  - auth/screens: login, onboarding
+  - party/screens: home, detail, create, filter, map, saved, countdown
+  - chat/screens: inbox, chat, group-chat
+  - profile/screens: profile, edit-profile
+  - tickets/screens: tickets, payment, confirmation
+  - host/screens: host-dashboard, manage-party, requests, my-parties
+  - admin/screens: admin
+- Reorganized components from src/components/vibe/ into logical folders:
+  - layout/: app-shell, bottom-nav, sidebar-nav
+  - shared/: empty-state, user-avatar, guest-avatars, notification-bell, theme-toggle, vibe-badge, rating-pill, loading-context (moved from lib)
+  - party/: party-card, reviews-section, host-analytics, live-countdown, music-player
+- Reorganized lib into grouped folders:
+  - api/index.ts (import path @/lib/api unchanged)
+  - store/index.ts (import path @/lib/store unchanged)
+  - db/mongodb.ts, db/auto-seed.ts, db/models/ (was src/models/)
+  - hooks/use-chat-socket.ts, hooks/use-notifications.ts
+  - music/store.ts, music/tracks.ts
+- Updated ALL imports across entire codebase (90 files changed)
+- Fixed broken relative imports in party-card.tsx (guest-avatars, live-countdown moved to different folders)
+- Lint passes with zero errors
+- App verified working via agent-browser
+- Updated VIBEMATCH_CONTEXT.md with new folder structure
+- Pushed to GitHub (commit 57b3244 + 71ecd6d)
+
+Stage Summary:
+- Clean feature-based folder structure replaces flat file organization
+- All import paths updated and working
+- Models now under src/lib/db/models/ alongside mongodb.ts and auto-seed.ts
+- Screens organized by feature domain for better discoverability
+- Context document updated to reflect new structure
+
+---
+Task ID: Session-DB-Fix
+Agent: main
+Task: Fix database not working (MONGODB_URI missing from .env)
+
+Work Log:
+- User reported "database not working"
+- Investigated: health endpoint showed uri_set:false, uri_is_atlas:false
+- Root cause: .env file was missing MONGODB_URI variable (only had DATABASE_URL)
+- The app fell back to in-memory MongoDB instead of Atlas
+- Added MONGODB_URI back to .env file
+- Restarted server and verified:
+  - health endpoint: uri_set:true, uri_is_atlas:true, connected
+  - user_count: 15, party_count: 15 (real Atlas data)
+  - Signup flow works (OTP sent, verified, onboarding completes)
+  - Home screen shows real party data from Atlas
+
+Stage Summary:
+- Database now connects to MongoDB Atlas (not in-memory)
+- .env file needed MONGODB_URI added back
+- All data (15 users, 15 parties) available from Atlas
+- Full auth flow verified working end-to-end
