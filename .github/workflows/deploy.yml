@@ -66,7 +66,7 @@ jobs:
   deploy-preview:
     name: Deploy Preview
     needs: build
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -126,7 +126,7 @@ jobs:
   deploy-production:
     name: Deploy Production
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
