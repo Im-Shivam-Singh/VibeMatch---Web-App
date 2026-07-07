@@ -1,12 +1,10 @@
 name: Build and Deploy to Vercel
 
-# When should this workflow run?
 on:
   push:
     branches:
       - main
 
-# Environment variables
 env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -14,43 +12,47 @@ env:
 
 jobs:
   deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Download your project
-      - name: Checkout Code
+      # Step 1: Checkout the repository
+      - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Install Bun
-      - name: Setup Bun
+      # Step 2: Setup Bun
+      - name: 🥟 Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Step 3: Install project dependencies
-      - name: Install Dependencies
+      # Step 3: Install dependencies
+      - name: 📦 Install Dependencies
         run: bun install
 
-      # Step 4: Run ESLint
-      - name: Run Lint
+      # Step 4: Lint the project
+      - name: 🔍 Run ESLint
         run: bun run lint
 
       # Step 5: Build the project
-      - name: Build Project
+      - name: 🏗️ Build Next.js
         run: bun run build
 
       # Step 6: Install Vercel CLI
-      - name: Install Vercel CLI
-        run: bun add -g vercel
+      - name: 🚀 Install Vercel CLI
+        run: bun add -g vercel@latest
 
-      # Step 7: Download Vercel project settings
-      - name: Pull Vercel Environment
+      # Step 7: Download Vercel project configuration
+      - name: 🔄 Pull Vercel Configuration
         run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
 
-      # Step 8: Build using Vercel
-      - name: Build for Vercel
+      # Step 8: Create production build
+      - name: 🏗️ Build for Vercel
         run: vercel build --prod --token=$VERCEL_TOKEN
 
-      # Step 9: Deploy
-      - name: Deploy to Vercel
-        run: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+      # Step 9: Deploy to Vercel
+      - name: 🚀 Deploy to Production
+        run: |
+          echo "Starting deployment..."
+          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          echo "Deployment completed successfully!"
