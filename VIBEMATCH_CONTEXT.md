@@ -1,8 +1,8 @@
 # VibeMatch — Full Project Context Document
 
 > **Purpose**: Reusable context for continuing development in new AI sessions.  
-> **Last Updated**: 2025-07-02  
-> **Commit**: `eec7ffc` on `main` branch
+> **Last Updated**: 2025-07-07  
+> **Commit**: `57b3244` on `main` branch
 
 ---
 
@@ -34,7 +34,7 @@
 ### MongoDB Atlas
 - **URI**: `See .env file (MONGODB_URI)`
 - Stored in `.env` as `MONGODB_URI`
-- Auto-seeds 13 parties + sample users on first run (`/src/lib/auto-seed.ts`)
+- Auto-seeds 13 parties + sample users on first run (`/src/lib/db/auto-seed.ts`)
 
 ---
 
@@ -66,78 +66,68 @@ src/
 │   ├── globals.css             # Global styles + CSS variables + animations
 │   ├── layout.tsx              # Root layout with Providers
 │   └── page.tsx                # Entry point → AppShell
+├── features/                   # Feature-based screen organization
+│   ├── auth/screens/           # Login + Onboarding
+│   ├── party/screens/          # Home, Detail, Create, Filter, Map, Saved, Countdown
+│   ├── chat/screens/           # Inbox, Chat, GroupChat
+│   ├── profile/screens/        # Profile, EditProfile
+│   ├── tickets/screens/        # Tickets, Payment, Confirmation
+│   ├── host/screens/           # HostDashboard, ManageParty, Requests, MyParties
+│   └── admin/screens/          # Admin
 ├── components/
 │   ├── providers.tsx           # QueryClientProvider + ThemeProvider + LoadingProvider
 │   ├── ui/                     # shadcn/ui components (pre-installed)
-│   └── vibe/                   # App-specific components
-│       ├── app-shell.tsx       # Main shell: routing, auth, layout
-│       ├── bottom-nav.tsx      # Mobile bottom navigation
-│       ├── empty-state.tsx     # Empty state placeholder
-│       ├── guest-avatars.tsx   # Guest avatar stack
+│   ├── layout/                 # Layout components
+│   │   ├── app-shell.tsx       # Main shell: routing, auth, layout
+│   │   ├── bottom-nav.tsx      # Mobile bottom navigation
+│   │   └── sidebar-nav.tsx     # Desktop sidebar navigation
+│   ├── shared/                 # Shared/reusable components
+│   │   ├── empty-state.tsx     # Empty state placeholder
+│   │   ├── guest-avatars.tsx   # Guest avatar stack
+│   │   ├── loading-context.tsx # Global latency indicator (500ms threshold)
+│   │   ├── notification-bell.tsx # Notification dropdown
+│   │   ├── rating-pill.tsx     # Rating display pill
+│   │   ├── theme-toggle.tsx    # Dark/light mode toggle
+│   │   ├── user-avatar.tsx     # User avatar (React.memo)
+│   │   └── vibe-badge.tsx      # Vibe tag badge
+│   └── party/                  # Party-specific components
 │       ├── host-analytics.tsx  # Host analytics display
 │       ├── live-countdown.tsx  # Event countdown timer
 │       ├── music-player.tsx    # Music player bar
-│       ├── notification-bell.tsx # Notification dropdown
 │       ├── party-card.tsx      # Party card (React.memo)
-│       ├── rating-pill.tsx     # Rating display pill
-│       ├── reviews-section.tsx # Reviews list + submit
-│       ├── sidebar-nav.tsx     # Desktop sidebar navigation
-│       ├── theme-toggle.tsx    # Dark/light mode toggle
-│       ├── user-avatar.tsx     # User avatar (React.memo)
-│       └── vibe-badge.tsx      # Vibe tag badge
+│       └── reviews-section.tsx # Reviews list + submit
 ├── lib/
-│   ├── api.ts                  # Client-side API helpers (all endpoints)
-│   ├── auto-seed.ts            # Database auto-seeder
-│   ├── loading-context.tsx     # Global latency indicator (500ms threshold)
-│   ├── mongodb.ts              # MongoDB connection + withDB wrapper
-│   ├── music-store.ts          # Music player state (Zustand)
-│   ├── music-tracks.ts         # Sample music tracks
-│   ├── notifications.ts        # Notification helper (createNotification)
-│   ├── store.ts                # Main app store (Zustand + persist)
+│   ├── api/index.ts            # Client-side API helpers (all endpoints)
+│   ├── store/index.ts          # Main app store (Zustand + persist)
+│   ├── db/
+│   │   ├── mongodb.ts          # MongoDB connection + withDB wrapper
+│   │   ├── auto-seed.ts        # Database auto-seeder
+│   │   └── models/             # Mongoose models (was src/models/)
+│   │       ├── ChatThread.ts
+│   │       ├── GroupChat.ts
+│   │       ├── JoinRequest.ts
+│   │       ├── MenuItem.ts
+│   │       ├── Message.ts
+│   │       ├── Notification.ts
+│   │       ├── Order.ts
+│   │       ├── Party.ts
+│   │       ├── PartyMedia.ts
+│   │       ├── PartyView.ts
+│   │       ├── Review.ts
+│   │       ├── SavedParty.ts
+│   │       ├── Ticket.ts
+│   │       ├── TrustRating.ts
+│   │       ├── User.ts
+│   │       └── index.ts        # Model exports
+│   ├── hooks/
+│   │   ├── use-chat-socket.ts  # Socket.IO hook for chat
+│   │   └── use-notifications.ts # Notification polling + Socket.IO hook
+│   ├── music/
+│   │   ├── store.ts            # Music player state (Zustand)
+│   │   └── tracks.ts           # Sample music tracks
+│   ├── notifications.ts       # Notification helper (createNotification)
 │   ├── types.ts                # All TypeScript types/interfaces
-│   ├── use-chat-socket.ts      # Socket.IO hook for chat
-│   ├── use-notifications.ts    # Notification polling + Socket.IO hook
 │   └── utils.ts                # Utility functions (cn, etc.)
-├── models/                     # Mongoose models
-│   ├── ChatThread.ts           # userAId, userBId, partyId, lastMessage
-│   ├── GroupChat.ts            # partyId, members[], messages[]
-│   ├── JoinRequest.ts          # partyId, requesterId, requesterName, status
-│   ├── MenuItem.ts             # partyId, name, price, emoji, category
-│   ├── Message.ts              # threadId, senderId, receiverId, content
-│   ├── Notification.ts         # userId, type, title, body, read, data
-│   ├── Order.ts                # userId, partyId, items[], totalAmount, status
-│   ├── Party.ts                # Full party schema with inline host fields
-│   ├── PartyMedia.ts           # partyId, url, type, caption
-│   ├── PartyView.ts            # partyId, userId, createdAt
-│   ├── Review.ts               # partyId, userId, rating, comment
-│   ├── SavedParty.ts           # userId, partyId
-│   ├── Ticket.ts               # orderId, userId, partyId, qrHash
-│   ├── TrustRating.ts          # partyId, hostId, guestId, rating, note
-│   ├── User.ts                 # phone, name, role, city, avatar, vibes
-│   └── index.ts                # Model exports
-├── screens/                    # All 22 app screens
-│   ├── admin-screen.tsx
-│   ├── chat-screen.tsx
-│   ├── confirmation-screen.tsx
-│   ├── countdown-screen.tsx
-│   ├── create-screen.tsx       # Multi-step party creation form
-│   ├── detail-screen.tsx       # Party detail + CTA + reviews + Spotify
-│   ├── edit-profile-screen.tsx
-│   ├── filter-screen.tsx
-│   ├── group-chat-screen.tsx
-│   ├── home-screen.tsx         # Main discovery feed
-│   ├── host-dashboard-screen.tsx
-│   ├── inbox-screen.tsx
-│   ├── login-screen.tsx        # OTP login with signup toggle
-│   ├── manage-party-screen.tsx
-│   ├── map-screen.tsx
-│   ├── my-parties-screen.tsx
-│   ├── onboarding-screen.tsx   # Role + vibe + city setup
-│   ├── payment-screen.tsx
-│   ├── profile-screen.tsx
-│   ├── requests-screen.tsx
-│   ├── saved-screen.tsx
-│   └── tickets-screen.tsx
 mini-services/
 └── chat-service/               # Socket.IO service (port 3003)
     ├── index.ts                # Main server: chat + notification relay
@@ -159,8 +149,8 @@ public/
 
 ### Key Auth Files
 - `/src/app/api/auth/otp/route.ts` — OTP send + verify
-- `/src/components/vibe/app-shell.tsx` — Auth guard + loading state
-- `/src/lib/store.ts` — Zustand store with `login()`, `logout()`, `authed`, `currentUser`
+- `/src/components/layout/app-shell.tsx` — Auth guard + loading state
+- `/src/lib/store/index.ts` — Zustand store with `login()`, `logout()`, `authed`, `currentUser`
 
 ---
 
@@ -366,7 +356,7 @@ Caddy gateway proxies WebSocket via `XTransformPort` query parameter.
 ## 11. Important Patterns & Conventions
 
 ### withDB Wrapper
-All API routes use `withDB` wrapper from `/src/lib/mongodb.ts` for MongoDB connection. It was fixed to forward all arguments (was only forwarding `req`, dropping `params` for dynamic routes).
+All API routes use `withDB` wrapper from `/src/lib/db/mongodb.ts` for MongoDB connection. It was fixed to forward all arguments (was only forwarding `req`, dropping `params` for dynamic routes).
 
 ### Theme System
 - CSS variables split into `:root` (light) and `.dark` (dark) in `globals.css`
@@ -380,8 +370,8 @@ All API routes use `withDB` wrapper from `/src/lib/mongodb.ts` for MongoDB conne
 - Content areas: `overflow-x-hidden`
 
 ### API Request Tracking
-- `jfetch` wrapper in `/src/lib/api.ts` automatically tracks request start/end
-- `LoadingProvider` in `/src/lib/loading-context.tsx` shows indicator after 500ms
+- `jfetch` wrapper in `/src/lib/api/index.ts` automatically tracks request start/end
+- `LoadingProvider` in `/src/components/shared/loading-context.tsx` shows indicator after 500ms
 - Upload and raw fetch calls also tracked via `trackRequestStart/End`
 
 ### Auto-Repair on Startup
@@ -469,14 +459,14 @@ cd mini-services/chat-service && bun run dev
 
 These files are modified most frequently and are most likely to cause issues:
 
-1. **`/src/components/vibe/app-shell.tsx`** — Auth flow, loading, layout
-2. **`/src/screens/login-screen.tsx`** — Login UI (user keeps requesting changes)
-3. **`/src/screens/detail-screen.tsx`** — Party detail, CTA, reviews, Spotify
-4. **`/src/screens/home-screen.tsx`** — Discovery feed, filters, notifications
-5. **`/src/screens/profile-screen.tsx`** — Profile, theme toggle, role switch
+1. **`/src/components/layout/app-shell.tsx`** — Auth flow, loading, layout
+2. **`/src/features/auth/screens/login-screen.tsx`** — Login UI (user keeps requesting changes)
+3. **`/src/features/party/screens/detail-screen.tsx`** — Party detail, CTA, reviews, Spotify
+4. **`/src/features/party/screens/home-screen.tsx`** — Discovery feed, filters, notifications
+5. **`/src/features/profile/screens/profile-screen.tsx`** — Profile, theme toggle, role switch
 6. **`/src/app/globals.css`** — CSS variables, animations, theme support
-7. **`/src/lib/api.ts`** — API client with loading tracking
-8. **`/src/lib/store.ts`** — Zustand store with persistence
+7. **`/src/lib/api/index.ts`** — API client with loading tracking
+8. **`/src/lib/store/index.ts`** — Zustand store with persistence
 9. **`/src/app/api/parties/route.ts`** — Party CRUD
 10. **`/src/app/api/requests/route.ts`** — Join request handling
 
