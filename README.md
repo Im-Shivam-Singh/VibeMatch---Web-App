@@ -2,7 +2,6 @@
 
 # 🎉 VibeMatch
 
-
 ### Find Your Night Out
 
 A mobile-first PWA for discovering local house parties & social meetups,
