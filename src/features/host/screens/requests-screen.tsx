@@ -10,12 +10,35 @@ import {
   Clock,
   Video as VideoIcon,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { relativeTime } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +51,7 @@ export function RequestsScreen() {
   const [tab, setTab] = useState<"all" | "pending" | "accepted">("all");
 
   // Fetch the user's hosted parties, then their requests.
-  const { data: myParties } = useQuery({
+  const { data: myParties, isError: isPartiesError, refetch: refetchParties } = useQuery({
     queryKey: ["parties", "mine", currentUser?.name],
     queryFn: () =>
       api.listParties().then((res) => ({
@@ -45,7 +68,7 @@ export function RequestsScreen() {
   const partyIds = (myParties?.parties ?? []).map((p) => p.id);
   const activePartyId = partyIds[0];
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError: isRequestsError, refetch: refetchRequests, error } = useQuery({
     queryKey: ["requests", activePartyId],
     queryFn: () => api.listRequests(activePartyId!),
     enabled: !!activePartyId,
@@ -83,25 +106,23 @@ export function RequestsScreen() {
     actMutation.mutate({ id, status });
   };
 
+  const isError = isPartiesError || isRequestsError;
+  const refetch = () => { refetchParties(); refetchRequests(); };
+
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* ── Frosted header ─────────────────────────────────────────── */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl"
-      >
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
         <div className="flex items-center gap-3 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={goBack}
-
-
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
+            className="rounded-xl"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
 
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
@@ -115,44 +136,35 @@ export function RequestsScreen() {
           </div>
 
           {pendingCount > 0 && (
-            <span
-
-
-              className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-amber-500/20 border border-amber-500/30 px-2 text-xs font-bold text-amber-300"
+            <Badge
+              variant="outline"
+              className="border-amber-500/30 bg-amber-500/20 text-amber-300"
             >
               {pendingCount}
-            </span>
+            </Badge>
           )}
         </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 px-4 pb-3">
           {(["all", "pending", "accepted"] as const).map((t) => (
-            <button
+            <Button
               key={t}
+              variant={tab === t ? "default" : "ghost"}
+              size="sm"
               onClick={() => setTab(t)}
-
               className={cn(
-                "relative flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition-colors",
+                "flex-1 rounded-xl capitalize text-xs font-semibold",
                 tab === t
-                  ? "text-white"
-                  : "text-white/40 hover:text-white/60",
+                  ? "bg-purple-500/20 border border-purple-500/30 text-white hover:bg-purple-500/25"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {tab === t && (
-                <div
-                  layoutId="request-tab"
-                  className="absolute inset-0 rounded-xl bg-purple-500/20 border border-purple-500/30"
-
-                />
+              {t}
+              {t === "pending" && pendingCount > 0 && (
+                <span className="ml-1 text-[10px]">({pendingCount})</span>
               )}
-              <span className="relative z-10">
-                {t}
-                {t === "pending" && pendingCount > 0 && (
-                  <span className="ml-1 text-[10px]">({pendingCount})</span>
-                )}
-              </span>
-            </button>
+            </Button>
           ))}
         </div>
       </header>
@@ -160,51 +172,69 @@ export function RequestsScreen() {
       {/* ── Content ────────────────────────────────────────────────── */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4">
         {/* No hosted parties */}
-        {!activePartyId && (
+        {!activePartyId && !isPartiesError && (
           <EmptyState
             icon={InboxIcon}
             title="No hosted parties yet"
             description="Once you launch a vibe, join requests from guests will show up here."
             action={
-              <button
+              <Button
                 onClick={() => setScreen("create")}
-
-
-                className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+                className="rounded-2xl bg-purple-500 px-6 shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)] hover:bg-purple-400"
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4 mr-2" />
                 Launch a vibe
-              </button>
+              </Button>
             }
           />
+        )}
+
+        {/* Error state */}
+        {activePartyId && isError && (
+          <Card className="border-coral/20 bg-coral/[0.04] py-0 gap-0">
+            <CardContent className="flex flex-col items-center justify-center gap-4 p-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-coral/10 border border-coral/20">
+                <RefreshCw className="h-5 w-5 text-coral" />
+              </div>
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground">
+                  Couldn&apos;t load requests
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {error instanceof Error
+                    ? error.message
+                    : "Something went wrong. Try again."}
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => refetch()} className="gap-2">
+                <RefreshCw className="h-4 w-4" /> Retry
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Loading skeleton */}
         {activePartyId && isLoading && (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-
-
-
-                className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="h-11 w-11 shrink-0 rounded-full bg-white/[0.06] animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3.5 w-1/3 rounded-lg bg-white/[0.06] animate-pulse" />
-                    <div className="h-3 w-2/3 rounded-lg bg-white/[0.04] animate-pulse" />
-                    <div className="h-3 w-1/2 rounded-lg bg-white/[0.04] animate-pulse" />
+              <Card key={i} className="py-0 gap-0 border-border/40">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-1/3 rounded-lg" />
+                      <Skeleton className="h-3 w-2/3 rounded-lg" />
+                      <Skeleton className="h-3 w-1/2 rounded-lg" />
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
 
         {/* Empty requests */}
-        {activePartyId && !isLoading && requests.length === 0 && (
+        {activePartyId && !isLoading && !isError && requests.length === 0 && (
           <EmptyState
             icon={InboxIcon}
             title="No requests here"
@@ -213,38 +243,36 @@ export function RequestsScreen() {
         )}
 
         {/* Request list */}
-        {activePartyId && !isLoading && requests.length > 0 && (
+        {activePartyId && !isLoading && !isError && requests.length > 0 && (
           <ul className="space-y-3">
-              {requests.map((r, i) => (
-                <li
-                  key={r.id}
-
-
-
-
+            {requests.map((r, i) => (
+              <li key={r.id}>
+                <Card
                   className={cn(
-                    "overflow-hidden rounded-2xl border bg-white/[0.03] backdrop-blur-sm",
+                    "py-0 gap-0 backdrop-blur-sm",
                     r.status === "pending"
                       ? "border-amber-500/20"
-                      : "border-white/[0.06]",
+                      : "border-border/40",
                   )}
                 >
-                  <div className="p-4">
+                  <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
                       <div className="relative">
-                        <span
+                        <Avatar
                           className={cn(
-                            "block shrink-0 rounded-full ring-2",
+                            "h-11 w-11 ring-2",
                             r.status === "pending"
                               ? "ring-amber-400/40"
                               : r.status === "accepted"
                                 ? "ring-teal-400/40"
-                                : "ring-white/10",
+                                : "ring-border",
                           )}
                         >
-                          <UserAvatar name={r.requesterName} size={44} />
-                        </span>
+                          <AvatarFallback className="bg-purple-500/20 text-purple-200 text-sm font-bold">
+                            {r.requesterName?.[0]?.toUpperCase() ?? "?"}
+                          </AvatarFallback>
+                        </Avatar>
                         {r.status === "pending" && (
                           <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
@@ -265,7 +293,7 @@ export function RequestsScreen() {
                         </div>
 
                         {/* Intro message */}
-                        <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                        <div className="mt-2 rounded-xl border border-border/40 bg-muted/50 px-3 py-2">
                           <p className="text-sm leading-relaxed text-foreground/80 line-clamp-3">
                             {r.introMessage}
                           </p>
@@ -273,8 +301,8 @@ export function RequestsScreen() {
 
                         {/* Intro video */}
                         {r.introVideoUrl && (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-white/[0.06]">
-                            <div className="flex items-center gap-2 bg-white/[0.03] px-3 py-2">
+                          <div className="mt-2 overflow-hidden rounded-xl border border-border/40">
+                            <div className="flex items-center gap-2 bg-muted/50 px-3 py-2">
                               <VideoIcon className="h-3.5 w-3.5 text-purple-400" />
                               <span className="text-[11px] font-medium text-purple-300">
                                 Intro video attached
@@ -293,37 +321,75 @@ export function RequestsScreen() {
                         {/* Action buttons or status */}
                         {r.status === "pending" ? (
                           <div className="mt-3 flex gap-2">
-                            <button
-                              onClick={() => act(r.id, "accepted")}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  disabled={actMutation.isPending}
+                                  className="gap-1.5 rounded-xl border-teal-500/30 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20 hover:text-teal-100"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                  Accept
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Accept this request?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {r.requesterName} will be added as a confirmed guest and a chat thread will be opened.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => act(r.id, "accepted")}
+                                    className="bg-teal-600 hover:bg-teal-500"
+                                  >
+                                    Accept
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
 
-                              disabled={actMutation.isPending}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 px-4 py-2 text-xs font-bold text-teal-200 transition-colors hover:bg-teal-500/25 disabled:opacity-50"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => act(r.id, "rejected")}
-
-                              disabled={actMutation.isPending}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              Decline
-                            </button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  disabled={actMutation.isPending}
+                                  className="gap-1.5 rounded-xl text-muted-foreground hover:text-foreground"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  Decline
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Decline this request?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {r.requesterName}&apos;s spot will be released. They can request again later.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => act(r.id, "rejected")}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    Decline
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         ) : (
-                          <div
-
-
-                            className="mt-3"
-                          >
-                            <span
+                          <div className="mt-3">
+                            <Badge
+                              variant="outline"
                               className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold",
+                                "gap-1.5 text-[11px] font-semibold",
                                 r.status === "accepted"
-                                  ? "bg-teal-500/15 text-teal-300 border border-teal-500/30"
-                                  : "bg-white/5 text-white/30 border border-white/[0.06]",
+                                  ? "border-teal-500/30 bg-teal-500/15 text-teal-300"
+                                  : "border-border/40 bg-muted/50 text-muted-foreground",
                               )}
                             >
                               {r.status === "accepted" ? (
@@ -332,14 +398,15 @@ export function RequestsScreen() {
                                 <Clock className="h-3 w-3" />
                               )}
                               {r.status === "accepted" ? "Accepted · chat opened" : "Declined"}
-                            </span>
+                            </Badge>
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
           </ul>
         )}
       </div>

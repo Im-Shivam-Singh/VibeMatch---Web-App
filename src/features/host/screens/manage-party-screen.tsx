@@ -27,10 +27,34 @@ import {
   type Party,
   type PartyMedia,
 } from "@/lib/types";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const PHOTO_PRESETS = [
@@ -108,9 +132,6 @@ export function ManagePartyScreen() {
 
   // Group chat state
   const [gcOptimistic, setGcOptimistic] = useState<boolean | null>(null);
-
-  // ── Tab state ──────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<"menu" | "media" | "chat" | "settings">("menu");
 
   // ── Mutations ──────────────────────────────────────────────────
   const addMenuMutation = useMutation({
@@ -258,15 +279,11 @@ export function ManagePartyScreen() {
   if (!selectedPartyId) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header
-
-
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-        >
+        <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
-            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <Button variant="outline" size="icon" onClick={goBack} aria-label="Back" className="rounded-xl">
               <ChevronLeft className="h-5 w-5" />
-            </button>
+            </Button>
             <span className="font-display text-lg font-bold text-foreground">Manage</span>
           </div>
         </header>
@@ -276,9 +293,9 @@ export function ManagePartyScreen() {
           </div>
           <h2 className="font-display text-xl font-bold text-foreground">No party selected</h2>
           <p className="max-w-xs text-sm text-muted-foreground">Pick one of your parties to edit its menu, photos, videos, and group chat settings.</p>
-          <button onClick={goBack} className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
+          <Button onClick={goBack} className="rounded-2xl bg-purple-500 hover:bg-purple-400">
             Go back
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -292,106 +309,83 @@ export function ManagePartyScreen() {
   if (!party) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header
-
-
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-        >
+        <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
-            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <Button variant="outline" size="icon" onClick={goBack} aria-label="Back" className="rounded-xl">
               <ChevronLeft className="h-5 w-5" />
-            </button>
+            </Button>
             <span className="font-display text-lg font-bold text-foreground">Manage</span>
           </div>
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-coral/10 border border-coral/20">
+            <RefreshCw className="h-5 w-5 text-coral" />
+          </div>
           <h2 className="font-display text-xl font-bold text-foreground">Couldn&apos;t load party</h2>
           <p className="max-w-xs text-sm text-muted-foreground">
             {partyQuery.error instanceof Error ? partyQuery.error.message : "Try again in a moment."}
           </p>
-          <button onClick={() => partyQuery.refetch()} className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
+          <Button
+            onClick={() => partyQuery.refetch()}
+            className="gap-2 rounded-2xl bg-purple-500 hover:bg-purple-400"
+          >
             <RefreshCw className="h-4 w-4" /> Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
-  // ── Tabs config ────────────────────────────────────────────────
-  const TABS = [
-    { id: "menu" as const, label: "Menu", icon: UtensilsCrossed },
-    { id: "media" as const, label: "Media", icon: Images },
-    { id: "chat" as const, label: "Group Chat", icon: MessageSquare },
-    { id: "settings" as const, label: "Settings", icon: Sparkles },
-  ];
-
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-      >
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={goBack}
-
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
+            className="rounded-xl"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Manage</p>
             <h1 className="font-display text-base font-bold leading-tight truncate text-foreground">{party.title}</h1>
           </div>
         </div>
-
-        {/* Tab bar */}
-        <div className="mt-3 flex gap-1">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-
-                className={cn(
-                  "relative flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-colors",
-                  isActive ? "text-white" : "text-white/35 hover:text-white/55",
-                )}
-              >
-                {isActive && (
-                  <div
-                    layoutId="manage-tab"
-                    className="absolute inset-0 rounded-xl bg-purple-500/15 border border-purple-500/25"
-
-                  />
-                )}
-                <Icon className="h-3.5 w-3.5 relative z-10" />
-                <span className="relative z-10 hidden sm:inline">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
       </header>
 
-      {/* Content */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
-          {activeTab === "menu" && (
-            <div
-              key="menu"
+      {/* Content with Tabs */}
+      <Tabs defaultValue="menu" className="flex flex-1 flex-col">
+        <div className="px-4 pt-3">
+          <TabsList className="w-full">
+            <TabsTrigger value="menu" className="gap-1.5 flex-1">
+              <UtensilsCrossed className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Menu</span>
+            </TabsTrigger>
+            <TabsTrigger value="media" className="gap-1.5 flex-1">
+              <Images className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Media</span>
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="gap-1.5 flex-1">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Chat</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 flex-1">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Settings</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-
-
-
-              className="space-y-4"
-            >
-              {/* Add menu item form */}
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4 space-y-3">
+        <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
+          {/* ── Menu Tab ────────────────────────────────────────── */}
+          <TabsContent value="menu" className="space-y-4 mt-0">
+            {/* Add menu item form */}
+            <Card className="border-border/40 py-0 gap-0">
+              <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/15">
                     <Plus className="h-4 w-4 text-purple-300" />
@@ -408,7 +402,7 @@ export function ManagePartyScreen() {
                     placeholder="🍹"
                     aria-label="Emoji"
                     maxLength={4}
-                    className="h-10 w-14 rounded-xl border-white/[0.08] bg-white/[0.04] text-center text-lg"
+                    className="h-10 w-14 rounded-xl text-center text-lg"
                   />
                   <Input
                     value={mName}
@@ -417,7 +411,7 @@ export function ManagePartyScreen() {
                     aria-label="Item name"
                     maxLength={60}
                     onKeyDown={(e) => { if (e.key === "Enter") handleAddMenuItem(); }}
-                    className="h-10 flex-1 rounded-xl border-white/[0.08] bg-white/[0.04]"
+                    className="h-10 flex-1 rounded-xl"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -432,48 +426,52 @@ export function ManagePartyScreen() {
                       placeholder="0"
                       aria-label="Price"
                       onKeyDown={(e) => { if (e.key === "Enter") handleAddMenuItem(); }}
-                      className="h-10 rounded-xl border-white/[0.08] bg-white/[0.04] pl-8"
+                      className="h-10 rounded-xl pl-8"
                     />
                   </div>
-                  <div className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] p-1">
+                  <div className="flex items-center gap-1 rounded-xl border border-border/40 bg-muted/50 p-1">
                     {CATEGORIES.map((c) => {
                       const active = mCat === c.id;
                       return (
-                        <button
+                        <Button
                           key={c.id}
                           type="button"
+                          variant={active ? "default" : "ghost"}
+                          size="sm"
                           onClick={() => setMCat(c.id)}
                           aria-pressed={active}
                           className={cn(
-                            "flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold transition",
+                            "h-8 gap-1 rounded-lg text-[11px] font-semibold px-2.5",
                             active
-                              ? "bg-purple-500/20 text-purple-200 ring-1 ring-purple-500/40"
-                              : "text-muted-foreground hover:text-white",
+                              ? "bg-purple-500/20 text-purple-200 hover:bg-purple-500/25"
+                              : "text-muted-foreground hover:text-foreground",
                           )}
                         >
                           <span aria-hidden>{c.emoji}</span>
                           <span className="hidden sm:inline">{c.label}</span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
                 </div>
                 <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1">
                   {EMOJI_PRESETS.map((e) => (
-                    <button
+                    <Button
                       key={e}
                       type="button"
+                      variant={mEmoji === e ? "default" : "outline"}
+                      size="icon"
                       onClick={() => setMEmoji(e)}
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base transition",
-                        mEmoji === e
-                          ? "border-purple-500/40 bg-purple-500/15"
-                          : "border-white/[0.06] bg-white/[0.03] hover:border-purple-500/30",
-                      )}
                       aria-label={`Use emoji ${e}`}
+                      className={cn(
+                        "h-8 w-8 shrink-0 text-base",
+                        mEmoji === e
+                          ? "bg-purple-500/15 border-purple-500/40 hover:bg-purple-500/20"
+                          : "",
+                      )}
                     >
                       {e}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <Button
@@ -488,31 +486,35 @@ export function ManagePartyScreen() {
                     <><Plus className="mr-1.5 h-4 w-4" /> Add to menu</>
                   )}
                 </Button>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Menu items list */}
-              {menuItems.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-6 text-center text-xs text-muted-foreground">
+            {/* Menu items list */}
+            {menuItems.length === 0 ? (
+              <Card className="border-dashed border-border/40 py-0 gap-0">
+                <CardContent className="p-6 text-center text-xs text-muted-foreground">
                   No menu items yet — add your first above.
-                </div>
-              ) : (
-                <div className="max-h-96 overflow-y-auto fancy-scrollbar space-y-3 pr-1">
-                  {CATEGORIES.map((c) => {
-                    const items = grouped[c.id];
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={c.id} className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-1">
-                          <span className={cn("rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide", CATEGORY_CHIP[c.id])}>
-                            {c.emoji} {c.label}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">{items.length}</span>
-                        </div>
-                        {items.map((it) => (
-                          <div
-                            key={it.id}
-                            className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5"
-                          >
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="max-h-96 overflow-y-auto fancy-scrollbar space-y-3 pr-1">
+                {CATEGORIES.map((c) => {
+                  const items = grouped[c.id];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={c.id} className="space-y-1.5">
+                      <div className="flex items-center gap-2 px-1">
+                        <Badge
+                          variant="outline"
+                          className={cn("text-[10px] font-bold uppercase tracking-wide", CATEGORY_CHIP[c.id])}
+                        >
+                          {c.emoji} {c.label}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">{items.length}</span>
+                      </div>
+                      {items.map((it) => (
+                        <Card key={it.id} className="py-0 gap-0 border-border/40">
+                          <CardContent className="flex items-center gap-3 p-2.5">
                             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-lg">
                               {it.emoji || "•"}
                             </span>
@@ -522,120 +524,137 @@ export function ManagePartyScreen() {
                                 {sym}{it.price.toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(it.price) ? 0 : 2 })}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => deleteMenuMutation.mutate(it.id)}
-                              disabled={deleteMenuMutation.isPending}
-                              aria-label={`Remove ${it.name}`}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.06] text-muted-foreground transition hover:border-coral/40 hover:bg-coral/10 hover:text-coral disabled:opacity-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  disabled={deleteMenuMutation.isPending}
+                                  aria-label={`Remove ${it.name}`}
+                                  className="h-8 w-8 text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Remove &quot;{it.name}&quot;?</DialogTitle>
+                                  <DialogDescription>
+                                    This will remove the item from your menu. Guests who already pre-ordered it won&apos;t be affected.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <Button variant="outline" asChild>
+                                    <DialogClose>Cancel</DialogClose>
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() => deleteMenuMutation.mutate(it.id)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
 
-          {activeTab === "media" && (
-            <div
-              key="media"
+          {/* ── Media Tab ──────────────────────────────────────────── */}
+          <TabsContent value="media" className="space-y-4 mt-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFilePick(e.target.files)}
+            />
 
-
-
-
-              className="space-y-4"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"
-                multiple
-                className="hidden"
-                onChange={(e) => handleFilePick(e.target.files)}
-              />
-
-              {uploadPct !== null && (
-                <div className="rounded-xl border border-purple-500/25 bg-purple-500/[0.06] p-3">
+            {uploadPct !== null && (
+              <Card className="border-purple-500/25 bg-purple-500/[0.06] py-0 gap-0">
+                <CardContent className="p-3">
                   <div className="mb-1.5 flex items-center gap-2 text-[11px] text-purple-200">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span className="font-medium">Uploading… {uploadPct}%</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                     <div className="h-full rounded-full bg-gradient-to-r from-purple-400 to-teal-400 transition-[width] duration-200" style={{ width: `${uploadPct}%` }} />
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+            )}
 
-              {mediaList.length === 0 ? (
-                <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-8 text-center">
+            {mediaList.length === 0 ? (
+              <Card className="border-dashed border-border/40 py-0 gap-0">
+                <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/20">
                     <Images className="h-6 w-6 text-teal-300" />
                   </div>
                   <p className="text-sm text-muted-foreground">No photos or videos yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {mediaList.map((m) => (
-                    <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.08]">
-                      {m.type === "image" ? (
-                        <img src={m.url} alt={m.caption || "Party media"} className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <>
-                          <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                            <Play className="h-5 w-5 fill-white text-white" />
-                          </span>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMedia(m.id)}
-                        disabled={deleteMediaMutation.isPending}
-                        aria-label="Remove media"
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-coral/80 disabled:opacity-50"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadMutation.isPending || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/[0.08] px-3.5 py-2 text-[11px] font-semibold text-teal-200 transition hover:bg-teal-500/15 disabled:opacity-40"
-                >
-                  <UploadCloud className="h-3.5 w-3.5" />
-                  Upload from device
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetOpen((v) => !v)}
-                  disabled={uploadMutation.isPending || mediaList.length >= MAX_MEDIA}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/[0.08] px-3.5 py-2 text-[11px] font-medium text-purple-200 transition hover:bg-purple-500/15 disabled:opacity-40"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {presetOpen ? "Hide presets" : "Presets"}
-                </button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {mediaList.map((m) => (
+                  <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl border border-border/40">
+                    {m.type === "image" ? (
+                      <img src={m.url} alt={m.caption || "Party media"} className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <>
+                        <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                          <Play className="h-5 w-5 fill-white text-white" />
+                        </span>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleRemoveMedia(m.id)}
+                      disabled={deleteMediaMutation.isPending}
+                      aria-label="Remove media"
+                      className="absolute right-1 top-1 h-6 w-6 rounded-full bg-black/65 text-white border-0 hover:bg-destructive/80 hover:text-white disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
+            )}
 
-              <p className="text-[10px] text-muted-foreground/50">{mediaList.length}/{MAX_MEDIA} · JPG/PNG/WebP/GIF ≤ 5 MB · MP4/WebM/MOV ≤ 5 MB</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadMutation.isPending || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
+                className="gap-1.5 rounded-xl border-teal-500/30 bg-teal-500/[0.08] text-teal-200 hover:bg-teal-500/15 disabled:opacity-40"
+              >
+                <UploadCloud className="h-3.5 w-3.5" />
+                Upload from device
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setPresetOpen((v) => !v)}
+                disabled={uploadMutation.isPending || mediaList.length >= MAX_MEDIA}
+                className="gap-1.5 rounded-xl border-purple-500/30 bg-purple-500/[0.08] text-purple-200 hover:bg-purple-500/15 disabled:opacity-40"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {presetOpen ? "Hide presets" : "Presets"}
+              </Button>
+            </div>
 
-              {presetOpen && (
-                <div
+            <p className="text-[10px] text-muted-foreground/50">{mediaList.length}/{MAX_MEDIA} · JPG/PNG/WebP/GIF ≤ 5 MB · MP4/WebM/MOV ≤ 5 MB</p>
 
-
-
-                  className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3"
-                >
+            {presetOpen && (
+              <Card className="border-border/40 py-0 gap-0">
+                <CardContent className="p-3 space-y-3">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
                     <ImagePlus className="h-3 w-3" /> Stock photos
                   </div>
@@ -643,12 +662,12 @@ export function ManagePartyScreen() {
                     {PHOTO_PRESETS.map((url) => {
                       const used = mediaList.some((m) => m.url === url);
                       return (
-                        <button
+                        <Button
                           key={url}
-                          type="button"
+                          variant="outline"
                           onClick={() => handleAddPreset(url, "image")}
                           disabled={used || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
-                          className="group relative aspect-square overflow-hidden rounded-lg border border-white/[0.08] transition hover:border-purple-500/40 disabled:opacity-40"
+                          className="group relative aspect-square h-auto w-full overflow-hidden rounded-lg p-0 hover:border-purple-500/40 disabled:opacity-40"
                           aria-label="Add stock photo"
                         >
                           <img src={url} alt="Preset" className="h-full w-full object-cover" loading="lazy" />
@@ -662,7 +681,7 @@ export function ManagePartyScreen() {
                               <Plus className="h-4 w-4 text-white" />
                             </span>
                           )}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -673,12 +692,12 @@ export function ManagePartyScreen() {
                     {VIDEO_PRESETS.map((v) => {
                       const used = mediaList.some((m) => m.url === v.url);
                       return (
-                        <button
+                        <Button
                           key={v.url}
-                          type="button"
+                          variant="outline"
                           onClick={() => handleAddPreset(v.url, "video")}
                           disabled={used || addMediaMutation.isPending || mediaList.length >= MAX_MEDIA}
-                          className="group relative aspect-video overflow-hidden rounded-lg border border-white/[0.08] transition hover:border-purple-500/40 disabled:opacity-40"
+                          className="group relative aspect-video h-auto w-full overflow-hidden rounded-lg p-0 hover:border-purple-500/40 disabled:opacity-40"
                           aria-label="Add stock video"
                         >
                           <img src={v.poster} alt="Preset video" className="h-full w-full object-cover" loading="lazy" />
@@ -686,30 +705,26 @@ export function ManagePartyScreen() {
                             <Play className="h-4 w-4 fill-white text-white" />
                           </span>
                           {used && (
-                            <span className="absolute right-1 top-1 rounded-md bg-teal-500/90 px-1 py-0.5 text-[9px] font-bold text-white">ADDED</span>
+                            <Badge className="absolute right-1 top-1 bg-teal-500/90 text-[9px] font-bold text-white">
+                              ADDED
+                            </Badge>
                           )}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-          {activeTab === "chat" && (
-            <div
-              key="chat"
-
-
-
-
-              className="space-y-4"
-            >
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4">
+          {/* ── Chat Tab ──────────────────────────────────────────── */}
+          <TabsContent value="chat" className="space-y-4 mt-0">
+            <Card className="border-border/40 py-0 gap-0">
+              <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 shadow-[0_0_16px_-4px_rgba(83,74,183,0.2)]">
-                    <MessageSquare className="h-4.5 w-4.5 text-purple-300" />
+                    <MessageSquare className="h-5 w-5 text-purple-300" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h2 className="font-display text-base font-bold text-foreground">Group Chat</h2>
@@ -717,16 +732,17 @@ export function ManagePartyScreen() {
                       Let confirmed guests chat together before the night kicks off. Group chat unlocks for everyone as soon as the first guest pays.
                     </p>
                     <div className="mt-3 flex items-center gap-3">
-                      <span
+                      <Badge
+                        variant="outline"
                         className={cn(
-                          "rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                          "text-[10px] font-bold uppercase tracking-wide",
                           gcEnabled
                             ? "border-teal-500/30 bg-teal-500/10 text-teal-200"
-                            : "border-white/[0.08] bg-white/[0.04] text-muted-foreground",
+                            : "border-border/40 bg-muted/50 text-muted-foreground",
                         )}
                       >
                         {gcEnabled ? "Enabled" : "Disabled"}
-                      </span>
+                      </Badge>
                       {gcMutation.isPending && (
                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                           <Loader2 className="h-2.5 w-2.5 animate-spin" /> Saving…
@@ -741,11 +757,13 @@ export function ManagePartyScreen() {
                     aria-label="Toggle group chat"
                   />
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Member preview */}
-              {gcEnabled && (
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3">
+            {/* Member preview */}
+            {gcEnabled && (
+              <Card className="border-border/40 py-0 gap-0">
+                <CardContent className="p-4 space-y-3">
                   <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Chat members</span>
                   <div className="flex items-center gap-2">
                     {Array.from({ length: Math.min(5, party.guestCount + 1) }).map((_, i) => (
@@ -763,21 +781,15 @@ export function ManagePartyScreen() {
                       <span className="text-[11px] text-muted-foreground">+{party.guestCount - 4} more</span>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-          {activeTab === "settings" && (
-            <div
-              key="settings"
-
-
-
-
-              className="space-y-4"
-            >
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4 space-y-4">
+          {/* ── Settings Tab ──────────────────────────────────────── */}
+          <TabsContent value="settings" className="space-y-4 mt-0">
+            <Card className="border-border/40 py-0 gap-0">
+              <CardContent className="p-4 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15">
                     <Sparkles className="h-4 w-4 text-amber-300" />
@@ -815,16 +827,24 @@ export function ManagePartyScreen() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Approval required</span>
-                    <span className="font-medium text-foreground">{party.approvalRequired ? "Yes" : "No"}</span>
+                    <Badge variant="outline" className={cn(
+                      "text-xs",
+                      party.approvalRequired
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                        : "border-border/40 bg-muted/50 text-muted-foreground",
+                    )}>
+                      {party.approvalRequired ? "Yes" : "No"}
+                    </Badge>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-      </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
 
       {/* Footer */}
-      <footer className="sticky bottom-0 z-20 border-t border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3">
+      <footer className="sticky bottom-0 z-20 border-t border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3">
         <Button
           onClick={goBack}
           className="h-12 w-full rounded-2xl bg-purple-500 text-sm font-semibold text-white hover:bg-purple-400"
@@ -839,7 +859,7 @@ export function ManagePartyScreen() {
 function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
           <div className="flex-1 space-y-1.5">
@@ -855,17 +875,19 @@ function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
       </header>
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-8 rounded-xl" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-2 w-48" />
+          <Card key={i} className="py-0 gap-0 border-border/40">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-xl" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-2 w-48" />
+                </div>
               </div>
-            </div>
-            <Skeleton className="h-24 w-full rounded-2xl" />
-            <Skeleton className="h-12 w-full rounded-xl" />
-          </div>
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-12 w-full rounded-xl" />
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

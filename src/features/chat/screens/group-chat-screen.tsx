@@ -14,6 +14,7 @@ import {
   Camera,
   CheckCheck,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -25,7 +26,11 @@ import {
   type GroupChatMember,
 } from "@/lib/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -93,12 +98,14 @@ function OfferCard({ msg }: { msg: GroupChatMessage }) {
   if (!brand) {
     return (
       <div className="my-2 flex justify-center px-2">
-        <div className="w-full max-w-[88%] overflow-hidden rounded-2xl bg-white/[0.04] p-3 ring-1 ring-white/[0.08]">
-          <div className="flex items-center gap-2">
-            <Gift className="h-4 w-4 text-purple-300" />
-            <p className="text-sm text-white/80">{msg.content}</p>
-          </div>
-        </div>
+        <Card className="w-full max-w-[88%] gap-0 py-0 border-border/50 overflow-hidden">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Gift className="h-4 w-4 text-purple-300" />
+              <p className="text-sm text-foreground/80">{msg.content}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -110,52 +117,51 @@ function OfferCard({ msg }: { msg: GroupChatMessage }) {
   };
 
   return (
-    <div
-
-
-
-      className="my-2 flex justify-center px-2"
-    >
+    <div className="my-2 flex justify-center px-2">
       <div className="relative w-full max-w-[92%] overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-purple-500/60 via-pink-500/30 to-teal-400/50 shadow-[0_6px_24px_-10px_rgba(83,74,183,0.5)]">
-        <div className="rounded-[14px] bg-card/95 p-3.5 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            {/* Brand emoji bubble */}
-            <div
-              className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl ring-1",
-                brand.color,
-              )}
-            >
-              <span aria-hidden>{brand.emoji}</span>
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3 text-purple-300" />
-                <span className="text-[10px] font-medium uppercase tracking-wide text-purple-300">
-                  Group perk
-                </span>
-              </div>
-              <p className="mt-0.5 font-display text-sm font-bold text-white">
-                {brand.name}
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-white/70">
-                {msg.content || brand.offer}
-              </p>
-
-              <button
-                onClick={open}
+        <Card className="gap-0 py-0 border-0 rounded-[14px] bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-3.5">
+            <div className="flex items-start gap-3">
+              {/* Brand emoji bubble */}
+              <div
                 className={cn(
-                  "press-feedback mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:brightness-110",
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl ring-1",
                   brand.color,
                 )}
               >
-                Get deal
-                <ArrowRight className="h-3 w-3" />
-              </button>
+                <span aria-hidden>{brand.emoji}</span>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-purple-300" />
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-purple-300">
+                    Group perk
+                  </span>
+                </div>
+                <p className="mt-0.5 font-display text-sm font-bold text-foreground">
+                  {brand.name}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-foreground/70">
+                  {msg.content || brand.offer}
+                </p>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={open}
+                  className={cn(
+                    "mt-2.5 gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:brightness-110",
+                    brand.color,
+                  )}
+                >
+                  Get deal
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -190,7 +196,7 @@ function MembersStack({
         );
       })}
       {extra > 0 && (
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-semibold text-white/60 ring-2 ring-background">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-background">
           +{extra}
         </div>
       )}
@@ -219,7 +225,7 @@ function MembersSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[70vh] max-w-[480px] rounded-t-3xl border-white/[0.08] glass-strong"
+        className="mx-auto max-h-[70vh] max-w-[480px] rounded-t-3xl border-border glass-strong"
       >
         <SheetHeader>
           <SheetTitle className="font-display text-purple-400">
@@ -235,11 +241,11 @@ function MembersSheet({
             return (
               <div
                 key={m.id}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-white/[0.04]"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-muted/50"
               >
                 <UserAvatar name={m.name} src={m.avatarUrl} size={36} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {m.name}
                     {isMe && (
                       <span className="ml-1.5 text-[10px] font-normal text-purple-400">
@@ -247,7 +253,7 @@ function MembersSheet({
                       </span>
                     )}
                   </p>
-                  <p className="text-[11px] text-white/35">
+                  <p className="text-[11px] text-muted-foreground">
                     Joined {relativeTime(m.joinedAt)}
                   </p>
                 </div>
@@ -266,14 +272,14 @@ function MembersSheet({
 
 function HeaderSkeleton() {
   return (
-    <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+    <header className="sticky top-0 z-20 glass-strong border-b border-border px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
       <div className="flex items-center gap-2">
-        <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
+        <Skeleton className="h-9 w-9 rounded-full" />
         <div className="flex-1 space-y-1.5">
-          <Skeleton className="h-3.5 w-36 vibe-skeleton" />
-          <Skeleton className="h-2.5 w-20 vibe-skeleton" />
+          <Skeleton className="h-3.5 w-36" />
+          <Skeleton className="h-2.5 w-20" />
         </div>
-        <Skeleton className="h-7 w-20 rounded-full vibe-skeleton" />
+        <Skeleton className="h-7 w-20 rounded-full" />
       </div>
     </header>
   );
@@ -287,50 +293,40 @@ function LockedState() {
   const goBack = useAppStore((s) => s.goBack);
   return (
     <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
-      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-border px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={goBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+            className="h-9 w-9 rounded-full text-foreground/70 hover:bg-muted/50 hover:text-foreground"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">
+            <p className="truncate text-sm font-semibold text-foreground">
               Group chat
             </p>
-            <p className="text-[11px] text-white/35">Locked</p>
+            <p className="text-[11px] text-muted-foreground">Locked</p>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-16 text-center">
-        <div
-
-
-
-          className="vibe-float"
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-purple-500/10 ring-1 ring-purple-500/25 shadow-[0_6px_24px_-6px_rgba(83,74,183,0.4)]">
-            <Lock className="h-9 w-9 text-purple-400" />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <p className="font-display text-xl font-bold text-white">
-            Group chat is locked
-          </p>
-          <p className="mx-auto max-w-xs text-sm text-white/50">
-            Group chat unlocks after the first guest pays. Be the one to kick
-            it off 🎉
-          </p>
-        </div>
-        <button
-          onClick={goBack}
-          className="vibe-gradient-bg press-feedback rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(83,74,183,0.5)] hover:brightness-110"
-        >
-          Back to party
-        </button>
+      <div className="flex flex-1 flex-col items-center justify-center p-6">
+        <EmptyState
+          icon={Lock}
+          title="Group chat is locked"
+          description="Group chat unlocks after the first guest pays. Be the one to kick it off 🎉"
+          action={
+            <Button
+              onClick={goBack}
+              className="bg-gradient-to-r from-purple-bright to-purple text-white shadow-[0_4px_16px_-4px_rgba(83,74,183,0.5)] hover:brightness-110"
+            >
+              Back to party
+            </Button>
+          }
+        />
       </div>
     </div>
   );
@@ -357,9 +353,6 @@ function GroupMessageBubble({
 
   return (
     <div
-
-
-
       className={cn(
         "flex items-end gap-2",
         mine ? "justify-end" : "justify-start",
@@ -382,14 +375,14 @@ function GroupMessageBubble({
             "rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed",
             mine
               ? "rounded-br-sm bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-[0_4px_16px_-6px_rgba(83,74,183,0.5)]"
-              : "rounded-bl-sm bg-white/[0.06] text-white/90 ring-1 ring-white/[0.1] backdrop-blur-sm",
+              : "rounded-bl-sm bg-muted/50 text-foreground/90 ring-1 ring-border backdrop-blur-sm",
           )}
         >
           <p className="whitespace-pre-line break-words overflow-wrap-anywhere">{m.content}</p>
           <div
             className={cn(
               "mt-1 flex items-center justify-end gap-1 text-[10px]",
-              mine ? "text-white/40" : "text-white/25",
+              mine ? "text-white/40" : "text-muted-foreground",
             )}
           >
             {relativeTime(m.createdAt)}
@@ -479,12 +472,41 @@ export function GroupChatScreen() {
             >
               <Skeleton
                 className={cn(
-                  "h-12 rounded-2xl vibe-skeleton",
+                  "h-12 rounded-2xl",
                   i % 2 === 0 ? "w-56" : "w-44",
                 )}
               />
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error loading party
+  if (partyQuery.isError && !partyQuery.data) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
+        <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-border px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={goBack} className="h-9 w-9 rounded-full" aria-label="Back">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="text-sm text-muted-foreground">Error</span>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <EmptyState
+            icon={RefreshCw}
+            title="Couldn't load party"
+            description="Something went wrong loading the party details."
+            action={
+              <Button onClick={() => partyQuery.refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            }
+          />
         </div>
       </div>
     );
@@ -504,27 +526,29 @@ export function GroupChatScreen() {
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-border px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={goBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+            className="h-9 w-9 rounded-full text-foreground/70 hover:bg-muted/50 hover:text-foreground"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="min-w-0 truncate text-[13px] font-semibold text-white">
+              <p className="min-w-0 truncate text-[13px] font-semibold text-foreground">
                 {party?.title || "Group chat"}
               </p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-300 ring-1 ring-purple-500/20">
+              <Badge variant="outline" className="gap-1 border-purple-500/20 bg-purple-500/10 text-purple-300 text-[10px] px-2">
                 <Users className="h-2.5 w-2.5" />
                 {memberCount}
-              </span>
+              </Badge>
             </div>
-            <p className="text-[11px] text-white/35">Group Chat</p>
+            <p className="text-[11px] text-muted-foreground">Group Chat</p>
           </div>
 
           {/* Members preview stack */}
@@ -532,13 +556,15 @@ export function GroupChatScreen() {
             {members.length > 0 && (
               <MembersStack members={members} currentUserId={currentUser.id} />
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setMembersOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               aria-label="Member list"
             >
               <Info className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -549,28 +575,25 @@ export function GroupChatScreen() {
         className="fancy-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Welcome banner */}
-        <div
-
-
-
-          className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/[0.08] to-teal-500/[0.04] p-4 text-center ring-1 ring-white/[0.08]"
-        >
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
-            <Sparkles className="h-5 w-5 text-purple-400" />
-          </div>
-          <p className="font-display text-sm font-bold text-white">
-            {party?.title ? party.title : "Party group chat"}
-          </p>
-          <p className="mx-auto mt-1 max-w-[260px] text-[12px] leading-relaxed text-white/50">
-            Coordinate with the host &amp; other paid guests. Watch for{" "}
-            <span className="font-semibold text-purple-300">group perks</span> —
-            referral offers from Swiggy, Blinkit &amp; more.
-          </p>
-        </div>
+        <Card className="gap-0 py-0 mb-4 border-border/50 bg-gradient-to-br from-purple-500/[0.08] to-teal-500/[0.04] overflow-hidden">
+          <CardContent className="p-4 text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
+              <Sparkles className="h-5 w-5 text-purple-400" />
+            </div>
+            <p className="font-display text-sm font-bold text-foreground">
+              {party?.title ? party.title : "Party group chat"}
+            </p>
+            <p className="mx-auto mt-1 max-w-[260px] text-[12px] leading-relaxed text-muted-foreground">
+              Coordinate with the host &amp; other paid guests. Watch for{" "}
+              <span className="font-semibold text-purple-300">group perks</span> —
+              referral offers from Swiggy, Blinkit &amp; more.
+            </p>
+          </CardContent>
+        </Card>
 
         {grouped.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <p className="text-sm text-white/35">
+            <p className="text-sm text-muted-foreground">
               No messages yet. Say hi 👋
             </p>
           </div>
@@ -579,23 +602,17 @@ export function GroupChatScreen() {
         {grouped.map(({ label, items }) => (
           <div key={label} className="space-y-1">
             <div className="my-3 flex justify-center">
-              <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-wide text-white/30 ring-1 ring-white/[0.06]">
+              <Badge variant="outline" className="rounded-full bg-muted/50 px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground font-normal border-border">
                 {label}
-              </span>
+              </Badge>
             </div>
             {items.map((m, i) => {
               if (m.kind === "system") {
                 return (
-                  <div
-                    key={m.id}
-
-
-
-                    className="my-2 flex justify-center"
-                  >
-                    <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-white/[0.04] px-3.5 py-1.5 text-center text-[11px] leading-relaxed text-white/50 ring-1 ring-white/[0.08]">
+                  <div key={m.id} className="my-2 flex justify-center">
+                    <Badge variant="outline" className="max-w-[85%] gap-1.5 rounded-full bg-muted/50 px-3.5 py-1.5 text-center text-[11px] leading-relaxed text-muted-foreground font-normal border-border">
                       {m.content}
-                    </span>
+                    </Badge>
                   </div>
                 );
               }
@@ -638,10 +655,10 @@ export function GroupChatScreen() {
       </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <footer className="relative z-10 shrink-0 w-full border-t border-white/[0.08] glass-strong px-3 py-2 pb-[max(env(safe-area-inset-bottom),8px)]">
-        <div className="flex w-full items-center gap-2 overflow-hidden rounded-2xl bg-white/[0.04] p-1.5 ring-1 ring-white/[0.08] backdrop-blur-sm">
+      <footer className="relative z-10 shrink-0 w-full border-t border-border glass-strong px-3 py-2 pb-[max(env(safe-area-inset-bottom),8px)]">
+        <div className="flex w-full items-center gap-2 overflow-hidden rounded-2xl bg-muted/50 p-1.5 ring-1 ring-border backdrop-blur-sm">
           <button
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white/70"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Attach"
           >
             <Camera className="h-4.5 w-4.5" />
@@ -656,17 +673,16 @@ export function GroupChatScreen() {
               }
             }}
             placeholder="Message the group…"
-            className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none"
+            className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
           <button
             onClick={send}
             disabled={!text.trim() || sendMutation.isPending}
-
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
               text.trim() && !sendMutation.isPending
                 ? "bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-[0_2px_10px_-2px_rgba(83,74,183,0.5)]"
-                : "bg-white/[0.06] text-white/20",
+                : "bg-muted text-muted-foreground/30",
             )}
             aria-label="Send"
           >

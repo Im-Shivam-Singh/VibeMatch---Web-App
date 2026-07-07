@@ -9,6 +9,7 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -18,6 +19,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +61,9 @@ export function EditProfileScreen() {
   const [instagram, setInstagram] = useState(currentUser?.instagram || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || AVATAR_PRESETS[0]);
 
+  // Validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   // Vibe prefs from user data
   const initialVibes = useMemo(
     () => parseVibes(currentUser?.vibePrefs || ""),
@@ -71,9 +88,30 @@ export function EditProfileScreen() {
     );
   }, [name, username, bio, city, profession, instagram, avatarUrl, selectedVibes, currentUser, initialVibes]);
 
+  // Form validation
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) {
+      newErrors.name = "Name is required";
+    } else if (name.length > NAME_MAX) {
+      newErrors.name = `Name must be ${NAME_MAX} characters or less`;
+    }
+    if (bio.length > BIO_MAX) {
+      newErrors.bio = `Bio must be ${BIO_MAX} characters or less`;
+    }
+    if (username && !/^[a-z0-9_]+$/.test(username)) {
+      newErrors.username = "Username can only contain lowercase letters, numbers, and underscores";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const saveMutation = useMutation({
-    mutationFn: () =>
-      api.updateUser(currentUser!.id, {
+    mutationFn: () => {
+      if (!validate()) {
+        throw new Error("Please fix the validation errors");
+      }
+      return api.updateUser(currentUser!.id, {
         name,
         username,
         bio,
@@ -82,15 +120,21 @@ export function EditProfileScreen() {
         instagram,
         avatarUrl,
         vibePrefs: selectedVibes.join(","),
-      }),
+      });
+    },
     onSuccess: (data) => {
       setCurrentUser(data.user);
       qc.invalidateQueries({ queryKey: ["user", currentUser?.id] });
       toast.success("Profile updated ✨");
       goBack();
     },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Failed to save"),
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : "Failed to save";
+      // If it's a validation error, we already showed it in the form
+      if (msg !== "Please fix the validation errors") {
+        toast.error(msg);
+      }
+    },
   });
 
   const toggleVibe = (tag: string) => {
@@ -104,15 +148,17 @@ export function EditProfileScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
       {/* ---- Sticky header ---- */}
-      <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/[0.08] px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-        <button
+      <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-border px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={goBack}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+          className="h-9 w-9 rounded-full text-foreground/70 hover:bg-muted/50 hover:text-foreground"
           aria-label="Back"
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h1 className="flex-1 font-display text-lg font-bold text-white">
+        </Button>
+        <h1 className="flex-1 font-display text-lg font-bold text-foreground">
           Edit Profile
         </h1>
         <Button
@@ -123,15 +169,11 @@ export function EditProfileScreen() {
             "rounded-full font-semibold transition-all",
             hasChanges
               ? "bg-purple-bright text-white hover:bg-purple-bright/90 shadow-lg shadow-purple/30"
-              : "bg-white/[0.06] text-white/30",
+              : "bg-muted text-muted-foreground",
           )}
         >
           {saveMutation.isPending ? (
-            <span
-
-
-              className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
-            />
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           ) : (
             <>
               <Check className="mr-1 h-4 w-4" /> Save
@@ -143,12 +185,7 @@ export function EditProfileScreen() {
       {/* ---- Scrollable body ---- */}
       <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-12">
         {/* ---- Avatar section ---- */}
-        <section
-
-
-
-          className="flex flex-col items-center gap-4"
-        >
+        <section className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="rounded-full bg-gradient-to-br from-purple-bright via-purple to-teal p-[3px]">
               <div className="rounded-full bg-background p-[2px]">
@@ -180,109 +217,120 @@ export function EditProfileScreen() {
         </section>
 
         {/* ---- Form fields ---- */}
-        <div
-
-
-
-          className="space-y-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5"
-        >
-          {/* Name */}
-          <Field label="Name" count={`${name.length}/${NAME_MAX}`}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value.slice(0, NAME_MAX))}
-              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60"
-              placeholder="Your full name"
-            />
-          </Field>
-
-          {/* Username */}
-          <Field label="Username">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-bright/80">
-                @
-              </span>
+        <Card className="gap-0 py-0 border-border/50">
+          <CardContent className="space-y-5 p-5">
+            {/* Name */}
+            <Field label="Name" count={`${name.length}/${NAME_MAX}`} error={errors.name}>
               <Input
-                value={username}
-                onChange={(e) =>
-                  setUsername(
-                    e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase(),
-                  )
-                }
-                className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] pl-7 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60"
-                placeholder="viber123"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value.slice(0, NAME_MAX));
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
+                }}
+                className={cn(
+                  "h-12 rounded-xl bg-muted/50 placeholder:text-muted-foreground",
+                  errors.name && "border-destructive focus-visible:ring-destructive/50",
+                )}
+                placeholder="Your full name"
               />
-              {username.length > 0 && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Check className="h-4 w-4 text-teal-bright" />
+            </Field>
+
+            {/* Username */}
+            <Field label="Username" error={errors.username}>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-bright/80">
+                  @
                 </span>
-              )}
-            </div>
-          </Field>
+                <Input
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(
+                      e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase(),
+                    );
+                    if (errors.username) setErrors((prev) => ({ ...prev, username: "" }));
+                  }}
+                  className={cn(
+                    "h-12 rounded-xl bg-muted/50 pl-7 placeholder:text-muted-foreground",
+                    errors.username && "border-destructive focus-visible:ring-destructive/50",
+                  )}
+                  placeholder="viber123"
+                />
+                {username.length > 0 && !errors.username && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Check className="h-4 w-4 text-teal-bright" />
+                  </span>
+                )}
+              </div>
+            </Field>
 
-          {/* Bio */}
-          <Field label="Bio" count={`${bio.length}/${BIO_MAX}`}>
-            <Textarea
-              rows={3}
-              value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
-              className="rounded-xl border-white/[0.08] bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60 resize-none"
-              placeholder="Tell people what kind of night-owl you are…"
-            />
-          </Field>
-
-          {/* City */}
-          <Field label="City">
-            <Input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Enter your city"
-              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60"
-              maxLength={60}
-            />
-          </Field>
-
-          {/* Profession */}
-          <Field label="Profession">
-            <select
-              value={profession}
-              onChange={(e) => setProfession(e.target.value)}
-              className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-purple-bright/60 focus:ring-2 focus:ring-purple-bright/40"
-            >
-              <option value="" className="bg-[#110f1f] text-white">
-                Select profession…
-              </option>
-              {PROFESSIONS.map((p) => (
-                <option key={p} value={p} className="bg-[#110f1f] text-white">
-                  {p}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          {/* Instagram */}
-          <Field label="Instagram (optional)">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-bright/80">
-                @
-              </span>
-              <Input
-                value={instagram}
-                onChange={(e) => setInstagram(e.target.value)}
-                className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] pl-7 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-purple-bright/50 focus-visible:border-purple-bright/60"
-                placeholder="your.handle"
+            {/* Bio */}
+            <Field label="Bio" count={`${bio.length}/${BIO_MAX}`} error={errors.bio}>
+              <Textarea
+                rows={3}
+                value={bio}
+                onChange={(e) => {
+                  setBio(e.target.value.slice(0, BIO_MAX));
+                  if (errors.bio) setErrors((prev) => ({ ...prev, bio: "" }));
+                }}
+                className={cn(
+                  "rounded-xl bg-muted/50 placeholder:text-muted-foreground resize-none",
+                  errors.bio && "border-destructive focus-visible:ring-destructive/50",
+                )}
+                placeholder="Tell people what kind of night-owl you are…"
               />
-            </div>
-          </Field>
-        </div>
+            </Field>
+
+            <Separator />
+
+            {/* City */}
+            <Field label="City">
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Enter your city"
+                className="h-12 rounded-xl bg-muted/50 placeholder:text-muted-foreground"
+                maxLength={60}
+              />
+            </Field>
+
+            {/* Profession */}
+            <Field label="Profession">
+              <select
+                value={profession}
+                onChange={(e) => setProfession(e.target.value)}
+                className="h-12 w-full rounded-xl border border-border bg-muted/50 px-3 text-sm text-foreground outline-none transition focus:border-purple-bright/60 focus:ring-2 focus:ring-purple-bright/40"
+              >
+                <option value="" className="bg-background text-foreground">
+                  Select profession…
+                </option>
+                {PROFESSIONS.map((p) => (
+                  <option key={p} value={p} className="bg-background text-foreground">
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {/* Instagram */}
+            <Field label="Instagram (optional)">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-purple-bright/80">
+                  @
+                </span>
+                <Input
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  className="h-12 rounded-xl bg-muted/50 pl-7 placeholder:text-muted-foreground"
+                  placeholder="your.handle"
+                />
+              </div>
+            </Field>
+          </CardContent>
+        </Card>
 
         {/* ---- Vibe preferences ---- */}
-        <section
-
-
-
-        >
-          <h3 className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+        <section>
+          <h3 className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
             Vibe Preferences
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -292,13 +340,12 @@ export function EditProfileScreen() {
               return (
                 <button
                   key={tag}
-
                   onClick={() => toggleVibe(tag)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium border transition-all duration-200",
                     isSelected
                       ? colorClasses
-                      : "bg-white/[0.04] text-white/40 border-white/[0.08] hover:bg-white/[0.08] hover:text-white/60",
+                      : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
                   )}
                 >
                   <span aria-hidden>{VIBE_EMOJI[tag]}</span>
@@ -310,70 +357,49 @@ export function EditProfileScreen() {
         </section>
 
         {/* ---- Delete account ---- */}
-        <section
-
-
-
-        >
-          <button
+        <section>
+          <Button
+            variant="ghost"
             onClick={() => setShowDeleteDialog(true)}
-            className="flex items-center gap-2 text-sm font-medium text-red-400/80 transition hover:text-red-400"
+            className="gap-2 text-red-400/80 hover:text-red-400 hover:bg-red-500/10"
           >
             <Trash2 className="h-4 w-4" />
             Delete Account
-          </button>
+          </Button>
         </section>
       </div>
 
       {/* ---- Delete confirmation dialog ---- */}
-        {showDeleteDialog && (
-          <div
-
-
-
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={() => setShowDeleteDialog(false)}
-          >
-            <div
-
-
-
-
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl bg-[#18152e] border border-white/[0.08] p-6 shadow-2xl"
-            >
-              <div className="flex items-center justify-center mb-4">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30">
-                  <AlertTriangle className="h-7 w-7 text-red-400" />
-                </span>
-              </div>
-              <h3 className="text-center font-display text-lg font-bold text-white">
-                Delete Account?
-              </h3>
-              <p className="mt-2 text-center text-sm text-white/50">
-                This action is permanent and cannot be undone. All your data,
-                tickets, and party history will be lost.
-              </p>
-              <div className="mt-5 flex gap-3">
-                <button
-                  onClick={() => setShowDeleteDialog(false)}
-                  className="flex-1 rounded-xl bg-white/[0.06] py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.1]"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    toast.error("Account deletion is not available yet");
-                    setShowDeleteDialog(false);
-                  }}
-                  className="flex-1 rounded-xl bg-red-500/20 py-3 text-sm font-semibold text-red-400 ring-1 ring-red-500/30 transition hover:bg-red-500/30"
-                >
-                  Delete
-                </button>
-              </div>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="rounded-2xl border-border glass-strong">
+          <AlertDialogHeader>
+            <div className="flex items-center justify-center mb-2">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30">
+                <AlertTriangle className="h-7 w-7 text-red-400" />
+              </span>
             </div>
-          </div>
-        )}
+            <AlertDialogTitle className="text-center font-display text-lg font-bold text-foreground">
+              Delete Account?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              This action is permanent and cannot be undone. All your data,
+              tickets, and party history will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                toast.error("Account deletion is not available yet");
+                setShowDeleteDialog(false);
+              }}
+              className="rounded-xl bg-red-500/20 text-red-400 ring-1 ring-red-500/30 hover:bg-red-500/30"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -384,22 +410,29 @@ export function EditProfileScreen() {
 function Field({
   label,
   count,
+  error,
   children,
 }: {
   label: string;
   count?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5 text-xs uppercase tracking-[0.12em] text-white/60">
+        <Label className="flex items-center gap-1.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-bright shadow-[0_0_8px_rgba(127,119,221,0.7)]" />
           {label}
         </Label>
-        {count && (
-          <span className="text-[11px] tabular-nums text-white/30">{count}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {error && (
+            <span className="text-[11px] text-destructive">{error}</span>
+          )}
+          {count && (
+            <span className="text-[11px] tabular-nums text-muted-foreground">{count}</span>
+          )}
+        </div>
       </div>
       {children}
     </section>

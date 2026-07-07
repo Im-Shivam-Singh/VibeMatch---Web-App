@@ -32,7 +32,7 @@ import { AdminScreen } from "@/features/admin/screens/admin-screen";
 import { GroupChatScreen } from "@/features/chat/screens/group-chat-screen";
 import { MusicPlayerBar } from "@/components/party/music-player";
 
-// ── Screen renderer map ────────────────────────────────────────────────────
+// ── Screen Router ──────────────────────────────────────────────────────────
 function ScreenContent({ screen }: { screen: string }) {
   switch (screen) {
     case "login":
@@ -84,24 +84,19 @@ function ScreenContent({ screen }: { screen: string }) {
   }
 }
 
-// ── Loading Screen Component ────────────────────────────────────────────────
+// ── Loading Screen ─────────────────────────────────────────────────────────
 function LoadingScreen() {
   return (
-    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
-            <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
-          </div>
-          <p className="text-sm text-muted-foreground">Loading VibeMatch...</p>
-        </div>
+    <div className="flex min-h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading VibeMatch...</p>
       </div>
     </div>
   );
 }
 
-// ── Main AppShell ──────────────────────────────────────────────────────────
+// ── App Shell ──────────────────────────────────────────────────────────────
 export function AppShell() {
   const screen = useAppStore((s) => s.screen);
   const authed = useAppStore((s) => s.authed);
@@ -109,7 +104,7 @@ export function AppShell() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setScreen = useAppStore((s) => s.setScreen);
 
-  // Invalidate queries when screen changes so fresh data is fetched on tab switch
+  // ── Query invalidation on screen change ────────────────────────────────
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -139,18 +134,15 @@ export function AppShell() {
     }
   }, [screen, qc]);
 
-  // Track initialization state for auth check
+  // ── Auth initialization ────────────────────────────────────────────────
   const [isInitializing, setIsInitializing] = useState(true);
   const hasCheckedAuth = useRef(false);
 
-  // Validate persisted user on app load - runs once
   useEffect(() => {
     if (hasCheckedAuth.current) return;
     hasCheckedAuth.current = true;
 
-    // If no persisted auth, immediately finish initialization
     if (!authed || !currentUser?.id) {
-      // Use setTimeout to defer setState outside the effect
       const timer = setTimeout(() => setIsInitializing(false), 0);
       return () => clearTimeout(timer);
     }
@@ -159,22 +151,21 @@ export function AppShell() {
     api
       .getUser({ id: currentUser.id })
       .then(() => {
-        if (cancelled) return;
-        // User exists and is valid, finish initialization
-        setIsInitializing(false);
+        if (!cancelled) setIsInitializing(false);
       })
       .catch(() => {
-        if (cancelled) return;
-        // User is invalid, logout and finish initialization
-        useAppStore.getState().logout();
-        setIsInitializing(false);
+        if (!cancelled) {
+          useAppStore.getState().logout();
+          setIsInitializing(false);
+        }
       });
+
     return () => {
       cancelled = true;
     };
-  }, []); // Only run once on mount
+  }, []);
 
-  // If not authed, force login screen
+  // ── Auth-based screen routing ─────────────────────────────────────────
   useEffect(() => {
     if (isInitializing) return;
     if (!authed && screen !== "login") {
@@ -182,7 +173,6 @@ export function AppShell() {
     }
   }, [isInitializing, authed, screen, setScreen]);
 
-  // After auth, route away from login
   useEffect(() => {
     if (isInitializing) return;
     if (authed && screen === "login") {
@@ -190,7 +180,6 @@ export function AppShell() {
     }
   }, [isInitializing, authed, screen, onboarded, setScreen]);
 
-  // After auth but before onboarding, show onboarding
   useEffect(() => {
     if (isInitializing) return;
     if (authed && !onboarded && screen === "home") {
@@ -198,32 +187,30 @@ export function AppShell() {
     }
   }, [isInitializing, authed, onboarded, screen, setScreen]);
 
-  // Show loading screen while checking auth
+  // ── Loading guard ─────────────────────────────────────────────────────
   if (isInitializing) {
     return <LoadingScreen />;
   }
 
+  // ── Derived state ─────────────────────────────────────────────────────
   const current = !authed ? "login" : screen;
-
-  // Determine whether nav should be visible
-  const showNav = authed && current !== "login" && current !== "onboarding";
-
-  // Login and onboarding screens should be full-width centered
   const isAuthFlow = current === "login" || current === "onboarding";
+  const showNav = authed && !isAuthFlow;
 
+  // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden overflow-y-auto bg-background">
-      {/* Desktop sidebar — hidden on mobile/tablet and during auth flow */}
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Desktop sidebar — visible on lg+, hidden during auth flow */}
       {!isAuthFlow && <SidebarNav />}
 
-      {/* Main content area */}
-      <div className={isAuthFlow ? "" : "lg:pl-[280px]"}>
+      {/* Main content area with sidebar offset on desktop */}
+      <div className={cn(isAuthFlow ? "" : "lg:pl-[280px]")}>
         <main
           className={cn(
-            "relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-background",
+            "relative flex min-h-screen flex-col overflow-x-hidden",
             isAuthFlow
               ? "items-center justify-center"
-              : "max-w-2xl mx-auto lg:max-w-6xl"
+              : "mx-auto max-w-2xl lg:max-w-6xl"
           )}
           style={{
             paddingBottom: showNav
@@ -235,7 +222,7 @@ export function AppShell() {
             key={current}
             className={cn(
               "flex flex-1 flex-col",
-              isAuthFlow && "w-full max-w-md mx-auto"
+              isAuthFlow && "mx-auto w-full max-w-md"
             )}
           >
             <ScreenContent screen={current} />
@@ -243,7 +230,7 @@ export function AppShell() {
         </main>
       </div>
 
-      {/* Music player bar — only when nav visible (i.e. not auth flows) */}
+      {/* Music player bar — only when nav is visible */}
       {showNav && <MusicPlayerBar />}
 
       {/* Mobile bottom nav — hidden on desktop */}

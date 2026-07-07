@@ -1,16 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
   Users,
   TrendingUp,
-  Clock,
   ShoppingBag,
   ScanLine,
   Star,
-  ShieldCheck,
   MessageCircle,
   Eye,
   RefreshCw,
@@ -29,6 +27,16 @@ import {
   type Order,
   type Party,
 } from "@/lib/types";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const AVATAR_COLORS = [
@@ -44,8 +52,6 @@ interface PrepRow {
   unitPrice: number;
   totalQty: number;
 }
-
-
 
 export function HostDashboardScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -118,19 +124,6 @@ export function HostDashboardScreen() {
     return Array.from(map.values());
   }, [orders, menuItems]);
 
-  const preOrderCount = useMemo(
-    () =>
-      orders.reduce(
-        (sum, o) =>
-          sum +
-          o.items
-            .filter((i) => i.name !== "Entry ticket")
-            .reduce((s, i) => s + i.quantity, 0),
-        0,
-      ),
-    [orders],
-  );
-
   const guestRows = useMemo(
     () =>
       acceptedRequests.map((req) => {
@@ -160,6 +153,7 @@ export function HostDashboardScreen() {
   const netProfit = ticketRevenue + menuProfit;
   const totalViews = analytics?.totalViews ?? 0;
   const avgRating = analytics?.avgRating ?? 0;
+  const fillPct = capacity > 0 ? Math.min(100, (confirmedGuests / capacity) * 100) : 0;
 
   const handleScan = () => {
     toast.success("QR scanner opening…", {
@@ -171,20 +165,17 @@ export function HostDashboardScreen() {
   if (!selectedPartyId) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header
-
-
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
-        >
+        <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={goBack}
-
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80"
               aria-label="Back"
+              className="rounded-xl"
             >
               <ChevronLeft className="h-5 w-5" />
-            </button>
+            </Button>
             <span className="font-display text-lg font-bold text-foreground">Dashboard</span>
           </div>
         </header>
@@ -198,14 +189,12 @@ export function HostDashboardScreen() {
           <p className="max-w-xs text-sm text-muted-foreground">
             Pick a party from My Parties to see live guest counts, prep list, and earnings.
           </p>
-          <button
+          <Button
             onClick={() => setScreen("my-parties")}
-
-
-            className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+            className="rounded-2xl bg-purple-500 shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)] hover:bg-purple-400"
           >
             Go to My Parties
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -222,20 +211,17 @@ export function HostDashboardScreen() {
   if (!party) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header
-
-
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
-        >
+        <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={goBack}
-
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80"
               aria-label="Back"
+              className="rounded-xl"
             >
               <ChevronLeft className="h-5 w-5" />
-            </button>
+            </Button>
             <span className="font-display text-lg font-bold text-foreground">Dashboard</span>
           </div>
         </header>
@@ -251,14 +237,13 @@ export function HostDashboardScreen() {
               ? partyQuery.error.message
               : "We couldn't load this party. Try again later."}
           </p>
-          <button
+          <Button
             onClick={() => partyQuery.refetch()}
-
-            className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white"
+            className="gap-2 rounded-2xl bg-purple-500 hover:bg-purple-400"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -268,21 +253,17 @@ export function HostDashboardScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
-      >
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={goBack}
-
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
+            className="rounded-xl"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
               Dashboard
@@ -300,34 +281,26 @@ export function HostDashboardScreen() {
       {/* Scrollable body */}
       <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32 max-w-4xl mx-auto w-full">
         {/* ── Summary stat cards (4-up) ──────────────────────────── */}
-        <section
-          initial="initial"
-          animate="animate"
-          className="grid grid-cols-2 gap-3"
-        >
+        <section className="grid grid-cols-2 gap-3">
           <DashboardStat
-            i={0}
             icon={Eye}
             tint="purple"
             value={totalViews.toLocaleString()}
             label="Total Views"
           />
           <DashboardStat
-            i={1}
             icon={Users}
             tint="teal"
             value={`${confirmedGuests}/${capacity}`}
             label="Guests"
           />
           <DashboardStat
-            i={2}
             icon={TrendingUp}
             tint="teal"
             value={`${sym}${netProfit.toFixed(0)}`}
             label="Revenue"
           />
           <DashboardStat
-            i={3}
             icon={Star}
             tint="amber"
             value={avgRating > 0 ? avgRating.toFixed(1) : "—"}
@@ -335,77 +308,63 @@ export function HostDashboardScreen() {
           />
         </section>
 
-        {/* ── Simple bar chart (guest fill per party) ────────────── */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
-              Guest Capacity
-            </span>
-            <span className="text-xs font-medium text-purple-300">
-              {confirmedGuests}/{capacity} filled
-            </span>
-          </div>
-          {/* Bar */}
-          <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-400 to-teal-400"
-              style={{ width: `${fillPct}%` }}
-            />
-          </div>
-          <div className="mt-3 flex justify-between text-[10px] text-muted-foreground/50">
-            <span>0</span>
-            <span>{Math.round(capacity / 2)}</span>
-            <span>{capacity}</span>
-          </div>
-        </section>
+        {/* ── Capacity bar ────────────────────────────── */}
+        <Card className="py-0 gap-0 border-border/40">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+                Guest Capacity
+              </span>
+              <Badge variant="outline" className="text-purple-300 border-purple-500/30 bg-purple-500/10">
+                {confirmedGuests}/{capacity} filled
+              </Badge>
+            </div>
+            {/* Bar */}
+            <div className="h-3 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-400 to-teal-400"
+                style={{ width: `${fillPct}%` }}
+              />
+            </div>
+            <div className="mt-3 flex justify-between text-[10px] text-muted-foreground/50">
+              <span>0</span>
+              <span>{Math.round(capacity / 2)}</span>
+              <span>{capacity}</span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ── Recent activity (orders) ───────────────────────────── */}
         {orders.length > 0 && (
-          <section
-
-
-
-            className="space-y-3"
-          >
+          <section className="space-y-3">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
               Recent Activity
             </span>
             <div className="space-y-2">
               {orders.slice(0, 4).map((o) => (
-                <div
-                  key={o.id}
-                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/15">
-                    <ShoppingBag className="h-3.5 w-3.5 text-teal-300" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-foreground">
-                      {o.items[0]?.emoji ?? "🎟️"} {o.items[0]?.name ?? "Order"}
-                      {o.items.length > 1 && ` +${o.items.length - 1}`}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {sym}{o.totalAmount.toFixed(2)} · {o.status}
-                    </p>
-                  </div>
-                </div>
+                <Card key={o.id} className="py-0 gap-0 border-border/40">
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/15">
+                      <ShoppingBag className="h-3.5 w-3.5 text-teal-300" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {o.items[0]?.emoji ?? "🎟️"} {o.items[0]?.name ?? "Order"}
+                        {o.items.length > 1 && ` +${o.items.length - 1}`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {sym}{o.totalAmount.toFixed(2)} · {o.status}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </section>
         )}
 
         {/* ── Guest list ─────────────────────────────────────────── */}
-        <section
-
-
-
-          className="space-y-3"
-        >
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
               Guest List
@@ -415,9 +374,11 @@ export function HostDashboardScreen() {
             </span>
           </div>
           {guestRows.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-6 text-center text-sm text-muted-foreground">
-              No confirmed guests yet — approvals will land here.
-            </div>
+            <Card className="py-0 gap-0 border-border/40">
+              <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                No confirmed guests yet — approvals will land here.
+              </CardContent>
+            </Card>
           ) : (
             <ul className="space-y-2">
               {guestRows.map(({ request, addOns }, idx) => {
@@ -425,37 +386,35 @@ export function HostDashboardScreen() {
                 const initial =
                   request.requesterName?.slice(0, 1).toUpperCase() ?? "?";
                 return (
-                  <li
-                    key={request.id}
-
-
-
-                    className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3"
-                  >
-                    <span
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ring-1",
-                        color,
-                      )}
-                    >
-                      {initial}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {request.requesterName}
-                      </p>
-                    </div>
-                    {addOns.length > 0 ? (
-                      <span className="shrink-0 rounded-lg bg-teal-500/10 border border-teal-500/20 px-2 py-1 text-[11px] font-medium text-teal-200">
-                        {addOns
-                          .map((a) => `${a.emoji}×${a.quantity}`)
-                          .join(" · ")}
-                      </span>
-                    ) : (
-                      <span className="shrink-0 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                        Entry only
-                      </span>
-                    )}
+                  <li key={request.id}>
+                    <Card className="py-0 gap-0 border-border/40">
+                      <CardContent className="flex items-center gap-3 p-3">
+                        <span
+                          className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ring-1",
+                            color,
+                          )}
+                        >
+                          {initial}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {request.requesterName}
+                          </p>
+                        </div>
+                        {addOns.length > 0 ? (
+                          <Badge variant="outline" className="border-teal-500/20 bg-teal-500/10 text-teal-200 text-[11px]">
+                            {addOns
+                              .map((a) => `${a.emoji}×${a.quantity}`)
+                              .join(" · ")}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[11px] text-muted-foreground">
+                            Entry only
+                          </Badge>
+                        )}
+                      </CardContent>
+                    </Card>
                   </li>
                 );
               })}
@@ -464,106 +423,94 @@ export function HostDashboardScreen() {
         </section>
 
         {/* ── Prep list ──────────────────────────────────────────── */}
-        <section
-
-
-
-          className="space-y-3"
-        >
+        <section className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
             Prep List — Buy Exactly This
           </span>
           {prepList.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-6 text-center text-sm text-muted-foreground">
-              No pre-orders yet — once guests add drinks or snacks, the
-              shopping list appears here.
-            </div>
+            <Card className="py-0 gap-0 border-border/40">
+              <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                No pre-orders yet — once guests add drinks or snacks, the
+                shopping list appears here.
+              </CardContent>
+            </Card>
           ) : (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] overflow-hidden">
-              <ul className="divide-y divide-white/[0.04]">
-                {prepList.map((row) => {
-                  const profit = row.totalQty * row.unitPrice;
-                  return (
-                    <li key={row.name} className="flex items-center gap-3 px-4 py-3">
-                      <span className="text-lg leading-none">{row.emoji}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {row.name}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {row.totalQty} ordered
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold text-teal-300">
-                        +{sym}{profit.toFixed(2)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <Card className="py-0 gap-0 border-border/40 overflow-hidden">
+              <CardContent className="p-0">
+                <ul className="divide-y divide-border/40">
+                  {prepList.map((row) => {
+                    const profit = row.totalQty * row.unitPrice;
+                    return (
+                      <li key={row.name} className="flex items-center gap-3 px-4 py-3">
+                        <span className="text-lg leading-none">{row.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {row.name}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {row.totalQty} ordered
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-teal-300">
+                          +{sym}{profit.toFixed(2)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
           )}
         </section>
 
         {/* ── Earnings card ───────────────────────────────────────── */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
-              Earnings
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Projected
-            </span>
-          </div>
-          <div className="space-y-3">
-            <EarningRow label="Ticket revenue" value={`${sym}${ticketRevenue.toFixed(2)}`} />
-            <EarningRow label="Menu profit" value={`${sym}${menuProfit.toFixed(2)}`} />
-          </div>
-          <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
-            <span className="text-sm font-semibold text-foreground">
-              Est. net profit
-            </span>
-            <span className="font-display text-xl font-bold text-teal-300">
-              {sym}{netProfit.toFixed(2)}
-            </span>
-          </div>
-        </section>
+        <Card className="py-0 gap-0 border-border/40">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+                Earnings
+              </span>
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                Projected
+              </Badge>
+            </div>
+            <div className="space-y-3">
+              <EarningRow label="Ticket revenue" value={`${sym}${ticketRevenue.toFixed(2)}`} />
+              <EarningRow label="Menu profit" value={`${sym}${menuProfit.toFixed(2)}`} />
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-3">
+              <span className="text-sm font-semibold text-foreground">
+                Est. net profit
+              </span>
+              <span className="font-display text-xl font-bold text-teal-300">
+                {sym}{netProfit.toFixed(2)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ── CTA: Scan guests ───────────────────────────────────── */}
-        <button
+        <Button
           onClick={handleScan}
-
-
-
-
-
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-purple-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+          className="w-full gap-2 rounded-2xl bg-purple-500 py-3.5 text-sm font-bold shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)] hover:bg-purple-400"
         >
           <ScanLine className="h-5 w-5" strokeWidth={2.5} />
           Scan guests in ▦
-        </button>
+        </Button>
 
         {/* ── CTA: Group chat ────────────────────────────────────── */}
         {party.groupChatEnabled && (
-          <button
+          <Button
+            variant="outline"
             onClick={() => {
               setSelectedPartyId(party.id);
               setScreen("group-chat");
             }}
-
-
-
-
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-teal-500/25 bg-teal-500/[0.06] px-4 py-3 text-sm font-semibold text-teal-200 transition hover:bg-teal-500/15"
+            className="w-full gap-2 rounded-2xl border-teal-500/25 bg-teal-500/[0.06] py-3 text-sm font-semibold text-teal-200 hover:bg-teal-500/15"
           >
             <MessageCircle className="h-4 w-4 text-teal-300" />
             Open group chat · {confirmedGuests} paid
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -573,13 +520,11 @@ export function HostDashboardScreen() {
 /* ─── Stat card ──────────────────────────────────────────────────────── */
 
 function DashboardStat({
-  i,
   icon: Icon,
   tint,
   value,
   label,
 }: {
-  i: number;
   icon: LucideIcon;
   tint: "purple" | "teal" | "amber";
   value: string;
@@ -607,21 +552,17 @@ function DashboardStat({
   };
   const t = tints[tint];
   return (
-    <div
-      custom={i}
-      className={cn(
-        "rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4",
-        t.glow,
-      )}
-    >
-      <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", t.bg)}>
-        <Icon className={cn("h-4 w-4", t.icon)} strokeWidth={2.25} />
-      </div>
-      <p className={cn("mt-3 font-display text-2xl font-bold leading-none", t.value)}>
-        {value}
-      </p>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">{label}</p>
-    </div>
+    <Card className={cn("py-0 gap-0 border-border/40 backdrop-blur-sm", t.glow)}>
+      <CardContent className="p-4">
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", t.bg)}>
+          <Icon className={cn("h-4 w-4", t.icon)} strokeWidth={2.25} />
+        </div>
+        <p className={cn("mt-3 font-display text-2xl font-bold leading-none", t.value)}>
+          {value}
+        </p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -639,32 +580,40 @@ function EarningRow({ label, value }: { label: string; value: string }) {
 function HostDashboardSkeleton() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-2.5 w-16 rounded-full bg-white/[0.06] animate-pulse" />
-            <div className="h-4 w-40 rounded-lg bg-white/[0.06] animate-pulse" />
-            <div className="h-2.5 w-48 rounded-full bg-white/[0.04] animate-pulse" />
+            <Skeleton className="h-2.5 w-16 rounded-full" />
+            <Skeleton className="h-4 w-40 rounded-lg" />
+            <Skeleton className="h-2.5 w-48 rounded-full" />
           </div>
         </div>
       </header>
       <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
         <div className="grid grid-cols-2 gap-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-              <div className="h-9 w-9 rounded-xl bg-white/[0.06] animate-pulse" />
-              <div className="mt-3 h-6 w-16 rounded-lg bg-white/[0.06] animate-pulse" />
-              <div className="mt-2 h-3 w-20 rounded-full bg-white/[0.04] animate-pulse" />
-            </div>
+            <Card key={i} className="py-0 gap-0 border-border/40">
+              <CardContent className="p-4">
+                <Skeleton className="h-9 w-9 rounded-xl" />
+                <Skeleton className="mt-3 h-6 w-16 rounded-lg" />
+                <Skeleton className="mt-2 h-3 w-20 rounded-full" />
+              </CardContent>
+            </Card>
           ))}
         </div>
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-          <div className="h-3 w-24 rounded-full bg-white/[0.06] animate-pulse mb-4" />
-          <div className="h-3 w-full rounded-full bg-white/[0.06] animate-pulse" />
-        </div>
+        <Card className="py-0 gap-0 border-border/40">
+          <CardContent className="p-4">
+            <Skeleton className="h-3 w-24 rounded-full mb-4" />
+            <Skeleton className="h-3 w-full rounded-full" />
+          </CardContent>
+        </Card>
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
+          <Card key={i} className="py-0 gap-0 border-border/40">
+            <CardContent className="p-3">
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

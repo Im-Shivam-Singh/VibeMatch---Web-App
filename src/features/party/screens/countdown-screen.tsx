@@ -13,6 +13,8 @@ import {
   Navigation,
   Share2,
   RefreshCw,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -22,6 +24,11 @@ import {
   formatTime,
   type Party,
 } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 
 type StepState = "done" | "active" | "pending";
@@ -56,9 +63,9 @@ function StepDot({ number, state }: { number: number; state: StepState }) {
   }
   if (state === "active") {
     return (
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-500/20 shadow-[0_0_12px_-3px_rgba(83,74,183,0.4)] text-purple-200">
-        <span className="text-xs font-bold">{number}</span>
-      </div>
+      <Badge className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-500/20 shadow-[0_0_12px_-3px_rgba(83,74,183,0.4)] text-purple-200 p-0 text-xs font-bold">
+        {number}
+      </Badge>
     );
   }
   return (
@@ -109,48 +116,17 @@ function CountdownSkeleton() {
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-2.5 w-16 rounded-full bg-white/[0.06] animate-pulse" />
-            <div className="h-4 w-32 rounded-lg bg-white/[0.06] animate-pulse" />
+            <Skeleton className="h-2.5 w-16 rounded-full" />
+            <Skeleton className="h-4 w-32 rounded-lg" />
           </div>
-          <div className="h-6 w-20 rounded-full bg-white/[0.06] animate-pulse" />
+          <Skeleton className="h-6 w-20 rounded-full" />
         </div>
       </header>
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
-        <div className="h-40 rounded-2xl bg-white/[0.03] animate-pulse" />
-        <div className="h-20 rounded-2xl bg-white/[0.03] animate-pulse" />
-        <div className="h-24 rounded-2xl bg-white/[0.03] animate-pulse" />
-        <div className="h-44 rounded-2xl bg-white/[0.03] animate-pulse" />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ goBack }: { goBack: () => void }) {
-  return (
-    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-        <div className="flex items-center gap-3">
-          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
-        </div>
-      </header>
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 border border-purple-500/20 shadow-[0_0_30px_-8px_rgba(83,74,183,0.3)]">
-          <CalendarClock className="h-7 w-7 text-purple-300" />
-        </div>
-        <h2 className="font-display text-xl font-bold text-foreground">No party selected</h2>
-        <p className="max-w-xs text-sm text-muted-foreground">
-          Pick a party from the feed to see what happens between paying and arriving.
-        </p>
-        <button
-          onClick={() => useAppStore.getState().setScreen("home")}
-
-          className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
-        >
-          Browse parties
-        </button>
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-20 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-44 rounded-2xl" />
       </div>
     </div>
   );
@@ -162,7 +138,7 @@ export function CountdownScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setScreen = useAppStore((s) => s.setScreen);
 
-  const { data: partyData, isLoading, isError } = useQuery({
+  const { data: partyData, isLoading, isError, refetch } = useQuery({
     queryKey: ["party", id],
     queryFn: () => api.getParty(id!),
     enabled: !!id,
@@ -175,7 +151,79 @@ export function CountdownScreen() {
   });
 
   if (isLoading) return <CountdownSkeleton />;
-  if (isError || !id || !partyData?.party) return <EmptyState goBack={goBack} />;
+
+  // Error state with retry
+  if (isError) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goBack}
+              className="h-10 w-10 rounded-xl border-white/[0.08] text-white/80"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
+          </div>
+        </header>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <EmptyState
+            icon={AlertCircle}
+            title="Couldn't load party"
+            description="Something went wrong fetching party details. Please try again."
+            action={
+              <Button
+                onClick={() => refetch()}
+                className="gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // No party selected
+  if (!id || !partyData?.party) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goBack}
+              className="h-10 w-10 rounded-xl border-white/[0.08] text-white/80"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
+          </div>
+        </header>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <EmptyState
+            icon={CalendarClock}
+            title="No party selected"
+            description="Pick a party from the feed to see what happens between paying and arriving."
+            action={
+              <Button
+                onClick={() => useAppStore.getState().setScreen("home")}
+                className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+              >
+                Browse parties
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
   const party: Party = partyData.party;
   const userTickets = ticketsData?.tickets ?? [];
@@ -211,23 +259,23 @@ export function CountdownScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-      >
+      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={goBack}
+            className="h-10 w-10 rounded-xl border-white/[0.08] text-white/80"
+          >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="min-w-0 flex-1">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
             <h1 className="truncate font-display text-base font-bold leading-tight text-foreground">{party.title}</h1>
           </div>
-          <span className="shrink-0 rounded-lg border border-teal-500/25 bg-teal-500/[0.08] px-3 py-1 text-xs font-medium text-teal-300">
+          <Badge variant="outline" className="shrink-0 rounded-lg border-teal-500/25 bg-teal-500/[0.08] text-xs font-medium text-teal-300">
             {partyCountdown}
-          </span>
+          </Badge>
         </div>
       </header>
 
@@ -235,13 +283,8 @@ export function CountdownScreen() {
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* No-ticket banner */}
         {!hasTicket && currentUser && (
-          <section
-
-
-
-            className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4"
-          >
-            <div className="flex items-start gap-3">
+          <Card className="border-amber-500/20 bg-amber-500/[0.06] rounded-2xl">
+            <CardContent className="flex items-start gap-3 p-4">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
                 <Bell className="h-4 w-4 text-amber-300" />
               </div>
@@ -252,50 +295,46 @@ export function CountdownScreen() {
                 <p className="text-xs text-muted-foreground">
                   This is a preview. Grab a spot to unlock reminders, the group chat, and the day-of location drop.
                 </p>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setScreen("detail")}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/25 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/25"
+                  className="mt-2 gap-1.5 rounded-xl bg-amber-500/15 border-amber-500/25 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/25"
                 >
                   View party & get a spot
                   <ArrowRight className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
-            </div>
-          </section>
+            </CardContent>
+          </Card>
         )}
 
         {/* Step tracker */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Your night, mapped</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40">Step {activeStep}/5</span>
-          </div>
-          <ol className="relative">
-            {steps.map((step, i) => (
-              <StepRow
-                key={step.number}
-                step={step}
-                state={stepStateFor(step.number, activeStep)}
-                isLast={i === steps.length - 1}
-              />
-            ))}
-          </ol>
-        </section>
+        <Card className="border-white/[0.06] bg-white/[0.03] backdrop-blur-sm rounded-2xl">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Your night, mapped</span>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider text-muted-foreground/40 border-white/[0.06] h-auto py-0">
+                Step {activeStep}/5
+              </Badge>
+            </div>
+            <ol className="relative">
+              {steps.map((step, i) => (
+                <StepRow
+                  key={step.number}
+                  step={step}
+                  state={stepStateFor(step.number, activeStep)}
+                  isLast={i === steps.length - 1}
+                />
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
 
         {/* Location-drop alert */}
         {!revealDropped && (
-          <section
-
-
-
-            className="rounded-2xl border border-coral/20 bg-coral/[0.06] p-4"
-          >
-            <div className="flex items-start gap-3">
+          <Card className="border-coral/20 bg-coral/[0.06] rounded-2xl">
+            <CardContent className="flex items-start gap-3 p-4">
               <span className="text-base leading-none mt-0.5">📍</span>
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="text-sm font-semibold text-orange-200">
@@ -305,18 +344,13 @@ export function CountdownScreen() {
                   Map pin will appear in your group chat at {revealTimeStr} on {revealDay}. Only visible to confirmed guests.
                 </p>
               </div>
-            </div>
-          </section>
+            </CardContent>
+          </Card>
         )}
 
         {/* Location card */}
-        <section
-
-
-
-          className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4"
-        >
-          <div className="flex items-start gap-3">
+        <Card className="border-purple-500/20 bg-purple-500/[0.06] rounded-2xl">
+          <CardContent className="flex items-start gap-3 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 shadow-[0_0_16px_-4px_rgba(83,74,183,0.2)]">
               <MapPin className="h-5 w-5 text-purple-300" />
             </div>
@@ -327,60 +361,59 @@ export function CountdownScreen() {
               <p className="text-xs text-muted-foreground">
                 {revealDropped ? "Exact address is in your group chat" : "Exact address arriving soon"}
               </p>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setScreen("map")}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-purple-500/15 border border-purple-500/25 px-3 py-1.5 text-xs font-semibold text-purple-200 transition hover:bg-purple-500/25"
+                className="mt-2 gap-1.5 rounded-xl bg-purple-500/15 border-purple-500/25 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:bg-purple-500/25"
               >
                 <Navigation className="h-3.5 w-3.5" />
                 Get directions
                 <ArrowRight className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Party chat preview */}
-        <button
-
-
-
+        <Card
           onClick={() => setScreen("inbox")}
-          className="block w-full rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4 text-left"
+          className="block w-full cursor-pointer border-purple-500/20 bg-purple-500/[0.06] rounded-2xl hover:bg-purple-500/[0.08] transition"
         >
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-purple-300" />
-              <span className="text-sm font-semibold text-foreground">Party chat · {guestCount} people 🔥</span>
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-purple-300" />
+                <span className="text-sm font-semibold text-foreground">Party chat · {guestCount} people 🔥</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-wider text-purple-300/60">Tap to open</span>
             </div>
-            <span className="text-[10px] uppercase tracking-wider text-purple-300/60">Tap to open</span>
-          </div>
-          <div className="space-y-2.5">
-            <div className="flex items-end gap-2">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-200">R</div>
-              <div className="max-w-[78%] rounded-[4px_12px_12px_12px] bg-white/[0.06] px-3 py-2 text-sm text-foreground">
-                Anyone else getting hyped?? 🎵
+            <div className="space-y-2.5">
+              <div className="flex items-end gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-200">R</div>
+                <div className="max-w-[78%] rounded-[4px_12px_12px_12px] bg-white/[0.06] px-3 py-2 text-sm text-foreground">
+                  Anyone else getting hyped?? 🎵
+                </div>
+              </div>
+              <div className="flex items-end justify-end gap-2">
+                <div className="max-w-[78%] rounded-[12px_4px_12px_12px] bg-purple-500/30 px-3 py-2 text-sm text-purple-100">
+                  So ready for this 🙌
+                </div>
               </div>
             </div>
-            <div className="flex items-end justify-end gap-2">
-              <div className="max-w-[78%] rounded-[12px_4px_12px_12px] bg-purple-500/30 px-3 py-2 text-sm text-purple-100">
-                So ready for this 🙌
-              </div>
+            <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 opacity-70">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="flex-1 text-xs text-muted-foreground">
+                {formatDateLabel(party.date)} · {formatTime(party.time)}
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
-          </div>
-          <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 opacity-70">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="flex-1 text-xs text-muted-foreground">
-              {formatDateLabel(party.date)} · {formatTime(party.time)}
-            </span>
-            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </div>
-        </button>
+          </CardContent>
+        </Card>
 
         {/* Invite friends */}
-        <button
-
-
-
+        <Button
+          variant="outline"
           onClick={() => {
             if (navigator.share) {
               navigator.share({
@@ -389,11 +422,11 @@ export function CountdownScreen() {
               }).catch(() => {});
             }
           }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm font-medium text-muted-foreground transition hover:text-foreground hover:bg-white/[0.06]"
+          className="w-full gap-2 rounded-2xl border-white/[0.06] bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.06] h-auto py-3"
         >
           <Share2 className="h-4 w-4" />
           Invite friends
-        </button>
+        </Button>
       </div>
     </div>
   );

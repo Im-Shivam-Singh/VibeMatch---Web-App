@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, Minus, Plus, Lock, ShieldCheck, CreditCard, Smartphone, Wallet } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, ShieldCheck, CreditCard, Smartphone, Wallet, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -12,7 +12,11 @@ import {
   type MenuItem,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 
 type PaymentMethod = "visa" | "applepay" | "googlepay";
@@ -122,11 +126,30 @@ export function PaymentScreen() {
     );
   }
 
+  // Error state for party query
+  if (partyQuery.isError) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col items-center justify-center p-6">
+        <EmptyState
+          icon={RefreshCw}
+          title="Couldn't load party"
+          description="Something went wrong loading the party details. Please try again."
+          action={
+            <Button onClick={() => partyQuery.refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   // Loading
   if (partyQuery.isLoading || !party) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-xl" />
             <div className="flex-1 space-y-1.5">
@@ -149,23 +172,19 @@ export function PaymentScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-      >
+      <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={goBack}
-
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
+            className="h-10 w-10 rounded-xl"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="min-w-0 flex-1">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
               Step 4 of 9 · Checkout
             </span>
             <h1 className="font-display text-lg font-bold leading-tight text-foreground">
@@ -181,171 +200,167 @@ export function PaymentScreen() {
       {/* Body */}
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Order summary */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+        <Card className="gap-0 py-0 border-border/50">
+          <CardHeader className="px-4 pt-4 pb-2">
+            <CardTitle className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
               Order Summary
-            </span>
-          </div>
-          {/* Entry ticket */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/20 shadow-[0_0_16px_-4px_rgba(83,74,183,0.2)]">
-                <span className="text-lg">🎟️</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {/* Entry ticket */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/20">
+                  <span className="text-lg">🎟️</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">1 × entry ticket</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{party.title}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">1 × entry ticket</p>
-                <p className="truncate text-[11px] text-muted-foreground">{party.title}</p>
+              <div className="text-right">
+                <p className="font-display text-base font-semibold text-foreground">{formatPrice(party.fee)}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Fixed</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="font-display text-base font-semibold text-purple-200">{formatPrice(party.fee)}</p>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground/50">Fixed</p>
-            </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Add drinks & snacks */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <div className="mb-1 flex items-start justify-between gap-2">
-            <div>
-              <h2 className="font-display text-base font-semibold text-foreground">
-                Add drinks & snacks
-              </h2>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Like ordering at a cinema — pick up at the door
-              </p>
+        <Card className="gap-0 py-0 border-border/50">
+          <CardContent className="p-4">
+            <div className="mb-1 flex items-start justify-between gap-2">
+              <div>
+                <h2 className="font-display text-base font-semibold text-foreground">
+                  Add drinks & snacks
+                </h2>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Like ordering at a cinema — pick up at the door
+                </p>
+              </div>
+              <Badge variant="outline" className="border-teal-500/25 bg-teal-500/10 text-teal-300 shrink-0">
+                Optional
+              </Badge>
             </div>
-            <span className="rounded-lg border border-teal-500/25 bg-teal-500/[0.08] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-teal-300">
-              Optional
-            </span>
-          </div>
 
-          {menuQuery.isLoading ? (
-            <div className="mt-3 space-y-2">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : menuItems.length === 0 ? (
-            <div className="mt-3 rounded-xl border border-dashed border-white/[0.08] p-4 text-center">
-              <p className="text-xs text-muted-foreground">No pre-order menu for this party.</p>
-            </div>
-          ) : (
-            <ul className="mt-3 space-y-1">
-              {menuItems.map((item) => {
-                const qty = quantities[item.id] ?? 0;
+            {menuQuery.isLoading ? (
+              <div className="mt-3 space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : menuQuery.isError ? (
+              <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border p-4 text-center">
+                <p className="text-xs text-muted-foreground">Failed to load menu</p>
+                <Button variant="ghost" size="sm" onClick={() => menuQuery.refetch()}>
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Retry
+                </Button>
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-border p-4 text-center">
+                <p className="text-xs text-muted-foreground">No pre-order menu for this party.</p>
+              </div>
+            ) : (
+              <ul className="mt-3 space-y-1">
+                {menuItems.map((item) => {
+                  const qty = quantities[item.id] ?? 0;
+                  return (
+                    <li key={item.id} className="flex items-center gap-3 rounded-xl px-1 py-2.5">
+                      <span className="shrink-0 text-xl">{item.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
+                        <p className="text-xs text-purple-300/80">{formatPrice(item.price)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setQty(item.id, -1)}
+                          disabled={qty === 0}
+                          aria-label={`Remove one ${item.name}`}
+                          className={cn(
+                            "h-8 w-8 rounded-full",
+                            qty === 0
+                              ? "cursor-not-allowed opacity-30"
+                              : "border-purple-500/30 text-purple-200 hover:bg-purple-500/10",
+                          )}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="w-5 text-center text-sm font-medium tabular-nums text-foreground">
+                          {qty}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setQty(item.id, 1)}
+                          aria-label={`Add one ${item.name}`}
+                          className="h-8 w-8 rounded-full border-purple-500/30 text-purple-200 hover:bg-purple-500/10"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment method */}
+        <Card className="gap-0 py-0 border-border/50">
+          <CardHeader className="px-4 pt-4 pb-2">
+            <CardTitle className="font-display text-base font-semibold text-foreground">
+              Payment method
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <ul className="space-y-1">
+              {PAYMENT_METHODS.map((m) => {
+                const selected = paymentMethod === m.id;
+                const Icon = m.icon;
                 return (
-                  <li key={item.id} className="flex items-center gap-3 rounded-xl px-1 py-2.5">
-                    <span className="shrink-0 text-xl">{item.emoji}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-                      <p className="text-xs text-purple-300/80">{formatPrice(item.price)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQty(item.id, -1)}
-                        disabled={qty === 0}
-
-                        aria-label={`Remove one ${item.name}`}
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod(m.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition",
+                        selected ? "bg-purple-500/10 border border-purple-500/20" : "hover:bg-muted/50",
+                      )}
+                    >
+                      <span
                         className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-full border transition",
-                          qty === 0
-                            ? "cursor-not-allowed border-white/[0.06] text-white/20"
-                            : "border-purple-500/30 text-purple-200 hover:bg-purple-500/10",
+                          "flex h-5 w-5 items-center justify-center rounded-full border-2 transition",
+                          selected ? "border-purple-400 bg-purple-500" : "border-muted-foreground/30",
                         )}
                       >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="w-5 text-center text-sm font-medium tabular-nums text-foreground">
-                        {qty}
+                        {selected && <span className="h-2 w-2 rounded-full bg-white" />}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(item.id, 1)}
-
-                        aria-label={`Add one ${item.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-purple-500/30 text-purple-200 transition hover:bg-purple-500/10"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                      <Icon className={cn("h-4 w-4", selected ? "text-purple-300" : "text-muted-foreground")} />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm font-medium", selected ? "text-foreground" : "text-foreground/80")}>
+                          {m.label}
+                        </p>
+                        {m.sub && <p className="text-xs text-muted-foreground">{m.sub}</p>}
+                      </div>
+                    </button>
                   </li>
                 );
               })}
             </ul>
-          )}
-        </section>
-
-        {/* Payment method */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <h2 className="mb-3 font-display text-base font-semibold text-foreground">
-            Payment method
-          </h2>
-          <ul className="space-y-1">
-            {PAYMENT_METHODS.map((m) => {
-              const selected = paymentMethod === m.id;
-              const Icon = m.icon;
-              return (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod(m.id)}
-
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition",
-                      selected ? "bg-purple-500/10 border border-purple-500/20" : "hover:bg-white/[0.04]",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded-full border-2 transition",
-                        selected ? "border-purple-400 bg-purple-500" : "border-white/20",
-                      )}
-                    >
-                      {selected && <span className="h-2 w-2 rounded-full bg-white" />}
-                    </span>
-                    <Icon className={cn("h-4 w-4", selected ? "text-purple-300" : "text-muted-foreground")} />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-medium", selected ? "text-foreground" : "text-foreground/80")}>
-                        {m.label}
-                      </p>
-                      {m.sub && <p className="text-xs text-muted-foreground">{m.sub}</p>}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Total + CTA */}
-        <section
-
-
-
-          className="pt-2"
-        >
-          <div className="flex items-end justify-between border-t border-white/[0.06] pt-4">
+        <section className="pt-2">
+          <Separator className="mb-4" />
+          <div className="flex items-end justify-between">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
-              <p className="text-[10px] text-muted-foreground/50">
+              <p className="text-[10px] text-muted-foreground">
                 Entry + {addOnCount} add-on{addOnCount === 1 ? "" : "s"}
               </p>
             </div>
@@ -386,7 +401,7 @@ export function PaymentScreen() {
             </button>
           </div>
 
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground/40">
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3" />
             Secured by Stripe · refundable if host cancels
           </p>

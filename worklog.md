@@ -718,3 +718,429 @@ Stage Summary:
 - Production database seeded with demo data
 - All API endpoints working on Vercel
 - Added diagnostic tools for future troubleshooting
+
+---
+Task ID: 4
+Agent: login-revamp
+Task: Revamp VibeMatch login screen with shadcn/ui components
+
+Work Log:
+- Replaced custom div-based card with shadcn/ui Card, CardHeader, CardContent, CardFooter components
+- Replaced custom `<label>` tags with shadcn/ui Label component (with htmlFor linking)
+- Kept shadcn/ui Input, Button, and InputOTP components
+- Added `aria-invalid` props on inputs for accessibility when validation errors exist
+- Used ShieldCheck icon in OTP success state instead of text checkmark for visual consistency
+- Maintained dark-only theme with subtle radial gradient background (violet-tinted)
+- Professional clean look: tighter spacing, rounded-lg inputs, h-11 height, violet-purple gradient CTA
+- Replaced teal with emerald for success states (more consistent with purple palette)
+- Kept all original functionality: phone + name → OTP → verify → login flow
+- Kept all state management (useAppStore, api calls, toast notifications)
+- Kept responsive design with sm: breakpoints
+- Kept VibeMatch logo/branding (Sparkles + "VibeMatch") and footer with Terms & Privacy
+- ESLint passes cleanly
+
+Stage Summary:
+- Login screen now uses proper shadcn/ui Card structure (Card/CardHeader/CardContent/CardFooter)
+- Uses shadcn/ui Label with htmlFor for accessibility
+- Dark-only theme with professional Stripe/Linear-inspired aesthetic
+- All functionality preserved: phone+name → OTP → auto-verify → login
+
+---
+Task ID: 7
+Agent: frontend-styling-expert
+Task: Revamp empty-state and party-card with shadcn/ui
+
+Work Log:
+- Rewrote `/src/components/shared/empty-state.tsx`:
+  - Replaced plain `<div>` container with shadcn/ui `<Card>` + `<CardContent>`
+  - Added glass-morphism styling: `bg-card/60 backdrop-blur-xl border-white/[0.06]`
+  - Removed old `vibe-float` / `glass` custom classes from icon container
+  - New icon container uses `bg-purple-500/[0.08]` with subtle purple glow shadow
+  - Overrides shadcn Card default `gap-6 py-6` with `gap-0 py-0` since we use CardContent for spacing
+  - Kept identical props interface (icon, title, description, action, className)
+  - Professional dark-theme typography using semantic tokens (`text-foreground`, `text-muted-foreground`)
+
+- Rewrote `/src/components/party/party-card.tsx`:
+  - Replaced plain `<div>` container with shadcn/ui `<Card>` + `<CardContent>`
+  - Replaced all status/badge `<span>` elements with shadcn/ui `<Badge>` component
+  - Replaced host avatar `<img>` with shadcn/ui `<Avatar>` / `<AvatarImage>` / `<AvatarFallback>`
+  - Vibe pills now use `<Badge variant="outline">` instead of `<span>`
+  - Card override: `gap-0 py-0` to remove default shadcn Card spacing
+  - All badge styles preserved (LIVE coral, Starting soon amber, Video purple, Free teal, fee amber, Sold out, urgency spots, etc.)
+  - Same cover section with gradient overlays, floating emoji, save heart button
+  - Same content section layout: title → host row → metadata → vibes + avatars
+  - React.memo wrapper and displayName preserved
+  - All original imports retained (parseVibes, formatDateLabel, formatFee, GuestAvatars, LiveCountdown, useAppStore, etc.)
+  - Clean section comments with unicode dividers for readability
+
+- TypeScript check: no errors in either modified file (existing errors are from unrelated scripts/skills)
+
+Stage Summary:
+- Both components now properly use shadcn/ui primitives (Card, CardContent, Badge, Avatar)
+- Consistent glass-morphism dark-theme design with shadcn design tokens
+- All existing functionality, props, and visual design preserved
+- Cleaner, more maintainable code with proper component composition
+
+---
+Task ID: 3
+Agent: frontend-styling-expert
+Task: Revamp globals.css dark theme
+
+Work Log:
+- Analyzed all 1094 lines of the old globals.css to identify bloat vs. actively-used CSS
+- Searched entire codebase (31+ component files) for references to every CSS class/animation
+- Identified 40+ unused animation classes, 15+ unused utility classes, and redundant light-mode variables
+- Rewrote globals.css from 1094 lines → 597 lines (45% reduction)
+
+Key Changes:
+1. **Removed all unused animations** (30+ keyframes): holo-spin, aurora-drift, vibe-page-in, vibe-card-in, vibe-modal-in, vibe-cta-pulse, mesh-gradient-shift, animate-word, input-focus-glow, shake-error, loading-dot, otp-slot-enter/success, float-label-up, animate-gradient-text, animate-gradient-border, logo-premium-enter, otp-error-shake, step-dot-complete, counter-fade-in, feature-icon-float, tab-slide, error-message-in, gradient-border-rotate, @property --gradient-angle, etc.
+2. **Removed unused utility classes**: vibe-gradient-bg-warm, vibe-gradient-bg-acid, vibe-gradient-text, vibe-gradient-border, glass-premium, glass-purple/teal/amber, teal-foil, green-foil, gold-foil, glow-pink/cyan/acid/lime/gold/gold-strong, text-glow-*, vibe-divider, vibe-focus-ring, frosted-glass, search-glow, scroll-fade-x
+3. **Removed light-mode `:root` values** — dark-only app, so `:root` now contains dark values directly; `.dark` block mirrors for shadcn/ui `dark:` variant resolution
+4. **Updated brand colors** to proper purple/teal/amber: Primary purple → #a855f7, Teal → #14b8a6, Amber → #f59e0b, Coral → #f97316
+5. **Kept all actively-used classes** verified by codebase search: font-display, eyebrow, vibe-gradient-bg, glass, glass-strong, purple-foil, coral-foil, amber-foil, red-foil, glow-violet, glow-purple, no-scrollbar, fancy-scrollbar, safe-bottom, safe-top, press-feedback, vibe-skeleton, vibe-float, vibe-live-ring, animate-screen-in, animate-pop-in, animate-check-ring, animate-dot-pulse, animate-vibe-bounce, animate-logo-pulse-ring, btn-shimmer, card-glow-purple/teal, fun-breathe/pulse/bounce/lit, fun-sparkle-ring, fun-spark, here-pulse, animate-bokeh-1/2/3
+6. **Added global dark scrollbar** styling (webkit + Firefox) matching the purple brand
+7. **Well-organized** with clear section comments: Theme Bridge, Design Tokens, Base Layer, Utility Classes, Keyframe Animations, Map Pin Fun Meter, Bokeh Floats, Global Scrollbar, Mobile Responsive
+8. **Tailwind v4 compatible** with @theme inline block and @custom-variant dark
+
+Stage Summary:
+- globals.css reduced from 1094 → 597 lines (45% smaller)
+- All 40+ actively-referenced CSS classes preserved — zero breaking changes
+- Professional dark-only theme with updated brand colors
+- Proper shadcn/ui CSS variable system
+- Clean, organized, documented code
+
+---
+Task ID: 5+8
+Agent: layout-revamp
+Task: Revamp VibeMatch app shell and navigation components
+
+Work Log:
+- Rewrote `/src/components/layout/app-shell.tsx` with clean, professional layout:
+  - Sticky footer pattern: `min-h-screen flex flex-col` on root wrapper
+  - Proper loading screen using shadcn/ui Loader2 spinner (removed ping animation)
+  - Preserved all screen routing logic (ScreenContent switch with 22 screens)
+  - Preserved all auth flow logic (isInitializing, auth check, screen routing)
+  - Preserved query invalidation logic on screen change
+  - Desktop sidebar visible on lg+, mobile bottom nav on smaller screens
+  - Music player bar integration preserved
+  - Cleaner, better-organized code with clear section comments
+- Rewrote `/src/components/layout/bottom-nav.tsx` with shadcn/ui style:
+  - Clean, minimal bottom navigation with frosted glass effect
+  - Same nav items (Explore, Inbox, Create/Host FAB, Tickets, Profile)
+  - Purple active indicator dot (removed pulse/ping animation for cleaner look)
+  - Host FAB with gradient disc preserved (simplified, no glow halo)
+  - Proper safe area handling for iOS via env(safe-area-inset-bottom)
+  - Uses cn() utility consistently for conditional classes
+  - Removed excessive visual effects (ping animations, drop-shadow filters, glow halos)
+- Rewrote `/src/components/layout/sidebar-nav.tsx` with shadcn/ui style:
+  - Clean sidebar with proper spacing and shadcn/ui styling
+  - Same nav items and functionality preserved (7 items)
+  - User greeting section with avatar letter
+  - "Host a Party" CTA button with gradient
+  - Logout button in bottom section
+  - Professional active states with purple accent (bg-purple-500/10, text-purple-400)
+  - Simpler code: removed inline boxShadow glow effects, drop-shadow filters
+  - Uses shadcn/ui semantic colors (bg-muted, text-muted-foreground, border-border)
+
+Stage Summary:
+- All three layout components rewritten with consistent shadcn/ui styling
+- Cleaner visual design — removed excessive glow/shadow/pulse effects
+- Sticky footer pattern properly implemented in app-shell
+- All existing functionality, routing, and auth logic preserved
+- Lint passes with zero errors
+
+---
+Task ID: 6
+Agent: home-screen-rewrite
+Task: Revamp VibeMatch home screen with shadcn/ui components
+
+Work Log:
+- Rewrote home-screen.tsx to use proper shadcn/ui components throughout
+- Added Tabs/TabsList/TabsTrigger for "For You" / "All Parties" toggle (was missing before)
+- Added a dedicated "For You" query using api.forYou() with geolocation support
+- Replaced custom FeedSkeleton with shadcn Skeleton component (4 skeleton cards instead of 6)
+- Replaced FilterTag with FilterBadge using shadcn Badge component
+- Replaced all raw <button> elements with shadcn Button (variant="ghost", size="icon", etc.)
+- Replaced raw <input> with shadcn Input component inside the search form
+- Used Card/CardContent for search suggestions dropdown and HotTonightCard/NearYouCard
+- Used Badge component for all status indicators (LIVE, Starting soon, spots, fee, etc.)
+- Added proper error state with Wifi icon and Retry button using shadcn Button
+- Added differentiated empty states: search-no-results, vibe-no-matches, foryou-empty, generic-empty
+- Each empty state has a contextual icon, message, and actionable button
+- Used shadcn design tokens throughout (bg-background, text-foreground, text-muted-foreground, border-border, etc.)
+- Removed excessive inline styles and custom CSS classes (premium-shimmer, live-pulse-ring, etc.)
+- Replaced animate classes with standard Tailwind (animate-ping, animate-pulse)
+- Maintained ALL original functionality: search, filters, Hot Tonight, Near You, vibe stories, party grid
+- Added "For You" tab integration with api.forYou() for personalized feed
+- Clean responsive design with mobile-first approach
+- Lint passes clean with no errors
+
+Stage Summary:
+- Home screen now uses shadcn/ui components consistently across all UI elements
+- Proper error handling with retry, loading states with Skeleton, and contextual empty states
+- New "For You" / "All Parties" tab toggle with personalized feed
+- Code is cleaner with shadcn design tokens and proper component usage
+- All original functionality preserved and enhanced
+
+---
+Task ID: 9
+Agent: detail-screen-revamp
+Task: Revamp VibeMatch party detail screen with shadcn/ui components
+
+Work Log:
+- Rewrote detail-screen.tsx (1445 lines → ~900 lines cleaner code) with proper shadcn/ui component usage
+- Replaced all custom card sections with Card/CardContent from shadcn/ui
+- Replaced custom badge spans with Badge component (vibe tags, status badges, guest count, security badge, approval indicator)
+- Replaced custom avatar divs with Avatar/AvatarImage/AvatarFallback for host and guest avatars
+- Replaced gradient divider divs with Separator component (with custom gradient styling preserved)
+- Replaced custom scrollable div with ScrollArea for the main content area
+- Replaced custom menu category tab buttons with Tabs/TabsList/TabsTrigger from shadcn/ui
+- Added AlertDialog confirmation dialog for join request submission flow
+- Replaced custom hero buttons with Button component (ghost variant for floating overlay buttons)
+- Replaced QuickInfoPill button/div hybrid with Button (tappable) or Badge (static) components
+- Replaced MenuCard inner divs with Card/CardContent
+- Replaced HostControlButton with Button component
+- Replaced Spotify section divs with Card/CardHeader/CardTitle/CardContent
+- Replaced spot sheet submit button with shadcn Button
+- Replaced video remove button with shadcn Button (destructive variant)
+- Replaced intro video attach button with shadcn Button (outline variant)
+- Enhanced error states: Card-based error UI with AlertTriangle icon, retry button with refetch, and go-back button
+- Added proper "no party ID" error state (party not found)
+- Enhanced loading skeleton: Card-wrapped sections matching final layout, avatar skeletons, review section skeleton
+- Added confirmation dialog (AlertDialog) before submitting join request
+- Preserved all existing functionality: party details, host info, Spotify embed, location masking, guest name masking, reviews, join flow, save/heart, back nav, media gallery, menu items, group chat link, countdown
+- Hero gallery dot indicators now show active state with width animation
+- Description expand now uses max-h + overflow instead of gradient fade overlay for cleaner UX
+- All components use consistent dark theme design with glass-morphism styling
+- Responsive layout maintained with max-w-4xl constraint
+- Lint passes clean with no errors
+
+Stage Summary:
+- Detail screen now uses 10+ shadcn/ui components consistently (Card, CardContent, CardHeader, CardTitle, Badge, Avatar, Separator, ScrollArea, Tabs, AlertDialog, Button, Skeleton)
+- Proper error handling with retry capability and "party not found" state
+- Enhanced loading skeleton that mirrors final layout structure
+- Confirmation dialog before join request submission
+- All original functionality preserved and enhanced with proper component architecture
+- Cleaner, more maintainable codebase with consistent shadcn design tokens
+
+---
+Task ID: 10-c
+Agent: shadcn-revamp
+Task: Revamp VibeMatch host and admin screens to use shadcn/ui components properly
+
+Work Log:
+- Revamped my-parties-screen.tsx: replaced custom divs with Card/CardContent, Badge, Button, Skeleton; added error state with retry; kept EmptyState and HostAnalytics
+- Revamped requests-screen.tsx: replaced custom divs with Card/CardContent, Badge, Button, Skeleton, Avatar/AvatarFallback; added AlertDialog for accept/reject confirmations; added error state with retry; kept EmptyState
+- Revamped host-dashboard-screen.tsx: replaced custom divs with Card/CardContent, Badge, Button, Skeleton; all stat cards use DashboardStat with Card; capacity bar, guest list, prep list, earnings use Card; error state with retry
+- Revamped manage-party-screen.tsx: replaced custom tab bar with shadcn Tabs/TabsList/TabsTrigger/TabsContent; added Dialog for menu item deletion confirmation; Card for all sections; Badge for settings; kept all mutations and handlers
+- Revamped admin-screen.tsx: replaced custom Toggle with shadcn Switch in ToggleRow; added AlertDialog for approve/decline/remove confirmations; Table for pending and confirmed guests; Card for controls and danger zone; Badge for counts; full skeleton loading state
+
+Stage Summary:
+- All 5 screens now use shadcn/ui components consistently (Card, Badge, Button, Skeleton, Tabs, Dialog, AlertDialog, Table, Avatar, Switch)
+- Loading skeletons use Skeleton component throughout
+- Empty states use EmptyState shared component
+- Error states with RefreshCw retry buttons
+- AlertDialog confirmations for destructive actions (accept/reject requests, remove guests, delete menu items)
+- Dark theme compatible via CSS variables (border-border/40, bg-muted/50, text-muted-foreground)
+- All existing functionality, API calls, and mutations preserved
+- Lint passes cleanly
+
+---
+Task ID: 10-a
+Agent: screen-revamp
+Task: Revamp 6 VibeMatch screens with shadcn/ui components, error handling, and empty states
+
+Work Log:
+- Revamped onboarding-screen.tsx:
+  - Replaced raw HTML buttons/inputs with shadcn Card, Button, Badge, Input
+  - Role selection cards now use Card/CardContent instead of raw button elements
+  - Vibe pills use Badge for check marks
+  - City input uses shadcn Input + Button for "use current location"
+  - Added error handling for each step (role, vibes, city, done)
+  - Added submitting state with Loader2 spinner on finish
+  - Error display uses Card with AlertCircle icon
+  - Progress dots now have gradient fill and smooth transitions
+  - finish() now catches API errors and shows user-friendly messages
+
+- Revamped create-screen.tsx:
+  - Replaced raw HTML elements with shadcn Card, Button, Badge, Input, Label, Progress
+  - Added FieldErrors interface and validateStep() function for per-field validation
+  - Each form section wrapped in Card with CardContent for consistent styling
+  - FieldError component with AlertCircle icon for inline validation messages
+  - Upload progress now uses shadcn Progress component in a Card overlay
+  - General API errors shown in a Card with dismiss button
+  - Progress bar in header uses shadcn Progress with gradient indicator
+  - Menu preview prices use Badge for consistent styling
+  - Category tabs use shadcn Button with variant toggling
+  - Emoji picker trigger uses Button variant="outline"
+  - All remove buttons use Button variant="outline" with hover states
+
+- Revamped saved-screen.tsx:
+  - Loading state uses Skeleton component with Card wrapper
+  - Empty state uses shared EmptyState component with Heart icon
+  - Error state uses EmptyState with AlertCircle icon and retry Button
+  - Header back button uses shadcn Button variant="outline"
+  - Heart icon in header uses Badge wrapper
+  - Error handling uses isError from useQuery with refetch
+
+- Revamped map-screen.tsx:
+  - Header uses shadcn Button for back and list toggle
+  - Radius filters use shadcn Button with variant toggling
+  - Live filter button uses Button
+  - Map loading overlay uses Card with CardContent
+  - Pin badges use Badge component
+  - Hover tooltips use Card with CardContent
+  - Error overlay uses EmptyState with AlertCircle + Retry Button
+  - Empty state uses EmptyState with MapPin icon
+  - Bottom sheet loading uses Skeleton component
+  - Party list items use Badge for tier labels and distances
+  - Google Maps link uses Button asChild with <a>
+
+- Revamped filter-screen.tsx:
+  - Each filter section wrapped in Card with CardContent
+  - Search input uses shadcn Input with clear button
+  - City input uses shadcn Input with clear button
+  - Vibe toggles use shadcn Button variant="outline" with pressed states
+  - Profession filter uses shadcn Select component (replacing raw buttons)
+  - Selected profession shown as Badge
+  - Price label uses Badge
+  - Date filter buttons use shadcn Button
+  - Sticky bottom CTA uses Card with CardContent
+  - Clear all uses Button variant="outline"
+  - Apply button uses Button with loading spinner
+  - Error state uses Card with AlertCircle + retry Button
+
+- Revamped countdown-screen.tsx:
+  - Loading skeleton uses Skeleton component throughout
+  - Error state uses EmptyState with AlertCircle + Retry Button
+  - No-party state uses EmptyState with CalendarClock
+  - Header uses shadcn Button for back, Badge for countdown label
+  - No-ticket banner uses Card with CardContent
+  - Step tracker uses Card with CardContent, Badge for step counter
+  - StepDot uses Badge for active step
+  - Location-drop alert uses Card
+  - Location card uses Card with CardContent
+  - Party chat uses Card (clickable)
+  - Invite friends button uses Button variant="outline"
+  - All "get a spot", "get directions" buttons use Button variant="outline"
+
+Summary:
+- All 6 screens now consistently use shadcn/ui components (Card, Button, Badge, Input, Skeleton, Progress, Select, Label)
+- Shared EmptyState component used for all empty and error states
+- Proper error handling with retry buttons on every screen
+- Loading states use Skeleton component instead of custom shimmer divs
+- Per-field validation with inline error messages on create screen
+- All existing functionality, API calls, and store interactions preserved
+- Lint passes cleanly
+
+---
+Task ID: 10-b
+Agent: shadcn-revamp
+Task: Revamp VibeMatch screens to use shadcn/ui components with error handling and empty states
+
+Work Log:
+
+1. tickets-screen.tsx:
+   - Replaced custom div containers with shadcn Card, CardContent
+   - Replaced custom status spans with shadcn Badge (variant: outline/secondary/destructive)
+   - Replaced custom action buttons with shadcn Button
+   - Replaced custom loading skeleton with proper shadcn Skeleton in Card layout
+   - Replaced custom EmptyTickets component with shared EmptyState component
+   - Added EmptyState for error with Retry button
+   - Added EmptyState for filtered "no upcoming/past tickets"
+   - Added Separator between collapsed/expanded ticket sections
+   - Used Badge for vibe tags and pre-order items
+   - Replaced hardcoded colors (text-white, bg-white/[0.03]) with theme-aware tokens (text-foreground, bg-muted)
+
+2. payment-screen.tsx:
+   - Replaced section containers with shadcn Card, CardHeader, CardTitle, CardContent
+   - Added Separator for total section divider
+   - Used Badge for "Optional" tag on drinks section
+   - Replaced custom back button with shadcn Button variant="outline" size="icon"
+   - Replaced custom quantity buttons with shadcn Button variant="outline" size="icon"
+   - Added error state for party query with EmptyState + Retry button
+   - Added error state for menu query with inline Retry button
+   - Added Skeleton loading states for menu items
+   - Used theme-aware colors throughout
+
+3. confirmation-screen.tsx:
+   - Replaced section containers with shadcn Card, CardContent
+   - Added Badge for order status and "Unlocked" tag
+   - Added Separator between receipt items, QR code sections
+   - Replaced custom back button with shadcn Button
+   - Added proper error state with EmptyState + Retry button for query errors
+   - Added EmptyState for order not found scenario
+   - Replaced hardcoded colors with theme-aware tokens
+   - Added Skeleton loading state matching other screens
+
+4. inbox-screen.tsx:
+   - Replaced custom thread card divs with shadcn Card, CardContent
+   - Replaced custom unread badge with shadcn Badge (destructive variant)
+   - Replaced custom party context badge with shadcn Badge (outline variant)
+   - Replaced custom unread count with shadcn Badge
+   - Added EmptyState for error with Retry button
+   - Added Skeleton loading state using Card layout
+   - Used theme-aware colors (text-foreground, text-muted-foreground, border-border)
+
+5. chat-screen.tsx:
+   - Replaced intro card with shadcn Card, CardContent
+   - Replaced system message badges with shadcn Badge variant="outline"
+   - Replaced payment card with shadcn Card, CardContent + Badge
+   - Replaced custom back button with shadcn Button
+   - Replaced custom party context button with shadcn Button
+   - Added proper error state with EmptyState + Retry for query errors
+   - Added EmptyState for conversation not found
+   - Used Badge for day separator labels
+   - Used theme-aware colors throughout
+
+6. group-chat-screen.tsx:
+   - Replaced welcome banner with shadcn Card, CardContent
+   - Replaced offer card with shadcn Card, CardContent + Button
+   - Replaced system message spans with shadcn Badge
+   - Replaced day separators with shadcn Badge
+   - Added Badge for member count in header
+   - Added error state with EmptyState for party query failure
+   - Replaced LockedState with EmptyState component
+   - Replaced custom back/members buttons with shadcn Button
+   - Used theme-aware colors throughout
+
+7. profile-screen.tsx:
+   - Replaced stat pills with shadcn Card, CardContent
+   - Replaced menu containers with shadcn Card
+   - Added Separator between quick actions and account sections
+   - Replaced hardcoded badge spans with shadcn Badge (outline variant)
+   - Replaced edit profile button with shadcn Button variant="outline"
+   - Replaced camera button with shadcn Button
+   - Added Skeleton loading state for initial profile load
+   - Added EmptyState error with Retry for query failure
+   - Used theme-aware colors throughout
+
+8. edit-profile-screen.tsx:
+   - Replaced form container with shadcn Card, CardContent
+   - Added Separator between personal info and location fields
+   - Added form validation with error messages for name, username, bio
+   - Replaced custom delete confirmation dialog with shadcn AlertDialog
+   - Replaced custom back button with shadcn Button
+   - Replaced delete account button with shadcn Button variant="ghost"
+   - Added error states on Input/Textarea with border-destructive styling
+   - Used theme-aware colors throughout
+
+Cross-cutting changes across all 8 screens:
+- All hardcoded white/opacity colors replaced with theme-aware tokens (text-foreground, text-muted-foreground, border-border, bg-muted)
+- All screens now use EmptyState from @/components/shared/empty-state for empty and error states
+- All loading states use shadcn Skeleton component
+- All error states include retry buttons
+- All screens have proper "use client" directive
+- Dark theme fully compatible via CSS variable tokens
+- All existing functionality and API calls preserved
+- Lint passes with zero errors
+
+Stage Summary:
+- All 8 screens revamped to use shadcn/ui components properly
+- Error handling with retry buttons on all data-fetching screens
+- Empty states using shared EmptyState component throughout
+- Loading skeletons using shadcn Skeleton component
+- Form validation added to edit-profile-screen
+- AlertDialog used for delete confirmation instead of custom modal
+- Theme-aware colors across all screens for light/dark mode support
+- Zero lint errors, dev server stable

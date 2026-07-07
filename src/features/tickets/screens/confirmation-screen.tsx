@@ -12,6 +12,7 @@ import {
   Clock,
   Calendar,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -24,6 +25,12 @@ import {
   type Party,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/shared/empty-state";
 
 export function ConfirmationScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -32,7 +39,7 @@ export function ConfirmationScreen() {
   const goBack = useAppStore((s) => s.goBack);
   const setScreen = useAppStore((s) => s.setScreen);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["orders", currentUser?.id],
     queryFn: () => api.listOrders({ userId: currentUser!.id }),
     enabled: !!currentUser,
@@ -45,51 +52,76 @@ export function ConfirmationScreen() {
   if (isLoading) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10" />
+            <Skeleton className="h-10 w-10 rounded-xl" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-2.5 w-16 rounded-full bg-white/[0.06] animate-pulse" />
-              <div className="h-4 w-24 rounded-lg bg-white/[0.06] animate-pulse" />
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="h-4 w-24" />
             </div>
           </div>
         </header>
         <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
-          <div className="h-40 rounded-2xl bg-white/[0.03] animate-pulse" />
-          <div className="h-48 rounded-2xl bg-white/[0.03] animate-pulse" />
-          <div className="h-36 rounded-2xl bg-white/[0.03] animate-pulse" />
+          <Skeleton className="h-40 rounded-2xl" />
+          <Skeleton className="h-48 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
         </div>
       </div>
     );
   }
 
-  // ── Error / not found ───────────────────────────────────────────
-  if (isError || !order || !order.party) {
+  // ── Error ───────────────────────────────────────────────────────
+  if (isError) {
     return (
       <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
-            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <Button variant="outline" size="icon" onClick={goBack} className="h-10 w-10 rounded-xl">
               <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Confirmed</span>
+            </Button>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Confirmed</span>
           </div>
         </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coral/10 border border-coral/20">
-            <span className="text-2xl">🧾</span>
-          </div>
-          <h2 className="font-display text-xl font-bold text-foreground">Order not found</h2>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            We couldn&apos;t find that order. It may have been removed, or your session may have changed.
-          </p>
-          <button
-            onClick={() => setScreen("home")}
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <EmptyState
+            icon={RefreshCw}
+            title="Couldn't load order"
+            description="Something went wrong. Please try again."
+            action={
+              <Button onClick={() => refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
-            className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
-          >
-            Back to home
-          </button>
+  // ── Order not found ─────────────────────────────────────────────
+  if (!order || !order.party) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" onClick={goBack} className="h-10 w-10 rounded-xl">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Confirmed</span>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <EmptyState
+            icon={Ticket}
+            title="Order not found"
+            description="We couldn't find that order. It may have been removed, or your session may have changed."
+            action={
+              <Button onClick={() => setScreen("home")} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+                Back to home
+              </Button>
+            }
+          />
         </div>
       </div>
     );
@@ -102,18 +134,13 @@ export function ConfirmationScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
-      >
+      <header className="sticky top-0 z-20 border-b border-border bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+          <Button variant="outline" size="icon" onClick={goBack} className="h-10 w-10 rounded-xl">
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Confirmed</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Confirmed</span>
             <h1 className="font-display text-lg font-bold leading-tight text-foreground">You&apos;re in!</h1>
           </div>
         </div>
@@ -122,67 +149,41 @@ export function ConfirmationScreen() {
       {/* Body */}
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* ── Success banner with checkmark ─────────────────────── */}
-        <section
+        <Card className="gap-0 py-0 border-teal-500/20 bg-teal-500/[0.06] overflow-hidden">
+          <CardContent className="p-5 text-center">
+            {/* Animated checkmark */}
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-500/20 shadow-[0_0_30px_-8px_rgba(29,158,117,0.4)]">
+              <Check className="h-8 w-8 text-teal-300" strokeWidth={3} />
+            </div>
 
-
-
-          className="rounded-2xl border border-teal-500/20 bg-teal-500/[0.06] p-5 text-center"
-        >
-          {/* Animated checkmark */}
-          <div
-
-
-
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-500/20 shadow-[0_0_30px_-8px_rgba(29,158,117,0.4)]"
-          >
-            <Check className="h-8 w-8 text-teal-300" strokeWidth={3} />
-          </div>
-
-          <h2
-
-
-
-            className="font-display text-2xl font-bold text-teal-200"
-          >
-            You&apos;re in!
-          </h2>
-          <p
-
-
-
-            className="mt-1 text-sm font-medium text-foreground/80"
-          >
-            {party.title} · {formatDateLabel(party.date)} · {formatTime(party.time)}
-          </p>
-          <p
-
-
-
-            className="mt-1 text-xs text-teal-300/70"
-          >
-            Group chat is now unlocked
-          </p>
-        </section>
+            <h2 className="font-display text-2xl font-bold text-teal-200">
+              You&apos;re in!
+            </h2>
+            <p className="mt-1 text-sm font-medium text-foreground/80">
+              {party.title} · {formatDateLabel(party.date)} · {formatTime(party.time)}
+            </p>
+            <p className="mt-1 text-xs text-teal-300/70">
+              Group chat is now unlocked
+            </p>
+          </CardContent>
+        </Card>
 
         {/* ── Ticket preview with QR ───────────────────────────── */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm overflow-hidden"
-        >
+        <Card className="gap-0 py-0 border-border/50 overflow-hidden">
           {/* Ticket header */}
-          <div className="p-4 pb-3 border-b border-dashed border-white/[0.08]">
+          <div className="p-4 pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Ticket className="h-4 w-4 text-purple-300" />
                 <span className="text-xs font-semibold text-foreground">Your Ticket</span>
               </div>
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50">
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
                 {order.status}
-              </span>
+              </Badge>
             </div>
           </div>
+
+          <Separator />
 
           {/* Receipt items */}
           <div className="px-4 pt-3 pb-2">
@@ -200,17 +201,20 @@ export function ConfirmationScreen() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
+            <Separator className="my-3" />
+            <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">Total paid</span>
-              <span className="font-display text-base font-bold text-purple-200">
+              <span className="font-display text-base font-bold text-foreground">
                 {sym}{order.totalAmount.toFixed(2)}
               </span>
             </div>
           </div>
 
+          <Separator />
+
           {/* QR code section */}
-          <div className="border-t border-dashed border-white/[0.08] p-4 flex flex-col items-center text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.06] shadow-[0_0_20px_-6px_rgba(83,74,183,0.15)]">
+          <div className="p-4 flex flex-col items-center text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-border bg-muted/40 shadow-[0_0_20px_-6px_rgba(83,74,183,0.15)]">
               <span className="text-[32px] leading-none">▦</span>
             </div>
             <p className="mt-3 text-sm font-semibold text-foreground">Your entry QR</p>
@@ -218,82 +222,70 @@ export function ConfirmationScreen() {
               Show at the door · host scans to check in
             </p>
           </div>
-        </section>
+        </Card>
 
         {/* ── Countdown to party start ─────────────────────────── */}
-        <section
-
-
-
-          className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
-        >
-          <CountdownDisplay date={party.date} time={party.time} />
-        </section>
+        <Card className="gap-0 py-0 border-border/50">
+          <CardContent className="p-4">
+            <CountdownDisplay date={party.date} time={party.time} />
+          </CardContent>
+        </Card>
 
         {/* ── Group chat preview ───────────────────────────────── */}
-        <section
-
-
-
-          className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-purple-300" />
-              <span className="text-sm font-semibold text-foreground">Group chat · {guestCount} people</span>
-            </div>
-            <span className="text-[10px] uppercase tracking-wider text-purple-300/70">Unlocked</span>
-          </div>
-          <div className="space-y-2.5">
-            <div className="flex items-end gap-2">
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-500/30 text-[10px] font-bold text-purple-200">
-                {party.hostName?.slice(0, 1).toUpperCase() ?? "H"}
+        <Card className="gap-0 py-0 border-purple-500/20 bg-purple-500/[0.06]">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-purple-300" />
+                <span className="text-sm font-semibold text-foreground">Group chat · {guestCount} people</span>
               </div>
-              <div className="max-w-[78%] rounded-[4px_12px_12px_12px] bg-white/[0.06] px-3 py-2 text-sm text-foreground">
-                Welcome to the group! Doors open at {formatTime(party.time)} 🎉
+              <Badge variant="outline" className="border-purple-500/25 bg-purple-500/10 text-purple-300 text-[10px]">
+                Unlocked
+              </Badge>
+            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-end gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-500/30 text-[10px] font-bold text-purple-200">
+                  {party.hostName?.slice(0, 1).toUpperCase() ?? "H"}
+                </div>
+                <div className="max-w-[78%] rounded-[4px_12px_12px_12px] bg-muted/50 px-3 py-2 text-sm text-foreground">
+                  Welcome to the group! Doors open at {formatTime(party.time)} 🎉
+                </div>
+              </div>
+              <div className="flex items-end justify-end gap-2">
+                <div className="max-w-[78%] rounded-[12px_4px_12px_12px] bg-purple-500/30 px-3 py-2 text-sm text-purple-100">
+                  See you there 🙌
+                </div>
               </div>
             </div>
-            <div className="flex items-end justify-end gap-2">
-              <div className="max-w-[78%] rounded-[12px_4px_12px_12px] bg-purple-500/30 px-3 py-2 text-sm text-purple-100">
-                See you there 🙌
-              </div>
-            </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* ── CTAs ─────────────────────────────────────────────── */}
-        <div
-
-
-
-          className="grid grid-cols-2 gap-3"
-        >
-          <button
+        <div className="grid grid-cols-2 gap-3">
+          <Button
             onClick={() => {
               setSelectedPartyId(party.id);
               setScreen("group-chat");
             }}
-
-            className="flex items-center justify-center gap-2 rounded-2xl bg-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
+            className="bg-purple-500 text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)] hover:bg-purple-400"
           >
-            <MessageCircle className="h-4 w-4" />
+            <MessageCircle className="mr-2 h-4 w-4" />
             Open chat
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setScreen("tickets")}
-
-            className="flex items-center justify-center gap-2 rounded-2xl border border-purple-500/25 bg-transparent px-4 py-3 text-sm font-semibold text-purple-300 transition hover:bg-purple-500/10"
+            className="border-purple-500/25 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
           >
-            <QrCode className="h-4 w-4" />
+            <QrCode className="mr-2 h-4 w-4" />
             View QR
-          </button>
+          </Button>
         </div>
 
         {/* Share with friends */}
-        <button
-
-
-
+        <Button
+          variant="outline"
           onClick={() => {
             if (navigator.share) {
               navigator.share({
@@ -302,11 +294,11 @@ export function ConfirmationScreen() {
               }).catch(() => {});
             }
           }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm font-medium text-muted-foreground transition hover:text-foreground hover:bg-white/[0.06]"
+          className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
         >
-          <Share2 className="h-4 w-4" />
+          <Share2 className="mr-2 h-4 w-4" />
           Share with friends
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -347,16 +339,16 @@ function CountdownDisplay({ date, time }: { date: string; time: string }) {
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium mb-3">
+      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium mb-3">
         Countdown to party
       </p>
       <div className="grid grid-cols-4 gap-2">
         {units.map((u) => (
-          <div key={u.label} className="flex flex-col items-center rounded-xl border border-white/[0.06] bg-white/[0.04] py-3">
+          <div key={u.label} className="flex flex-col items-center rounded-xl border border-border bg-muted/40 py-3">
             <span className="font-display text-2xl font-bold tabular-nums text-foreground">
               {String(u.value).padStart(u.label === "Days" ? 1 : 2, "0")}
             </span>
-            <span className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground/60">
+            <span className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
               {u.label}
             </span>
           </div>

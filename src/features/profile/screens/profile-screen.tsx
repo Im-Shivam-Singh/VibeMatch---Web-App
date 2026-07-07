@@ -18,14 +18,21 @@ import {
   Camera,
   ArrowLeftRight,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { RatingPill } from "@/components/shared/rating-pill";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 
 /* ------------------------------------------------------------------ */
 /*  Animated count-up hook                                             */
@@ -63,13 +70,15 @@ function AnimatedStat({
 }) {
   const counted = useCountUp(value, 1000);
   return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] px-3 py-4 text-center">
-      <span className="text-purple-bright">{icon}</span>
-      <p className="font-display text-2xl font-bold text-white">{counted}</p>
-      <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/50">
-        {label}
-      </p>
-    </div>
+    <Card className="gap-0 py-0 border-border/50">
+      <CardContent className="flex flex-col items-center gap-1 p-3 text-center">
+        <span className="text-purple-bright">{icon}</span>
+        <p className="font-display text-2xl font-bold text-foreground">{counted}</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+          {label}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -118,11 +127,11 @@ function QuickAction({
       >
         {icon}
       </span>
-      <span className="text-sm font-semibold text-white/90">{label}</span>
+      <span className="text-sm font-semibold text-foreground/90">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-bright px-1.5 text-[10px] font-bold text-white">
+        <Badge className="absolute -right-1.5 -top-1.5 h-5 min-w-5 px-1.5 text-[10px] font-bold bg-purple-bright text-white border-0">
           {badge}
-        </span>
+        </Badge>
       )}
     </button>
   );
@@ -150,8 +159,8 @@ function MenuRow({
     <button
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-white/[0.04]",
-        !last && "border-b border-white/[0.06]",
+        "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-muted/50",
+        !last && "border-b border-border",
       )}
     >
       <span
@@ -159,7 +168,7 @@ function MenuRow({
           "flex h-9 w-9 items-center justify-center rounded-xl",
           danger
             ? "bg-red-500/10 text-red-400"
-            : "bg-white/[0.06] text-white/60",
+            : "bg-muted text-muted-foreground",
         )}
       >
         {icon}
@@ -168,17 +177,17 @@ function MenuRow({
         <p
           className={cn(
             "truncate text-sm font-medium",
-            danger ? "text-red-400" : "text-white/90",
+            danger ? "text-red-400" : "text-foreground/90",
           )}
         >
           {label}
         </p>
         {sub && (
-          <p className="truncate text-[11px] text-white/40">{sub}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{sub}</p>
         )}
       </div>
       <ChevronRight
-        className={cn("h-4 w-4", danger ? "text-red-400/60" : "text-white/30")}
+        className={cn("h-4 w-4", danger ? "text-red-400/60" : "text-muted-foreground")}
       />
     </button>
   );
@@ -195,7 +204,7 @@ export function ProfileScreen() {
   const logout = useAppStore((s) => s.logout);
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
 
-  const { data } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["user", currentUser?.id],
     queryFn: () => api.getUser({ id: currentUser!.id }),
     enabled: !!currentUser,
@@ -203,6 +212,41 @@ export function ProfileScreen() {
 
   const user = data?.user ?? currentUser;
   const role = user?.role ?? userRole;
+
+  // Loading state
+  if (isLoading && !currentUser) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col items-center justify-center gap-4 p-6">
+        <Skeleton className="h-24 w-24 rounded-full" />
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-4 w-24" />
+        <div className="grid grid-cols-3 gap-3 mt-4 w-full max-w-sm">
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError && !currentUser) {
+    return (
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col items-center justify-center p-6">
+        <EmptyState
+          icon={RefreshCw}
+          title="Couldn't load profile"
+          description="Something went wrong. Please try again."
+          action={
+            <Button onClick={() => refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -219,7 +263,7 @@ export function ProfileScreen() {
         <div className="relative max-w-2xl mx-auto px-4 pt-[max(env(safe-area-inset-top),16px)] pb-6 lg:px-6">
           {/* Top bar */}
           <div className="flex items-center justify-between pb-4">
-            <h1 className="font-display text-xl font-bold text-white">
+            <h1 className="font-display text-xl font-bold text-foreground">
               Profile
             </h1>
             <div className="flex items-center gap-2">
@@ -237,69 +281,73 @@ export function ProfileScreen() {
                 </div>
               </div>
               {/* Camera icon overlay */}
-              <button
+              <Button
+                variant="default"
+                size="icon"
                 onClick={() => setScreen("edit-profile")}
-                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-purple-bright shadow-lg shadow-purple/40 transition-transform active:scale-90"
+                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-purple-bright shadow-lg shadow-purple/40 transition-transform active:scale-90"
                 aria-label="Edit profile photo"
               >
                 <Camera className="h-4 w-4 text-white" />
-              </button>
+              </Button>
             </div>
 
             {/* Name */}
-            <h2 className="mt-4 font-display text-2xl font-bold text-white">
+            <h2 className="mt-4 font-display text-2xl font-bold text-foreground">
               {user.name}
             </h2>
             {/* Username */}
-            <p className="mt-0.5 text-sm font-medium text-white/50">
+            <p className="mt-0.5 text-sm font-medium text-muted-foreground">
               @{user.username || "viber"}
             </p>
             {/* Bio */}
             {user.bio && (
-              <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-white/70">
+              <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-foreground/70">
                 {user.bio}
               </p>
             )}
             {/* City + Profession badges */}
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               {user.city && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-bright border border-teal-500/25">
+                <Badge variant="outline" className="gap-1 border-teal-500/25 bg-teal-500/10 text-teal-bright">
                   <Globe className="h-3 w-3" />
                   {user.city}
-                </span>
+                </Badge>
               )}
               {user.profession && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-bright border border-amber-500/25">
+                <Badge variant="outline" className="border-amber-500/25 bg-amber-500/10 text-amber-bright">
                   {user.profession}
-                </span>
+                </Badge>
               )}
-              <span
+              <Badge
+                variant="outline"
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold border",
+                  "font-semibold",
                   isHost
-                    ? "bg-purple-500/15 text-purple-bright border-purple-500/35"
-                    : "bg-teal-500/15 text-teal-bright border-teal-500/35",
+                    ? "border-purple-500/35 bg-purple-500/15 text-purple-bright"
+                    : "border-teal-500/35 bg-teal-500/15 text-teal-bright",
                 )}
               >
                 {isHost ? "🎉 Host" : "🎊 Partier"}
-              </span>
+              </Badge>
               <RatingPill rating={user.rating} count={user.ratingCount} />
               {(user.trustCount ?? 0) > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/15 px-2.5 py-0.5 text-[11px] font-semibold border border-teal-500/30 text-teal-bright">
+                <Badge variant="outline" className="gap-1 border-teal-500/30 bg-teal-500/15 text-teal-bright">
                   <ShieldCheck className="h-3 w-3" />
                   TRUST {(user.trustScore ?? 5).toFixed(1)}
-                  <span className="text-white/40">({user.trustCount})</span>
-                </span>
+                  <span className="text-muted-foreground">({user.trustCount})</span>
+                </Badge>
               )}
             </div>
 
             {/* Edit profile button */}
-            <button
+            <Button
+              variant="outline"
               onClick={() => setScreen("edit-profile")}
-              className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white/[0.08] px-5 text-sm font-semibold text-white ring-1 ring-white/[0.12] transition hover:bg-white/[0.12] active:scale-[0.97]"
+              className="mt-4 gap-1.5 rounded-full"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit profile
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -330,7 +378,7 @@ export function ProfileScreen() {
 
         {/* ---- Quick actions grid ---- */}
         <section className="mt-5">
-          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
             Quick Actions
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -403,12 +451,14 @@ export function ProfileScreen() {
           </div>
         </section>
 
+        <Separator className="my-5" />
+
         {/* ---- Menu items ---- */}
-        <section className="mt-5">
-          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+        <section>
+          <h3 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
             Account
           </h3>
-          <div className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+          <Card className="gap-0 py-0 border-border/50 overflow-hidden">
             <MenuRow
               icon={<Pencil className="h-4 w-4" />}
               label="Edit Profile"
@@ -440,12 +490,12 @@ export function ProfileScreen() {
               onClick={() => toast.info("VibeMatch v1.0 · Made with 💛 in India")}
               last
             />
-          </div>
+          </Card>
         </section>
 
         {/* ---- Log out ---- */}
-        <section className="mt-5">
-          <div className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+        <section className="mt-4">
+          <Card className="gap-0 py-0 border-border/50 overflow-hidden">
             <MenuRow
               icon={<LogOut className="h-4 w-4" />}
               label="Log Out"
@@ -456,11 +506,11 @@ export function ProfileScreen() {
               danger
               last
             />
-          </div>
+          </Card>
         </section>
 
         {/* Version footer */}
-        <p className="mt-6 text-center text-[11px] text-white/25">
+        <p className="mt-6 text-center text-[11px] text-muted-foreground">
           VibeMatch v1.0 · Made with 💛 in India
         </p>
       </div>

@@ -22,7 +22,7 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   activeFor: Screen[];
-  badge?: number; // optional count badge
+  badge?: number;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -70,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-// ── Main SidebarNav ────────────────────────────────────────────────────────
+// ── Sidebar Navigation ─────────────────────────────────────────────────────
 export function SidebarNav() {
   const screen = useAppStore((s) => s.screen);
   const setScreen = useAppStore((s) => s.setScreen);
@@ -78,7 +78,7 @@ export function SidebarNav() {
   const currentUser = useAppStore((s) => s.currentUser);
   const logout = useAppStore((s) => s.logout);
 
-  // Hide on auth flows
+  // Hide during auth flows
   if (screen === "login" || screen === "onboarding") return null;
 
   const firstName = currentUser?.name?.split(" ")[0] ?? "Viber";
@@ -86,40 +86,40 @@ export function SidebarNav() {
 
   return (
     <aside
-      className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-border bg-background/95 backdrop-blur-xl lg:flex"
+      className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-border bg-background lg:flex"
       aria-label="Primary navigation"
     >
-      {/* ── Logo + Wordmark ──────────────────────────────────────────── */}
+      {/* Logo */}
       <div className="flex items-center gap-3 px-6 pt-6 pb-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/30 to-purple-600/10 ring-1 ring-purple-500/20">
-          <span className="text-lg">🎉</span>
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/15">
+          <span className="text-base">🎉</span>
         </div>
-        <div className="font-display text-xl font-extrabold tracking-tight">
+        <span className="text-xl font-bold tracking-tight">
           Vibe<span className="text-purple-400">Match</span>
-        </div>
+        </span>
       </div>
 
-      {/* ── User greeting + avatar ───────────────────────────────────── */}
-      <div className="mx-4 mt-4 flex items-center gap-3 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/[0.04]">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white ring-2 ring-purple-400/20">
+      {/* User greeting */}
+      <div className="mx-4 mt-4 flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-semibold text-white">
           {avatarLetter}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
+          <p className="truncate text-sm font-medium text-foreground">
             Hey, {firstName} 👋
           </p>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             @{currentUser?.username ?? "viber"}
           </p>
         </div>
       </div>
 
-      {/* ── Navigation links ─────────────────────────────────────────── */}
+      {/* Navigation links */}
       <nav className="mt-4 flex flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
         {NAV_ITEMS.map((item) => {
           const active = item.activeFor.includes(screen);
           return (
-            <SidebarButton
+            <SidebarItem
               key={item.label}
               item={item}
               active={active}
@@ -129,33 +129,33 @@ export function SidebarNav() {
         })}
       </nav>
 
-      {/* ── Spacer ───────────────────────────────────────────────────── */}
+      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* ── Host CTA ─────────────────────────────────────────────────── */}
+      {/* Host CTA */}
       <div className="px-4 pb-3">
         <button
           onClick={openCreate}
-          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 py-3 text-sm font-semibold text-white transition-all duration-200 hover:from-purple-300 hover:via-purple-400 hover:to-purple-500 active:scale-[0.98] shadow-[0_4px_24px_-2px_rgba(168,85,247,0.45)]"
+          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 py-2.5 text-sm font-semibold text-white transition-all hover:from-purple-400 hover:to-purple-500 active:scale-[0.98] shadow-md shadow-purple-500/25"
         >
           <Plus
-            className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"
-            strokeWidth={2.75}
+            className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90"
+            strokeWidth={2.5}
           />
           Host a Party
         </button>
       </div>
 
-      {/* ── Bottom section: logout + version ─────────────────────────── */}
-      <div className="border-t border-white/[0.06] px-4 py-3">
+      {/* Bottom: logout + version */}
+      <div className="border-t border-border px-3 py-3">
         <button
           onClick={logout}
-          className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <LogOut className="h-4 w-4" />
           <span>Log out</span>
         </button>
-        <p className="mt-2 px-3 text-[10px] text-muted-foreground/50">
+        <p className="mt-1.5 px-3 text-[10px] text-muted-foreground/50">
           VibeMatch v1.0.0
         </p>
       </div>
@@ -163,8 +163,8 @@ export function SidebarNav() {
   );
 }
 
-// ── SidebarButton ──────────────────────────────────────────────────────────
-function SidebarButton({
+// ── Sidebar Item ───────────────────────────────────────────────────────────
+function SidebarItem({
   item,
   active,
   onClick,
@@ -181,63 +181,43 @@ function SidebarButton({
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150",
         active
-          ? "text-purple-300"
-          : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
+          ? "bg-purple-500/10 text-purple-400"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
-      {/* ── Active pill background + glow ──────────────────────────── */}
-      {active && (
-        <span
-          aria-hidden
-          className="absolute inset-0 rounded-xl bg-purple-500/12"
-          style={{
-            boxShadow: "0 0 20px -6px rgba(168,85,247,0.3)",
-          }}
-        />
-      )}
-
-      {/* ── Icon container ──────────────────────────────────────────── */}
+      {/* Icon */}
       <span
         className={cn(
-          "relative flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+          "flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150",
           active
-            ? "bg-purple-500/20 text-purple-300"
-            : "bg-transparent text-muted-foreground group-hover:bg-white/[0.04] group-hover:text-foreground",
+            ? "bg-purple-500/15 text-purple-400"
+            : "text-muted-foreground group-hover:text-foreground"
         )}
       >
         <Icon
-          className={cn(
-            "h-[18px] w-[18px] transition-all duration-200",
-            active && "drop-shadow-[0_0_6px_rgba(192,132,252,0.6)]",
-          )}
-          strokeWidth={active ? 2.4 : 1.8}
+          className="h-[18px] w-[18px]"
+          strokeWidth={active ? 2.2 : 1.8}
         />
       </span>
 
-      {/* ── Label ────────────────────────────────────────────────────── */}
-      <span
-        className={cn(
-          "relative transition-all duration-200",
-          active ? "font-semibold" : "font-normal",
-        )}
-      >
+      {/* Label */}
+      <span className={cn("flex-1 text-left", active && "font-medium")}>
         {item.label}
       </span>
 
-      {/* ── Active indicator dot ─────────────────────────────────────── */}
+      {/* Active indicator dot */}
       {active && (
         <span
-          aria-hidden
-          className="ml-auto h-1.5 w-1.5 rounded-full bg-purple-400"
-          style={{ boxShadow: "0 0 8px rgba(192,132,252,0.9)" }}
+          aria-hidden="true"
+          className="h-1.5 w-1.5 rounded-full bg-purple-400"
         />
       )}
 
-      {/* ── Optional badge ───────────────────────────────────────────── */}
+      {/* Optional badge */}
       {item.badge !== undefined && item.badge > 0 && (
-        <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[9px] font-bold text-white">
+        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[9px] font-bold text-white">
           {item.badge > 9 ? "9+" : item.badge}
         </span>
       )}

@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Sparkles,
   Archive,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -15,6 +16,9 @@ import { relativeTime } from "@/lib/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -43,7 +47,7 @@ function OnlineNow({ threads }: { threads: any[] }) {
 
   return (
     <div className="px-4 pt-3 pb-1">
-      <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40">
+      <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Online now
       </p>
       <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1 max-w-full">
@@ -55,7 +59,7 @@ function OnlineNow({ threads }: { threads: any[] }) {
               </div>
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-teal-400" />
             </div>
-            <span className="max-w-[52px] truncate text-[10px] font-medium text-white/60">
+            <span className="max-w-[52px] truncate text-[10px] font-medium text-muted-foreground">
               {u.name.split(" ")[0]}
             </span>
           </div>
@@ -89,21 +93,19 @@ function TabBar({
           className={cn(
             "relative rounded-full px-4 py-1.5 text-xs font-semibold capitalize transition-colors",
             active === tab
-              ? "text-white"
-              : "text-white/40 hover:text-white/60",
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {tab === "unread" && unreadCount > 0 && (
-            <span className="mr-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[9px] font-bold text-white">
+            <Badge variant="destructive" className="mr-1 h-4 min-w-4 px-1 text-[9px]">
               {unreadCount}
-            </span>
+            </Badge>
           )}
           {tab}
           {active === tab && (
             <div
-              layoutId="inbox-tab-indicator"
               className="absolute inset-0 -z-10 rounded-full bg-purple-500/20 ring-1 ring-purple-500/40"
-
             />
           )}
         </button>
@@ -113,7 +115,7 @@ function TabBar({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Thread card — rich, interactive list item                                 */
+/*  Thread card — using shadcn Card for proper layout                         */
 /* -------------------------------------------------------------------------- */
 
 function ThreadCard({
@@ -134,90 +136,88 @@ function ThreadCard({
     : false;
 
   return (
-    <button
-      onClick={onClick}
-
-
-
+    <Card
       className={cn(
-        "group flex w-full items-center gap-3.5 rounded-2xl p-3 text-left transition-all duration-200 press-feedback",
-        "hover:bg-white/[0.04]",
+        "gap-0 py-0 cursor-pointer transition-all duration-200 hover:bg-muted/50",
         unread
-          ? "bg-purple-500/[0.06] ring-1 ring-purple-500/25"
-          : "ring-1 ring-white/[0.06] hover:ring-white/10",
+          ? "border-purple-500/25 bg-purple-500/[0.06]"
+          : "border-border/50 hover:border-border",
       )}
+      onClick={onClick}
     >
-      {/* Avatar with online indicator */}
-      <div className="relative shrink-0">
-        <div
-          className={cn(
-            "rounded-full p-[1.5px]",
-            unread
-              ? "bg-gradient-to-br from-purple-500 via-amber-400 to-teal-400"
-              : "bg-white/10",
-          )}
-        >
-          <UserAvatar
-            name={thread.otherUser?.name || "User"}
-            src={thread.otherUser?.avatarUrl}
-            size={48}
-          />
-        </div>
-        {isRecent && (
-          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-teal-400" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p
+      <CardContent className="flex items-center gap-3.5 p-3">
+        {/* Avatar with online indicator */}
+        <div className="relative shrink-0">
+          <div
             className={cn(
-              "truncate text-[13px]",
+              "rounded-full p-[1.5px]",
               unread
-                ? "font-bold text-white"
-                : "font-medium text-white/85",
+                ? "bg-gradient-to-br from-purple-500 via-amber-400 to-teal-400"
+                : "bg-border",
             )}
           >
-            {thread.otherUser?.name || "Unknown"}
-          </p>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Party context badge */}
-            {thread.partyId && (
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-medium text-purple-300 ring-1 ring-purple-500/20">
-                <Sparkles className="h-2.5 w-2.5" />
-                Party
-              </span>
-            )}
-            <span
+            <UserAvatar
+              name={thread.otherUser?.name || "User"}
+              src={thread.otherUser?.avatarUrl}
+              size={48}
+            />
+          </div>
+          {isRecent && (
+            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-teal-400" />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p
               className={cn(
-                "text-[11px]",
-                unread ? "font-semibold text-amber-400" : "text-white/35",
+                "truncate text-[13px]",
+                unread
+                  ? "font-bold text-foreground"
+                  : "font-medium text-foreground/85",
               )}
             >
-              {last ? relativeTime(last.createdAt) : ""}
-            </span>
+              {thread.otherUser?.name || "Unknown"}
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Party context badge */}
+              {thread.partyId && (
+                <Badge variant="outline" className="hidden sm:inline-flex border-purple-500/20 bg-purple-500/10 text-purple-300 text-[9px] gap-1 px-2">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  Party
+                </Badge>
+              )}
+              <span
+                className={cn(
+                  "text-[11px]",
+                  unread ? "font-semibold text-amber-400" : "text-muted-foreground",
+                )}
+              >
+                {last ? relativeTime(last.createdAt) : ""}
+              </span>
+            </div>
+          </div>
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <p
+              className={cn(
+                "line-clamp-2 break-words text-xs leading-relaxed",
+                unread ? "text-foreground/70" : "text-muted-foreground",
+              )}
+            >
+              {last
+                ? `${isMine ? "You: " : ""}${last.content}`
+                : "Say hi 👋"}
+            </p>
+            {unread && (
+              <Badge className="shrink-0 h-5 min-w-5 px-1.5 text-[10px] font-bold bg-gradient-to-r from-amber-500 to-coral text-white border-0 shadow-[0_2px_8px_-2px_rgba(216,90,48,0.5)]">
+                {thread.unreadCount}
+              </Badge>
+            )}
           </div>
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p
-            className={cn(
-              "line-clamp-2 break-words text-xs leading-relaxed",
-              unread ? "text-white/70" : "text-white/40",
-            )}
-          >
-            {last
-              ? `${isMine ? "You: " : ""}${last.content}`
-              : "Say hi 👋"}
-          </p>
-          {unread && (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-coral px-1.5 text-[10px] font-bold text-white shadow-[0_2px_8px_-2px_rgba(216,90,48,0.5)]">
-              {thread.unreadCount}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -230,32 +230,31 @@ function InboxSkeleton() {
     <div className="space-y-2 px-4 pt-3">
       {/* Search skeleton */}
       <div className="mb-3">
-        <Skeleton className="h-10 w-full rounded-xl vibe-skeleton" />
+        <Skeleton className="h-10 w-full rounded-xl" />
       </div>
       {/* Online avatars skeleton */}
       <div className="flex gap-4 pb-2">
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} className="flex flex-col items-center gap-1.5">
-            <Skeleton className="h-11 w-11 rounded-full vibe-skeleton" />
-            <Skeleton className="h-2 w-8 rounded vibe-skeleton" />
+            <Skeleton className="h-11 w-11 rounded-full" />
+            <Skeleton className="h-2 w-8 rounded" />
           </div>
         ))}
       </div>
       {/* Thread cards skeleton */}
       {[0, 1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3.5 rounded-2xl p-3 ring-1 ring-white/[0.06]"
-        >
-          <Skeleton className="h-12 w-12 shrink-0 rounded-full vibe-skeleton" />
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3.5 w-24 vibe-skeleton" />
-              <Skeleton className="h-2.5 w-10 vibe-skeleton" />
+        <Card key={i} className="gap-0 py-0 border-border/50">
+          <CardContent className="flex items-center gap-3.5 p-3">
+            <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-2.5 w-10" />
+              </div>
+              <Skeleton className="h-2.5 w-full" />
             </div>
-            <Skeleton className="h-2.5 w-full vibe-skeleton" />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -272,7 +271,7 @@ export function InboxScreen() {
   const [tab, setTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["threads", currentUser?.id],
     queryFn: () => api.listThreads(currentUser!.id),
     enabled: !!currentUser,
@@ -314,37 +313,33 @@ export function InboxScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-border px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Messages
               </p>
-              <h1 className="font-display text-2xl font-extrabold text-white">
+              <h1 className="font-display text-2xl font-extrabold text-foreground">
                 Inbox
               </h1>
             </div>
             {totalUnread > 0 && (
-              <span
-
-
-                className="flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-coral px-2 text-[11px] font-bold text-white shadow-[0_2px_10px_-2px_rgba(216,90,48,0.5)]"
-              >
+              <Badge className="h-6 min-w-6 px-2 text-[11px] font-bold bg-gradient-to-r from-amber-500 to-coral text-white border-0 shadow-[0_2px_10px_-2px_rgba(216,90,48,0.5)]">
                 {totalUnread}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
 
         {/* Search input */}
         <div className="relative mt-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search messages…"
-            className="h-10 w-full min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-4 text-sm text-white placeholder:text-white/30 transition focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+            className="h-10 w-full min-w-0 rounded-xl border border-border bg-muted/50 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
           />
         </div>
       </header>
@@ -353,7 +348,23 @@ export function InboxScreen() {
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden max-w-2xl mx-auto w-full">
         {isLoading && <InboxSkeleton />}
 
-        {!isLoading && (
+        {!isLoading && isError && (
+          <div className="p-4">
+            <EmptyState
+              icon={RefreshCw}
+              title="Couldn't load messages"
+              description="Something went wrong. Please try again."
+              action={
+                <Button onClick={() => refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              }
+            />
+          </div>
+        )}
+
+        {!isLoading && !isError && (
           <>
             {/* Online now section */}
             <OnlineNow threads={data?.threads ?? []} />
@@ -363,58 +374,50 @@ export function InboxScreen() {
 
             {/* Thread list */}
             <div className="space-y-1.5 px-3 pt-2 pb-24">
-                {threads.length === 0 && (
-                  <div
-                    key="empty"
+              {threads.length === 0 && (
+                <EmptyState
+                  icon={search ? Search : InboxIcon}
+                  title={
+                    search
+                      ? "No results found"
+                      : tab === "unread"
+                        ? "All caught up!"
+                        : "No messages yet"
+                  }
+                  description={
+                    search
+                      ? "Try a different search term"
+                      : tab === "unread"
+                        ? "You've read everything. Time to party! 🎉"
+                        : "Find a party you love, send a request, and your chats with hosts will appear here."
+                  }
+                  action={
+                    !search &&
+                    tab === "all" && (
+                      <Button
+                        onClick={() => setScreen("home")}
+                        className="bg-gradient-to-r from-purple-bright to-purple text-white hover:brightness-110"
+                      >
+                        Explore parties
+                      </Button>
+                    )
+                  }
+                />
+              )}
 
-
-
-
-                  >
-                    <EmptyState
-                      icon={search ? Search : InboxIcon}
-                      title={
-                        search
-                          ? "No results found"
-                          : tab === "unread"
-                            ? "All caught up!"
-                            : "No messages yet"
-                      }
-                      description={
-                        search
-                          ? "Try a different search term"
-                          : tab === "unread"
-                            ? "You've read everything. Time to party! 🎉"
-                            : "Find a party you love, send a request, and your chats with hosts will appear here."
-                      }
-                      action={
-                        !search &&
-                        tab === "all" && (
-                          <button
-                            onClick={() => setScreen("home")}
-                            className="vibe-gradient-bg rounded-full px-5 py-2.5 text-sm font-semibold text-white transition active:scale-95"
-                          >
-                            Explore parties
-                          </button>
-                        )
-                      }
-                    />
-                  </div>
-                )}
-
-                {threads.map((t) => {
-                  const last = t.lastMessage;
-                  const isMine = last?.senderId === currentUser?.id;
-                  return (
-                    <ThreadCard
-                      key={t.id}
-                      thread={t}
-                      isMine={isMine}
-                      currentUser={currentUser}
-                      onClick={() => openThread(t.id)}
-                    />
-                  );
-                })}
+              {threads.map((t) => {
+                const last = t.lastMessage;
+                const isMine = last?.senderId === currentUser?.id;
+                return (
+                  <ThreadCard
+                    key={t.id}
+                    thread={t}
+                    isMine={isMine}
+                    currentUser={currentUser}
+                    onClick={() => openThread(t.id)}
+                  />
+                );
+              })}
             </div>
           </>
         )}

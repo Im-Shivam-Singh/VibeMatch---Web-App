@@ -30,6 +30,12 @@ import {
   type Ticket,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Separator } from "@/components/ui/separator";
 
 /* ------------------------------------------------------------------ */
 /*  QR placeholder — deterministic 7×7 grid with finder patterns      */
@@ -102,7 +108,7 @@ function QRPlaceholder({ hash, size = 120 }: { hash: string; size?: number }) {
             key={`${r}-${c}`}
             className={cn(
               "rounded-[1px] transition-colors duration-300",
-              dark ? "bg-[#09080f]" : "bg-white",
+              dark ? "bg-foreground" : "bg-white",
             )}
           />
         )),
@@ -134,25 +140,25 @@ function ticketStatus(t: Ticket): "valid" | "used" | "expired" {
 
 const STATUS_META: Record<
   string,
-  { label: string; icon: React.ElementType; color: string; bg: string }
+  { label: string; icon: React.ElementType; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClassName: string }
 > = {
   valid: {
     label: "Valid",
     icon: CheckCircle2,
-    color: "text-teal-bright",
-    bg: "bg-teal-500/10 border-teal-500/30",
+    badgeVariant: "outline",
+    badgeClassName: "border-teal-500/30 bg-teal-500/10 text-teal-400",
   },
   used: {
     label: "Used",
     icon: CheckCircle2,
-    color: "text-white/50",
-    bg: "bg-white/[0.04] border-white/[0.08]",
+    badgeVariant: "secondary",
+    badgeClassName: "bg-muted text-muted-foreground",
   },
   expired: {
     label: "Expired",
     icon: AlertCircle,
-    color: "text-red-400",
-    bg: "bg-red-500/10 border-red-500/30",
+    badgeVariant: "destructive",
+    badgeClassName: "",
   },
 };
 
@@ -181,48 +187,38 @@ function stripColorForTicket(t: Ticket): string {
 
 function TicketSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="h-72 animate-pulse rounded-2xl bg-white/[0.03] border border-white/[0.06] vibe-skeleton" />
-      <div className="h-16 animate-pulse rounded-2xl bg-white/[0.03] border border-white/[0.06] vibe-skeleton" />
-    </div>
-  );
-}
-
-function EmptyTickets() {
-  const setScreen = useAppStore((s) => s.setScreen);
-  return (
-    <div
-
-
-      className="flex flex-col items-center justify-center gap-5 px-6 py-20 text-center"
-    >
-      <div className="vibe-float">
-        <div className="flex h-24 w-24 items-center justify-center rounded-3xl purple-foil glow-violet">
-          <TicketIcon className="h-10 w-10 text-purple-bright" />
+    <Card className="gap-0 overflow-hidden py-0 border-border/50">
+      <Skeleton className="h-1.5 w-full rounded-none" />
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+          <Skeleton className="h-6 w-16 rounded-full" />
         </div>
-      </div>
-      <div className="space-y-2">
-        <p className="font-display text-2xl font-bold text-white">
-          No tickets yet
-        </p>
-        <p className="mx-auto max-w-xs text-sm text-white/50">
-          Join a party to get your entry QR code — it&apos;ll show up right here
-        </p>
-      </div>
-      <button
-
-        onClick={() => setScreen("home")}
-        className="rounded-full bg-purple-bright px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple/30 hover:brightness-110 transition"
-      >
-        <Sparkles className="mr-1.5 inline h-4 w-4" />
-        Find a party
-      </button>
-    </div>
+        <div className="flex gap-3">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-3.5 w-20" />
+        </div>
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-20 w-20 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-8 w-full rounded-lg" />
+            <Skeleton className="h-8 w-full rounded-lg" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Ticket card — premium Dribbble quality                             */
+/*  Ticket card — using shadcn Card + Badge + Button                  */
 /* ------------------------------------------------------------------ */
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
@@ -254,40 +250,29 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
   const vibes = parseVibes(party.vibes);
 
   return (
-    <div
-
-
-
-      className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]"
-    >
+    <Card className="gap-0 overflow-hidden py-0 border-border/50">
       {/* Gradient accent strip */}
       <div className={cn("h-1.5 bg-gradient-to-r", stripGrad)} />
 
-      <div className="p-5">
+      <CardContent className="p-5">
         {/* Header row: title + status */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-lg font-bold text-white leading-tight truncate">
+            <h3 className="font-display text-lg font-bold text-foreground leading-tight truncate">
               {party.title}
             </h3>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="mt-1 text-xs text-muted-foreground">
               Hosted by {party.hostName}
             </p>
           </div>
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border",
-              statusMeta.bg,
-              statusMeta.color,
-            )}
-          >
+          <Badge variant={statusMeta.badgeVariant} className={cn("gap-1 shrink-0", statusMeta.badgeClassName)}>
             <StatusIcon className="h-3 w-3" />
             {statusMeta.label}
-          </span>
+          </Badge>
         </div>
 
         {/* Date / time / area row */}
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-white/50">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5 text-purple-bright/60" />
             {dateLabel} · {timeLabel}
@@ -304,18 +289,19 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         {vibes.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {vibes.slice(0, 4).map((v) => (
-              <span
+              <Badge
                 key={v}
+                variant="outline"
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border",
-                  VIBE_COLORS[v] || "bg-white/[0.04] text-white/40 border-white/[0.08]",
+                  "px-2 py-0.5 text-[10px] font-medium",
+                  VIBE_COLORS[v] || "bg-muted/50 text-muted-foreground border-border",
                 )}
               >
                 {v}
-              </span>
+              </Badge>
             ))}
             {vibes.length > 4 && (
-              <span className="text-[10px] text-white/30">+{vibes.length - 4}</span>
+              <span className="text-[10px] text-muted-foreground">+{vibes.length - 4}</span>
             )}
           </div>
         )}
@@ -334,8 +320,8 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
             )}
 
             {/* Ticket number */}
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.1em] text-white/30 font-medium">
+            <div className="rounded-xl bg-muted/40 border border-border px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-medium">
                 Ticket #{ticket.id.slice(-6).toUpperCase()}
               </p>
             </div>
@@ -344,12 +330,13 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
             {addOns.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {addOns.map((it) => (
-                  <span
+                  <Badge
                     key={it.id}
-                    className="rounded-full bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 text-[10px] text-amber-bright font-medium"
+                    variant="outline"
+                    className="border-amber-500/25 bg-amber-500/10 text-amber-bright text-[10px] font-medium"
                   >
                     {it.emoji} {it.name} ×{it.quantity}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             )}
@@ -358,48 +345,48 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 
         {/* Actions row */}
         <div className="mt-4 flex gap-2">
-          <button
+          <Button
+            variant="outline"
             onClick={() => {
               setSelectedPartyId(partyId);
               setScreen("detail");
             }}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/[0.08] py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/[0.1] hover:text-white"
+            className="flex-1"
           >
             View Party
-          </button>
-          <button
-
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setExpanded(!expanded)}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-bright/15 border border-purple-bright/25 py-2.5 text-sm font-semibold text-purple-bright transition hover:bg-purple-bright/25"
+            className={cn(
+              "flex-1 gap-1.5",
+              "border-purple-bright/25 bg-purple-bright/10 text-purple-bright hover:bg-purple-bright/20 hover:text-purple-bright",
+            )}
           >
             <QrCode className="h-4 w-4" />
             {expanded ? "Hide QR" : "Show QR"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </CardContent>
 
       {/* ---- Expanded detail ---- */}
-        {expanded && (
-          <div
+      {expanded && (
+        <>
+          <Separator />
+          <div className="px-5 py-5 space-y-4">
+            {/* Full-size QR */}
+            <div className="flex flex-col items-center gap-3">
+              <QRPlaceholder hash={ticket.qrHash} size={140} />
+              <p className="text-xs text-muted-foreground">
+                Scan this QR code at the door
+              </p>
+            </div>
 
-
-
-
-            className="overflow-hidden"
-          >
-            <div className="border-t border-white/[0.06] px-5 py-5 space-y-4">
-              {/* Full-size QR */}
-              <div className="flex flex-col items-center gap-3">
-                <QRPlaceholder hash={ticket.qrHash} size={140} />
-                <p className="text-xs text-white/40">
-                  Scan this QR code at the door
-                </p>
-              </div>
-
-              {/* Full order details */}
-              {addOns.length > 0 && (
-                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                  <h4 className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/40 font-semibold">
+            {/* Full order details */}
+            {addOns.length > 0 && (
+              <Card className="gap-0 py-0 border-border/50">
+                <CardContent className="p-4">
+                  <h4 className="mb-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                     Your order at the door
                   </h4>
                   <ul className="space-y-2">
@@ -408,7 +395,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
                         key={it.id}
                         className="flex items-center justify-between gap-2 text-sm"
                       >
-                        <span className="min-w-0 truncate text-white/80">
+                        <span className="min-w-0 truncate text-foreground">
                           <span className="mr-1.5" aria-hidden>
                             {it.emoji}
                           </span>
@@ -421,44 +408,46 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+            )}
 
-              {/* Guest list confirmation */}
-              <div className="flex items-center gap-3 rounded-xl bg-teal-500/10 border border-teal-500/20 p-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/15">
-                  <CheckCircle2 className="h-4 w-4 text-teal-bright" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-teal-bright">
-                    You&apos;re on the guest list
-                  </p>
-                  <p className="text-xs text-white/40">
-                    Approved by host · spot confirmed
-                  </p>
-                </div>
+            {/* Guest list confirmation */}
+            <div className="flex items-center gap-3 rounded-xl bg-teal-500/10 border border-teal-500/20 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/15">
+                <CheckCircle2 className="h-4 w-4 text-teal-bright" />
               </div>
-
-              {/* CTA buttons */}
-              <button
-                onClick={() => toast.success("Show this to your host 🎟️")}
-                className="vibe-gradient-bg flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(83,74,183,0.5)] hover:brightness-110 transition press-feedback"
-              >
-                <TicketIcon className="h-4 w-4" />
-                Ready · show QR to host
-              </button>
-
-              <button
-                onClick={openGroupChat}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/[0.04] border border-purple-500/25 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-purple-500/10 hover:text-purple-200"
-              >
-                <MessageCircle className="h-4 w-4 text-purple-bright" />
-                Open group chat
-              </button>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-teal-bright">
+                  You&apos;re on the guest list
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Approved by host · spot confirmed
+                </p>
+              </div>
             </div>
+
+            {/* CTA buttons */}
+            <Button
+              onClick={() => toast.success("Show this to your host 🎟️")}
+              className="w-full bg-gradient-to-r from-purple-bright to-purple text-white shadow-[0_8px_24px_-8px_rgba(83,74,183,0.5)] hover:brightness-110"
+            >
+              <TicketIcon className="mr-2 h-4 w-4" />
+              Ready · show QR to host
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={openGroupChat}
+              className="w-full border-purple-500/25 text-purple-bright hover:bg-purple-500/10 hover:text-purple-200"
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Open group chat
+            </Button>
           </div>
-        )}
-    </div>
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -468,6 +457,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 
 export function TicketsScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
+  const setScreen = useAppStore((s) => s.setScreen);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["tickets", currentUser?.id],
@@ -493,24 +483,24 @@ export function TicketsScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Sticky header */}
-      <header className="sticky top-0 z-10 glass-strong border-b border-white/[0.06] px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
+      <header className="sticky top-0 z-10 glass-strong border-b border-border px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div>
-            <span className="eyebrow">My Tickets</span>
-            <h1 className="mt-0.5 font-display text-xl font-bold text-white">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">My Tickets</span>
+            <h1 className="mt-0.5 font-display text-xl font-bold text-foreground">
               Show QR at the door
             </h1>
           </div>
           {tickets.length > 0 && (
-            <span className="rounded-full bg-purple-bright/15 px-2.5 py-1 text-xs font-semibold text-purple-bright border border-purple-bright/25">
+            <Badge variant="outline" className="border-purple-bright/25 bg-purple-bright/10 text-purple-bright">
               {tickets.length} {tickets.length === 1 ? "ticket" : "tickets"}
-            </span>
+            </Badge>
           )}
         </div>
 
         {/* Filter tabs */}
         {tickets.length > 0 && (
-          <div className="mt-3 flex gap-1 rounded-xl bg-white/[0.04] p-1">
+          <div className="mt-3 flex gap-1 rounded-xl bg-muted/50 p-1">
             {(["upcoming", "past"] as const).map((tab) => (
               <button
                 key={tab}
@@ -519,7 +509,7 @@ export function TicketsScreen() {
                   "flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all duration-200",
                   filter === tab
                     ? "bg-purple-bright text-white shadow-lg shadow-purple/20"
-                    : "text-white/40 hover:text-white/60",
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {tab}
@@ -539,46 +529,45 @@ export function TicketsScreen() {
         )}
 
         {!isLoading && isError && (
-          <div
-
-
-            className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center"
-          >
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl coral-foil">
-              <RefreshCw className="h-7 w-7 text-coral-bright" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-display text-lg font-bold text-white">
-                Couldn&apos;t load tickets
-              </p>
-              <p className="mx-auto max-w-xs text-sm text-white/50">
-                Your connection might have dropped. Pull again.
-              </p>
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="rounded-full bg-purple-bright px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 transition"
-            >
-              Retry
-            </button>
-          </div>
+          <EmptyState
+            icon={RefreshCw}
+            title="Couldn't load tickets"
+            description="Your connection might have dropped. Pull again."
+            action={
+              <Button onClick={() => refetch()} className="bg-purple-bright text-white hover:bg-purple-bright/90">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            }
+          />
         )}
 
-        {!isLoading && !isError && tickets.length === 0 && <EmptyTickets />}
+        {!isLoading && !isError && tickets.length === 0 && (
+          <EmptyState
+            icon={TicketIcon}
+            title="No tickets yet"
+            description="Join a party to get your entry QR code — it'll show up right here"
+            action={
+              <Button
+                onClick={() => setScreen("home")}
+                className="bg-purple-bright text-white hover:bg-purple-bright/90"
+              >
+                <Sparkles className="mr-1.5 h-4 w-4" />
+                Find a party
+              </Button>
+            }
+          />
+        )}
 
         {!isLoading &&
           !isError &&
           tickets.length > 0 &&
           filteredTickets.length === 0 && (
-            <div
-
-
-              className="flex flex-col items-center justify-center gap-3 py-12 text-center"
-            >
-              <p className="text-sm text-white/40">
-                No {filter} tickets
-              </p>
-            </div>
+            <EmptyState
+              icon={TicketIcon}
+              title={`No ${filter} tickets`}
+              description={filter === "upcoming" ? "Your upcoming tickets will appear here" : "Your past tickets will appear here"}
+            />
           )}
 
         {!isLoading &&

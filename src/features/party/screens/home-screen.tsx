@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search,
@@ -12,6 +12,9 @@ import {
   Mic,
   Sparkles,
   Clock,
+  RefreshCw,
+  PartyPopper,
+  Wifi,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -32,12 +35,19 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { MusicPlayerButton } from "@/components/party/music-player";
 import { PartyCard } from "@/components/party/party-card";
-
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn, formatLocation } from "@/lib/utils";
 import { toast } from "sonner";
 
-// Vibe gradient map for story circles
+// shadcn/ui components
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+
+// ─── Vibe gradient map for story circles ──────────────────────────────────────
 const VIBE_GRADIENT_BG: Record<string, string> = {
   "R&B": "from-purple-600 to-indigo-800",
   Bollywood: "from-green-600 to-emerald-800",
@@ -48,7 +58,7 @@ const VIBE_GRADIENT_BG: Record<string, string> = {
   Retro: "from-amber-600 to-orange-800",
 };
 
-// Time-aware greeting
+// ─── Time-aware greeting ──────────────────────────────────────────────────────
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -57,7 +67,14 @@ function getGreeting(): string {
   return "Good night";
 }
 
+// ─── Feed tab type ────────────────────────────────────────────────────────────
+type FeedTab = "foryou" | "all";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HomeScreen
+// ═══════════════════════════════════════════════════════════════════════════════
 export function HomeScreen() {
+  // ── Store ──────────────────────────────────────────────────────────────────
   const cityFilter = useAppStore((s) => s.cityFilter);
   const vibeFilter = useAppStore((s) => s.vibeFilter);
   const searchQuery = useAppStore((s) => s.searchQuery);
@@ -71,7 +88,10 @@ export function HomeScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const userLocation = useAppStore((s) => s.userLocation);
   const setUserLocation = useAppStore((s) => s.setUserLocation);
+  const radiusKm = useAppStore((s) => s.radiusKm);
 
+  // ── Local state ────────────────────────────────────────────────────────────
+  const [feedTab, setFeedTab] = useState<FeedTab>("foryou");
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -79,7 +99,7 @@ export function HomeScreen() {
   const searchRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
-  // Request geolocation on mount — silently fail if denied
+  // ── Geolocation ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -88,14 +108,13 @@ export function HomeScreen() {
         setUserLocation({ lat: latitude, lng: longitude, label: "Current Location" });
       },
       (error) => {
-        // Silently fail - location is optional
         console.log("Geolocation denied or unavailable:", error.message);
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
     );
   }, [setUserLocation]);
 
-  // Close search suggestions when clicking outside
+  // ── Close search suggestions on outside click ──────────────────────────────
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -107,7 +126,13 @@ export function HomeScreen() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  // ── All Parties query ──────────────────────────────────────────────────────
+  const {
+    data: allData,
+    isLoading: allLoading,
+    isError: allError,
+    refetch: refetchAll,
+  } = useQuery({
     queryKey: ["parties", cityFilter, vibeFilter, searchQuery, professionFilter],
     queryFn: () =>
       api.listParties({
@@ -118,22 +143,69 @@ export function HomeScreen() {
       }),
   });
 
-  const radiusKm = useAppStore((s) => s.radiusKm);
-  const allParties = data?.parties ?? [];
-  const parties = useMemo(() => {
-    if (!cityFilter || radiusKm === 0) return allParties;
+  // ── For You query ──────────────────────────────────────────────────────────
+  const {
+    data: forYouData,
+    isLoading: forYouLoading,
+    isError: forYouError,
+    refetch: refetchForYou,
+  } = useQuery({
+    queryKey: ["forYou", currentUser?.id, userLocation, vibeFilter, searchQuery],
+    queryFn: () =>
+      api.forYou(
+        currentUser?.id ?? "anonymous",
+        userLocation ?? undefined,
+      ),
+    enabled: feedTab === "foryou" && !!currentUser?.id,
+  });
+
+  // ── Derived: determine active loading/error/data based on tab ──────────────
+  const isLoading = feedTab === "foryou" ? forYouLoading : allLoading;
+  const isError = feedTab === "foryou" ? forYouError : allError;
+  const refetch = feedTab === "foryou" ? refetchForYou : refetchAll;
+
+  // ── All parties with radius filter ─────────────────────────────────────────
+  const allPartiesRaw = allData?.parties ?? [];
+  const allParties = useMemo(() => {
+    if (!cityFilter || radiusKm === 0) return allPartiesRaw;
     const center = CITY_CENTERS[cityFilter];
-    if (!center) return allParties;
-    return allParties.filter((p) => {
-      if (p.lat == null || p.lng == null) return true; // include parties without coordinates
+    if (!center) return allPartiesRaw;
+    return allPartiesRaw.filter((p) => {
+      if (p.lat == null || p.lng == null) return true;
       return haversineKm(center, { lat: p.lat, lng: p.lng }) <= radiusKm;
     });
-  }, [allParties, cityFilter, radiusKm]);
+  }, [allPartiesRaw, cityFilter, radiusKm]);
 
-  // Hot Tonight: parties today or tomorrow
+  // ── For You parties ────────────────────────────────────────────────────────
+  const forYouPartiesRaw = forYouData?.parties ?? [];
+  const forYouParties = useMemo(() => {
+    // Apply vibe and search filters on top of for-you results
+    let filtered = forYouPartiesRaw;
+    if (vibeFilter) {
+      filtered = filtered.filter((p) =>
+        parseVibes(p.vibes).some((v) => v === vibeFilter),
+      );
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.area?.toLowerCase().includes(q) ||
+          p.city?.toLowerCase().includes(q) ||
+          parseVibes(p.vibes).some((v) => v.toLowerCase().includes(q)),
+      );
+    }
+    return filtered;
+  }, [forYouPartiesRaw, vibeFilter, searchQuery]);
+
+  // ── Active filtered parties based on tab ───────────────────────────────────
+  const filteredParties = feedTab === "foryou" ? forYouParties : allParties;
+
+  // ── Hot Tonight ────────────────────────────────────────────────────────────
   const hotTonight = useMemo(
     () =>
-      parties.filter((p) => {
+      allParties.filter((p) => {
         const d = new Date(p.date + "T00:00:00");
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -141,26 +213,24 @@ export function HomeScreen() {
         const diff = (target.getTime() - today.getTime()) / 86400000;
         return diff >= 0 && diff <= 1;
       }),
-    [parties],
+    [allParties],
   );
 
-  // Near You: parties sorted by distance from user's current location
+  // ── Near You ───────────────────────────────────────────────────────────────
   const nearYouParties = useMemo(() => {
     if (!userLocation) return [];
-    return [...parties]
+    return [...allParties]
       .filter((p) => p.lat != null && p.lng != null)
       .map((p) => ({
         party: p,
         distance: haversineKm(userLocation, { lat: p.lat!, lng: p.lng! }),
       }))
-      .filter((x) => x.distance <= 25) // within 25 km
+      .filter((x) => x.distance <= 25)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 8);
-  }, [parties, userLocation]);
+  }, [allParties, userLocation]);
 
-  // All parties (no tab filtering)
-  const filteredParties = parties;
-
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const onSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(localSearch);
@@ -168,11 +238,17 @@ export function HomeScreen() {
     setSearchFocused(false);
   };
 
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setLocalSearch("");
     setSearchQuery("");
     setShowSearchSuggestions(false);
-  };
+  }, [setSearchQuery]);
+
+  const clearAllFilters = useCallback(() => {
+    setVibeFilter(null);
+    setSearchQuery("");
+    setLocalSearch("");
+  }, [setVibeFilter, setSearchQuery]);
 
   const openParty = (id: string) => {
     setSelectedPartyId(id);
@@ -181,161 +257,189 @@ export function HomeScreen() {
 
   const greeting = getGreeting();
   const userName = currentUser?.name?.split(" ")[0] ?? "there";
-
-  // Search suggestions
   const recentSearches = ["Lo-fi", "Koramangala", "R&B"];
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
-      {/* ====== Sticky Header ====== */}
-      <header className="sticky top-0 z-30 glass-strong px-4 pt-3 pb-3 lg:px-6 lg:pt-4 lg:pb-4">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col bg-background">
+      {/* ══════════ Sticky Header ══════════ */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl px-4 pt-3 pb-3 lg:px-6 lg:pt-4 lg:pb-4">
         {/* Top row: Greeting + actions */}
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-lg font-extrabold tracking-tight text-foreground">
               VibeMatch
             </h1>
-            <p className="text-xs font-medium text-muted-foreground/70">{greeting}, {userName}</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {greeting}, {userName}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <MusicPlayerButton />
-            {/* Filter button */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setScreen("filter")}
               aria-label="Filters"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-xl text-muted-foreground hover:text-foreground"
             >
               <SlidersHorizontal className="h-4 w-4" />
-            </button>
-            {/* Notification bell */}
+            </Button>
             <NotificationBell />
-            {/* Saved */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setScreen("saved")}
               aria-label="Saved parties"
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors hover:text-foreground"
+              className="relative rounded-xl text-muted-foreground hover:text-foreground"
             >
               <Heart className="h-4 w-4" />
               {savedCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-coral-500 px-1 text-[9px] font-bold text-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-coral-500 px-1 text-[9px] font-bold text-white">
                   {savedCount}
                 </span>
               )}
-            </button>
-            {/* Profile avatar */}
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setScreen("profile")}
               aria-label="Profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white ring-2 ring-purple-400/30 transition-all hover:ring-purple-400/50"
+              className="h-9 w-9 rounded-full bg-purple-500/20 text-xs font-bold text-purple-300 ring-1 ring-purple-400/30 hover:bg-purple-500/30 hover:ring-purple-400/50"
             >
               {currentUser?.name?.[0]?.toUpperCase() ?? "U"}
-            </button>
+            </Button>
           </div>
         </div>
 
-        {/* ====== Search Bar — Frosted Glass ====== */}
+        {/* ══════════ Search Bar ══════════ */}
         <div ref={searchRef} className="relative mt-3">
           <form onSubmit={onSearchSubmit}>
             <div
               className={cn(
-                "relative flex items-center rounded-2xl transition-all duration-300",
+                "relative flex items-center rounded-xl border transition-all duration-200",
                 searchFocused
-                  ? "frosted-glass search-glow"
-                  : "bg-secondary/80 border border-white/[0.06]",
+                  ? "border-purple-500/50 bg-secondary ring-2 ring-purple-500/20"
+                  : "border-border bg-secondary/60",
               )}
             >
-              <Search className="pointer-events-none ml-4 h-4 w-4 shrink-0 text-muted-foreground/70" />
-              <input
+              <Search className="pointer-events-none ml-3 h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
                 value={localSearch}
                 onChange={(e) => setLocalSearch(e.target.value)}
                 onFocus={() => {
                   setSearchFocused(true);
                   setShowSearchSuggestions(true);
                 }}
-                placeholder="Search areas, vibes, themes…"
-                className="w-full bg-transparent py-3 pl-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                placeholder="Search areas, vibes, themes..."
+                className="border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:border-0 h-10 pl-2 pr-12 text-sm"
               />
-              <div className="absolute right-2 flex items-center gap-1">
+              <div className="absolute right-2 flex items-center gap-0.5">
                 {localSearch && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={clearSearch}
                     aria-label="Clear search"
-                    className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Voice search"
-                  className="rounded-full p-1.5 text-purple-400 hover:bg-purple-500/15 transition-colors"
+                  className="h-7 w-7 rounded-full text-purple-400 hover:text-purple-300 hover:bg-purple-500/15"
                 >
                   <Mic className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
           </form>
 
           {/* Search suggestions dropdown */}
-            {showSearchSuggestions && !localSearch && (
-              <div
-
-
-
-
-                className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-background/95 backdrop-blur-xl shadow-2xl"
-              >
-                <div className="p-3">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    Recent searches
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {recentSearches.map((q) => (
-                      <button
-                        key={q}
-                        onClick={() => {
-                          setLocalSearch(q);
-                          setSearchQuery(q);
-                          setShowSearchSuggestions(false);
-                          setSearchFocused(false);
-                        }}
-                        className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-purple-500/15 hover:text-purple-200 hover:border-purple-500/30"
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
+          {showSearchSuggestions && !localSearch && (
+            <Card className="absolute inset-x-0 top-full z-40 mt-2 border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl">
+              <CardContent className="p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recent searches
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {recentSearches.map((q) => (
+                    <Badge
+                      key={q}
+                      variant="outline"
+                      className="cursor-pointer border-border/50 bg-secondary/50 text-muted-foreground transition-colors hover:bg-purple-500/15 hover:text-purple-300 hover:border-purple-500/30"
+                      onClick={() => {
+                        setLocalSearch(q);
+                        setSearchQuery(q);
+                        setShowSearchSuggestions(false);
+                        setSearchFocused(false);
+                      }}
+                    >
+                      {q}
+                    </Badge>
+                  ))}
                 </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
+        {/* ══════════ Feed Tabs: For You / All Parties ══════════ */}
+        <div className="mt-3">
+          <Tabs
+            value={feedTab}
+            onValueChange={(v) => setFeedTab(v as FeedTab)}
+          >
+            <TabsList className="bg-secondary/60 h-9">
+              <TabsTrigger
+                value="foryou"
+                className="text-xs data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                For You
+              </TabsTrigger>
+              <TabsTrigger
+                value="all"
+                className="text-xs data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300"
+              >
+                <Compass className="h-3.5 w-3.5" />
+                All Parties
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </header>
 
-      {/* ====== Scrollable Feed ====== */}
+      {/* ══════════ Scrollable Feed ══════════ */}
       <div
         ref={feedRef}
         className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-32 lg:pb-8"
       >
-        {/* Hot Tonight — Horizontal scroll */}
+        {/* ── Hot Tonight — Horizontal scroll ────────────────────────────── */}
         {hotTonight.length > 0 && (
           <section className="mt-4">
             <div className="flex items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-coral/60" />
-                  <span className="live-pulse-dot relative inline-flex h-2 w-2 rounded-full bg-coral" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral/60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-coral" />
                 </span>
                 <h2 className="font-display text-base font-bold text-foreground">
                   Hot Tonight
                 </h2>
               </div>
-              <span className="text-xs font-medium text-purple-300">
+              <Badge variant="secondary" className="text-purple-300 bg-purple-500/10 border-purple-500/20">
                 {hotTonight.length} events
-              </span>
+              </Badge>
             </div>
-            <div className="no-scrollbar scroll-fade-x mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
+            <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
               {hotTonight.map((p, i) => (
                 <HotTonightCard key={p.id} party={p} onOpen={openParty} index={i} />
               ))}
@@ -343,7 +447,7 @@ export function HomeScreen() {
           </section>
         )}
 
-        {/* Near You — Horizontal scroll of parties close to user's location */}
+        {/* ── Near You — Horizontal scroll ───────────────────────────────── */}
         {nearYouParties.length > 0 && (
           <section className="mt-4">
             <div className="flex items-center justify-between px-4 lg:px-6">
@@ -353,11 +457,11 @@ export function HomeScreen() {
                   Near You
                 </h2>
               </div>
-              <span className="text-xs font-medium text-teal-300">
+              <Badge variant="secondary" className="text-teal-300 bg-teal-500/10 border-teal-500/20">
                 {nearYouParties.length} nearby
-              </span>
+              </Badge>
             </div>
-            <div className="no-scrollbar scroll-fade-x mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
+            <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
               {nearYouParties.map(({ party: p, distance }, i) => (
                 <NearYouCard key={p.id} party={p} distance={distance} onOpen={openParty} index={i} />
               ))}
@@ -365,7 +469,7 @@ export function HomeScreen() {
           </section>
         )}
 
-        {/* Vibe Filter — Story-style circles */}
+        {/* ── Vibe Filter — Story-style circles ──────────────────────────── */}
         <section className="mt-4">
           <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 lg:mx-0 lg:px-6 lg:overflow-visible">
             <VibeStory
@@ -388,96 +492,120 @@ export function HomeScreen() {
           </div>
         </section>
 
-        {/* Active filter bar */}
-          {(vibeFilter || searchQuery) && (
-            <div
-
-
-
-
-              className="overflow-hidden px-4 lg:px-6"
-            >
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-purple-500/10 p-3 border border-purple-500/20">
-                <SlidersHorizontal className="h-3.5 w-3.5 text-purple-400" />
-                <span className="text-xs text-muted-foreground">Filters:</span>
-                {vibeFilter && (
-                  <FilterTag onClear={() => setVibeFilter(null)}>
-                    {VIBE_EMOJI[vibeFilter]} {vibeFilter}
-                  </FilterTag>
-                )}
-                {searchQuery && (
-                  <FilterTag onClear={clearSearch}>"{searchQuery}"</FilterTag>
-                )}
-                <button
-                  onClick={() => {
-                    setVibeFilter(null);
-                    setSearchQuery("");
-                    setLocalSearch("");
-                  }}
-                  className="ml-auto text-[10px] font-semibold text-purple-300 hover:text-purple-200 transition-colors"
-                >
-                  Clear all
-                </button>
-              </div>
+        {/* ── Active filter bar ──────────────────────────────────────────── */}
+        {(vibeFilter || searchQuery) && (
+          <div className="px-4 lg:px-6 mt-3">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-purple-500/10 p-3 border border-purple-500/20">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-purple-400" />
+              <span className="text-xs text-muted-foreground">Filters:</span>
+              {vibeFilter && (
+                <FilterBadge onClear={() => setVibeFilter(null)}>
+                  {VIBE_EMOJI[vibeFilter]} {vibeFilter}
+                </FilterBadge>
+              )}
+              {searchQuery && (
+                <FilterBadge onClear={clearSearch}>
+                  &ldquo;{searchQuery}&rdquo;
+                </FilterBadge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="ml-auto h-7 text-[10px] font-semibold text-purple-300 hover:text-purple-200 px-2"
+              >
+                Clear all
+              </Button>
             </div>
-          )}
+          </div>
+        )}
 
-        {/* Section header */}
+        {/* ── Section header ─────────────────────────────────────────────── */}
         <div className="mb-3 mt-5 flex items-baseline justify-between px-4 lg:px-6">
           <h2 className="font-display text-base font-bold text-foreground">
-            Discover parties
+            {feedTab === "foryou" ? "Curated for you" : "Discover parties"}
           </h2>
           <span className="text-xs font-semibold text-purple-300">
             {filteredParties.length} vibes
           </span>
         </div>
 
-        {/* Loading shimmer skeleton */}
+        {/* ── Loading skeleton ───────────────────────────────────────────── */}
         {isLoading && <FeedSkeleton />}
 
-        {/* Error */}
-        {isError && (
+        {/* ── Error state ────────────────────────────────────────────────── */}
+        {isError && !isLoading && (
           <div className="px-4 py-12 lg:px-6">
             <EmptyState
-              icon={Search}
+              icon={Wifi}
               title="Couldn't load parties"
               description="Check your connection and try again."
               action={
-                <button
-                  onClick={() => refetch()}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                >
+                <Button onClick={() => refetch()} className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
                   Retry
-                </button>
+                </Button>
               }
             />
           </div>
         )}
 
-        {/* Empty */}
+        {/* ── Empty state: no parties match filters ──────────────────────── */}
         {!isLoading && !isError && filteredParties.length === 0 && (
           <div className="px-4 py-12 lg:px-6">
-            <EmptyState
-              icon={Compass}
-              title="No parties match"
-              description="Try clearing filters or search for something else."
-              action={
-                <button
-                  onClick={() => {
-                    setVibeFilter(null);
-                    setSearchQuery("");
-                    setLocalSearch("");
-                  }}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  Clear filters
-                </button>
-              }
-            />
+            {searchQuery ? (
+              <EmptyState
+                icon={Search}
+                title="No results found"
+                description={`We couldn't find anything for "${searchQuery}". Try a different search or clear your filters.`}
+                action={
+                  <Button variant="outline" onClick={clearAllFilters} className="gap-2">
+                    <X className="h-4 w-4" />
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : vibeFilter ? (
+              <EmptyState
+                icon={PartyPopper}
+                title={`No ${vibeFilter} parties right now`}
+                description={`There aren't any ${vibeFilter} parties matching your criteria. Try a different vibe or check back later.`}
+                action={
+                  <Button variant="outline" onClick={clearAllFilters} className="gap-2">
+                    <X className="h-4 w-4" />
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : feedTab === "foryou" ? (
+              <EmptyState
+                icon={Sparkles}
+                title="No personalized picks yet"
+                description="We're learning your vibe! Browse all parties and save a few so we can recommend better."
+                action={
+                  <Button variant="outline" onClick={() => setFeedTab("all")} className="gap-2">
+                    <Compass className="h-4 w-4" />
+                    Browse all parties
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={Compass}
+                title="No parties match"
+                description="Try clearing filters or search for something else."
+                action={
+                  <Button variant="outline" onClick={clearAllFilters} className="gap-2">
+                    <X className="h-4 w-4" />
+                    Clear filters
+                  </Button>
+                }
+              />
+            )}
           </div>
         )}
 
-        {/* Party cards — responsive grid */}
+        {/* ── Party cards — responsive grid ──────────────────────────────── */}
         {!isLoading && !isError && filteredParties.length > 0 && (
           <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 lg:px-6">
             {filteredParties.map((p, i) => (
@@ -488,20 +616,22 @@ export function HomeScreen() {
           </div>
         )}
 
-        {/* Footer hint */}
+        {/* ── Footer hint ────────────────────────────────────────────────── */}
         {filteredParties.length > 0 && (
-          <p className="mt-8 pb-4 text-center text-xs text-muted-foreground/60">
+          <p className="mt-8 pb-4 text-center text-xs text-muted-foreground">
             That&apos;s all for now — tap the + to host your own
           </p>
         )}
       </div>
-
     </div>
   );
 }
 
-/* ====== Sub-components ====== */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Sub-components
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
+// ─── Vibe Story Circle ────────────────────────────────────────────────────────
 function VibeStory({
   active,
   onClick,
@@ -518,14 +648,13 @@ function VibeStory({
   return (
     <button
       onClick={onClick}
-
       className="flex shrink-0 flex-col items-center gap-1.5"
     >
       <div
         className={cn(
           "relative flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300",
           active
-            ? "ring-2 ring-purple-400 ring-offset-2 ring-offset-background glow-ring-pulse"
+            ? "ring-2 ring-purple-400 ring-offset-2 ring-offset-background"
             : "ring-1 ring-white/10 hover:ring-purple-500/30",
         )}
       >
@@ -534,7 +663,7 @@ function VibeStory({
           className={cn(
             "absolute inset-0 rounded-full bg-gradient-to-br transition-opacity duration-300",
             gradient,
-            active ? "opacity-100" : "opacity-40 group-hover:opacity-60",
+            active ? "opacity-100" : "opacity-40",
           )}
         />
         {/* Emoji on top */}
@@ -543,7 +672,7 @@ function VibeStory({
       <span
         className={cn(
           "text-[10px] font-medium transition-colors duration-200",
-          active ? "text-purple-300" : "text-muted-foreground/70",
+          active ? "text-purple-300" : "text-muted-foreground",
         )}
       >
         {label}
@@ -552,7 +681,8 @@ function VibeStory({
   );
 }
 
-function FilterTag({
+// ─── Filter Badge (uses shadcn Badge) ────────────────────────────────────────
+function FilterBadge({
   children,
   onClear,
 }: {
@@ -560,20 +690,20 @@ function FilterTag({
   onClear: () => void;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2.5 py-1 text-xs text-purple-200">
+    <Badge className="bg-purple-500/20 text-purple-200 border-purple-500/30 hover:bg-purple-500/30 pr-1 gap-1">
       {children}
       <button
         onClick={onClear}
         aria-label="Remove filter"
-        className="rounded-full hover:bg-purple-500/30 transition-colors"
+        className="ml-0.5 rounded-full p-0.5 hover:bg-purple-500/30 transition-colors"
       >
         <X className="h-3 w-3" />
       </button>
-    </span>
+    </Badge>
   );
 }
 
-/* ====== Hot Tonight Hero Card ====== */
+// ─── Hot Tonight Hero Card ────────────────────────────────────────────────────
 function HotTonightCard({
   party,
   onOpen,
@@ -592,7 +722,6 @@ function HotTonightCard({
   const isLive = status === "live";
   const isStartingSoon = status === "starting-soon";
   const coverSrc = party.media?.[0]?.url ?? party.coverUrl;
-  const sym = currencyForCity(party.city);
 
   const saved = useAppStore((s) => s.savedPartyIds.includes(party.id));
   const toggleSaved = useAppStore((s) => s.toggleSaved);
@@ -606,9 +735,9 @@ function HotTonightCard({
   };
 
   return (
-    <div
+    <Card
       onClick={() => onOpen(party.id)}
-      className="relative w-[280px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/[0.06] bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(83,74,183,0.2)] transition-shadow duration-300"
+      className="relative w-[280px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border-white/[0.06] bg-card/80 py-0 gap-0 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(83,74,183,0.2)] transition-shadow duration-300"
     >
       {/* Cover */}
       <div className="relative h-36 w-full overflow-hidden">
@@ -616,18 +745,18 @@ function HotTonightCard({
           <img
             src={coverSrc}
             alt={party.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="h-full w-full object-cover"
             loading="lazy"
           />
         ) : (
           <div
             className={cn(
-              "h-full w-full bg-gradient-to-br gradient-shift",
+              "h-full w-full bg-gradient-to-br",
               VIBE_GRADIENT_BG[firstVibe] ?? "from-purple-600 to-indigo-800",
             )}
           />
         )}
-        {/* Gradient overlays */}
+        {/* Gradient overlay */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
         {/* Floating vibe emoji */}
@@ -637,74 +766,69 @@ function HotTonightCard({
 
         {/* LIVE badge */}
         {isLive && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-coral/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+          <Badge className="absolute left-3 top-3 bg-coral/90 text-white border-0 gap-1.5 text-[10px] font-bold uppercase tracking-wider">
             <span className="relative flex h-2 w-2">
-              <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-coral/60" />
-              <span className="live-pulse-dot relative inline-flex h-2 w-2 rounded-full bg-white" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral/60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
             </span>
             LIVE
-          </span>
+          </Badge>
         )}
 
         {/* Starting soon */}
         {isStartingSoon && !isLive && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 text-[10px] font-bold text-black">
+          <Badge className="absolute left-3 top-3 bg-amber-500/90 text-black border-0 gap-1 text-[10px] font-bold">
             <Sparkles className="h-3 w-3" />
             Starting soon
-          </span>
+          </Badge>
         )}
 
         {/* Save heart */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onSave}
           aria-label={saved ? "Unsave" : "Save"}
           className={cn(
-            "absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all",
+            "absolute right-3 top-3 h-8 w-8 rounded-full border backdrop-blur-md",
             saved
-              ? "bg-coral/20 border-coral/50"
-              : "bg-black/40 border-white/15 hover:bg-black/60",
+              ? "bg-coral/20 border-coral/50 text-coral hover:bg-coral/30"
+              : "bg-black/40 border-white/15 text-white/80 hover:bg-black/60",
           )}
         >
-          <Heart
-            className={cn(
-              "h-3.5 w-3.5 transition-colors",
-              saved ? "fill-coral text-coral" : "text-white/80",
-            )}
-          />
-        </button>
+          <Heart className={cn("h-3.5 w-3.5", saved && "fill-coral")} />
+        </Button>
 
         {/* Bottom info */}
         <div className="absolute bottom-0 inset-x-0 flex items-end justify-between p-3">
-          {/* Fee */}
-          <span
+          <Badge
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs font-bold shadow-lg backdrop-blur-sm",
+              "border-0 shadow-lg backdrop-blur-sm text-xs font-bold",
               party.fee === 0
                 ? "bg-teal-500/90 text-white"
                 : "bg-amber-400/95 text-black",
             )}
           >
             {formatFee(party.fee, party.city)}
-          </span>
-          {/* Spots */}
+          </Badge>
           {isFull ? (
-            <span className="rounded-lg bg-black/50 px-2 py-1 text-[10px] font-semibold text-white/60 backdrop-blur-sm">
+            <Badge variant="secondary" className="bg-black/50 text-white/60 border-0 backdrop-blur-sm text-[10px]">
               Sold out
-            </span>
+            </Badge>
           ) : isLow ? (
-            <span className="urgency-flash rounded-lg bg-coral/85 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+            <Badge className="bg-coral/85 text-white border-0 backdrop-blur-sm text-[10px] font-bold animate-pulse">
               {left} left!
-            </span>
+            </Badge>
           ) : (
-            <span className="rounded-lg bg-black/40 px-2 py-1 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+            <Badge variant="secondary" className="bg-black/40 text-white/80 border-0 backdrop-blur-sm text-[10px]">
               {party.guestCount} going
-            </span>
+            </Badge>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <CardContent className="p-3">
         <h3 className="mb-1 text-sm font-semibold text-foreground line-clamp-1">
           {party.title}
         </h3>
@@ -719,12 +843,12 @@ function HotTonightCard({
             {formatTime(party.time)}
           </span>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
-/* ====== Near You Card ====== */
+// ─── Near You Card ────────────────────────────────────────────────────────────
 function NearYouCard({
   party,
   distance,
@@ -762,9 +886,9 @@ function NearYouCard({
       : `${distance.toFixed(1)}km away`;
 
   return (
-    <div
+    <Card
       onClick={() => onOpen(party.id)}
-      className="relative w-[260px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-teal-500/20 bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(29,158,117,0.25)] transition-shadow duration-300"
+      className="relative w-[260px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border-teal-500/20 bg-card/80 py-0 gap-0 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(29,158,117,0.25)] transition-shadow duration-300"
     >
       {/* Cover */}
       <div className="relative h-32 w-full overflow-hidden">
@@ -772,13 +896,13 @@ function NearYouCard({
           <img
             src={coverSrc}
             alt={party.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="h-full w-full object-cover"
             loading="lazy"
           />
         ) : (
           <div
             className={cn(
-              "h-full w-full bg-gradient-to-br gradient-shift",
+              "h-full w-full bg-gradient-to-br",
               VIBE_GRADIENT_BG[firstVibe] ?? "from-teal-600 to-cyan-800",
             )}
           />
@@ -786,71 +910,68 @@ function NearYouCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
         {/* Distance badge */}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-teal-500/90 px-2.5 py-1 text-[10px] font-bold text-white">
+        <Badge className="absolute left-3 top-3 bg-teal-500/90 text-white border-0 gap-1.5 text-[10px] font-bold">
           <MapPin className="h-3 w-3" />
           {distLabel}
-        </span>
+        </Badge>
 
         {/* LIVE badge */}
         {isLive && (
-          <span className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-coral/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+          <Badge className="absolute left-3 bottom-3 bg-coral/90 text-white border-0 gap-1.5 text-[10px] font-bold uppercase tracking-wider">
             <span className="relative flex h-2 w-2">
-              <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-coral/60" />
-              <span className="live-pulse-dot relative inline-flex h-2 w-2 rounded-full bg-white" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral/60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
             </span>
             LIVE
-          </span>
+          </Badge>
         )}
 
         {/* Save heart */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onSave}
           aria-label={saved ? "Unsave" : "Save"}
           className={cn(
-            "absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all",
+            "absolute right-3 top-3 h-8 w-8 rounded-full border backdrop-blur-md",
             saved
-              ? "bg-coral/20 border-coral/50"
-              : "bg-black/40 border-white/15 hover:bg-black/60",
+              ? "bg-coral/20 border-coral/50 text-coral hover:bg-coral/30"
+              : "bg-black/40 border-white/15 text-white/80 hover:bg-black/60",
           )}
         >
-          <Heart
-            className={cn(
-              "h-3.5 w-3.5 transition-colors",
-              saved ? "fill-coral text-coral" : "text-white/80",
-            )}
-          />
-        </button>
+          <Heart className={cn("h-3.5 w-3.5", saved && "fill-coral")} />
+        </Button>
 
         {/* Fee + spots */}
         <div className="absolute bottom-0 inset-x-0 flex items-end justify-between p-3">
-          <span
+          <Badge
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs font-bold shadow-lg backdrop-blur-sm",
+              "border-0 shadow-lg backdrop-blur-sm text-xs font-bold",
               party.fee === 0
                 ? "bg-teal-500/90 text-white"
                 : "bg-amber-400/95 text-black",
             )}
           >
             {formatFee(party.fee, party.city)}
-          </span>
+          </Badge>
           {isFull ? (
-            <span className="rounded-lg bg-black/50 px-2 py-1 text-[10px] font-semibold text-white/60 backdrop-blur-sm">
+            <Badge variant="secondary" className="bg-black/50 text-white/60 border-0 backdrop-blur-sm text-[10px]">
               Sold out
-            </span>
+            </Badge>
           ) : isLow ? (
-            <span className="urgency-flash rounded-lg bg-coral/85 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+            <Badge className="bg-coral/85 text-white border-0 backdrop-blur-sm text-[10px] font-bold animate-pulse">
               {left} left!
-            </span>
+            </Badge>
           ) : (
-            <span className="rounded-lg bg-black/40 px-2 py-1 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+            <Badge variant="secondary" className="bg-black/40 text-white/80 border-0 backdrop-blur-sm text-[10px]">
               {party.guestCount} going
-            </span>
+            </Badge>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <CardContent className="p-3">
         <h3 className="mb-1 text-sm font-semibold text-foreground line-clamp-1">
           {party.title}
         </h3>
@@ -865,34 +986,31 @@ function NearYouCard({
             {formatTime(party.time)}
           </span>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
-/* ====== Loading Skeleton ====== */
+// ─── Loading Skeleton (using shadcn Skeleton) ────────────────────────────────
 function FeedSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 lg:px-6">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-2xl border border-white/[0.06] bg-card/60"
-        >
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i} className="overflow-hidden rounded-2xl border-border/50 bg-card/60 py-0 gap-0">
           {/* Cover skeleton */}
-          <div className="premium-shimmer h-40 w-full" />
+          <Skeleton className="h-40 w-full rounded-none" />
           {/* Body skeleton */}
-          <div className="space-y-3 p-4">
-            <div className="premium-shimmer h-4 w-3/4 rounded-lg" />
-            <div className="premium-shimmer h-3 w-1/2 rounded-lg" />
-            <div className="premium-shimmer h-3 w-5/6 rounded-lg" />
+          <CardContent className="space-y-3 p-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-5/6" />
             <div className="flex gap-2">
-              <div className="premium-shimmer h-5 w-14 rounded-full" />
-              <div className="premium-shimmer h-5 w-12 rounded-full" />
-              <div className="premium-shimmer h-5 w-10 rounded-full" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+              <Skeleton className="h-5 w-10 rounded-full" />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

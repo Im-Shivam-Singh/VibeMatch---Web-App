@@ -11,6 +11,8 @@ import {
   Flame,
   Navigation,
   ExternalLink,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import type * as LType from "leaflet";
@@ -30,6 +32,10 @@ import {
   type Party,
   type FunTier,
 } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 
@@ -219,16 +225,17 @@ export function MapScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-black">
       {/* Header */}
-      <header
-
-
-
-        className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-2.5 pt-[max(env(safe-area-inset-top),12px)]"
-      >
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-2.5 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <button onClick={goBack} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] text-white/80" aria-label="Back">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={goBack}
+            className="h-9 w-9 rounded-xl border-white/[0.08] text-white/80"
+            aria-label="Back"
+          >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-lg font-bold tracking-tight text-foreground">Map</h1>
             <p className="truncate text-[11px] text-muted-foreground/50">
@@ -237,57 +244,62 @@ export function MapScreen() {
               {liveOnly && <> · <span className="text-purple-300">{liveCount} live</span></>}
             </p>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleListToggle}
-
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-purple-500/30 hover:text-purple-300"
+            className="gap-1.5 rounded-xl border-white/[0.08] bg-white/[0.04] text-white/70 hover:border-purple-500/30 hover:text-purple-300"
             aria-label="Switch to list view"
           >
             <List className="h-4 w-4" />
             List
-          </button>
+          </Button>
         </div>
       </header>
 
       {/* Radius + Live filter */}
-      <div className="z-20 flex items-center gap-2 border-b border-white/[0.06] bg-background/50 backdrop-blur-xl px-3 py-2">
-        <div className="no-scrollbar flex flex-1 items-center gap-1.5 overflow-x-auto">
-          <span className="shrink-0 pr-1 text-[10px] uppercase tracking-wider text-muted-foreground/40">Radius</span>
-          {RADII.map((r) => {
-            const active = radius === r;
-            return (
-              <button
-                key={r}
-                onClick={() => setRadius(r)}
-
-                aria-pressed={active}
-                className={cn(
-                  "shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
-                  active
-                    ? "bg-purple-500/20 text-purple-200 border border-purple-500/30 shadow-[0_0_12px_-3px_rgba(83,74,183,0.3)]"
-                    : "border border-white/[0.06] bg-white/[0.03] text-white/50 hover:text-white/70 hover:border-white/[0.12]",
-                )}
-              >
-                {r < 1 ? `${r * 1000}m` : `${r}km`}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          onClick={() => setLiveOnly((v) => !v)}
-
-          aria-pressed={liveOnly}
-          className={cn(
-            "flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
-            liveOnly
-              ? "bg-purple-500/20 text-purple-200 border border-purple-500/30 shadow-[0_0_12px_-3px_rgba(83,74,183,0.3)]"
-              : "border border-white/[0.06] bg-white/[0.03] text-white/50 hover:text-white/70",
-          )}
-        >
-          <Flame className={cn("h-3 w-3", liveOnly && "drop-shadow-[0_0_6px_rgba(83,74,183,0.9)]")} />
-          Live
-        </button>
-      </div>
+      <Card className="rounded-none border-x-0 border-t-0 border-white/[0.06] bg-background/50 backdrop-blur-xl">
+        <CardContent className="flex items-center gap-2 px-3 py-2">
+          <div className="no-scrollbar flex flex-1 items-center gap-1.5 overflow-x-auto">
+            <span className="shrink-0 pr-1 text-[10px] uppercase tracking-wider text-muted-foreground/40">Radius</span>
+            {RADII.map((r) => {
+              const active = radius === r;
+              return (
+                <Button
+                  key={r}
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setRadius(r)}
+                  aria-pressed={active}
+                  className={cn(
+                    "shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold h-auto",
+                    active
+                      ? "bg-purple-500/20 text-purple-200 border-purple-500/30 shadow-[0_0_12px_-3px_rgba(83,74,183,0.3)]"
+                      : "border-white/[0.06] bg-white/[0.03] text-white/50 hover:text-white/70 hover:border-white/[0.12]"
+                  )}
+                >
+                  {r < 1 ? `${r * 1000}m` : `${r}km`}
+                </Button>
+              );
+            })}
+          </div>
+          <Button
+            variant={liveOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLiveOnly((v) => !v)}
+            aria-pressed={liveOnly}
+            className={cn(
+              "flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold h-auto",
+              liveOnly
+                ? "bg-purple-500/20 text-purple-200 border-purple-500/30 shadow-[0_0_12px_-3px_rgba(83,74,183,0.3)]"
+                : "border-white/[0.06] bg-white/[0.03] text-white/50 hover:text-white/70"
+            )}
+          >
+            <Flame className={cn("h-3 w-3", liveOnly && "drop-shadow-[0_0_6px_rgba(83,74,183,0.9)]")} />
+            Live
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Map canvas */}
       <div className="relative flex-1 overflow-hidden bg-[#1a1a2e] min-h-[360px]">
@@ -300,17 +312,15 @@ export function MapScreen() {
           aria-hidden
         />
 
-        {/* Loading shimmer */}
+        {/* Loading shimmer with Skeleton */}
         {!mapReady && (
           <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#1a1a2e]">
-            <div
-
-
-              className="flex items-center gap-2 rounded-xl border border-purple-500/25 bg-black/85 px-4 py-2 text-xs font-semibold text-purple-300 backdrop-blur-sm"
-            >
-              <Sparkles className="h-3.5 w-3.5 animate-pulse text-purple-400" />
-              Loading map…
-            </div>
+            <Card className="border-purple-500/25 bg-black/85 backdrop-blur-sm">
+              <CardContent className="flex items-center gap-2 px-4 py-2">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse text-purple-400" />
+                <span className="text-xs font-semibold text-purple-300">Loading map…</span>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -383,27 +393,32 @@ export function MapScreen() {
                   >
                     <span className="pointer-events-none absolute inset-1 rounded-full bg-white/20" />
                     <span className="relative text-base leading-none drop-shadow">{emoji}</span>
-                    <span className={cn("absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-1 py-0 text-[8px] font-bold backdrop-blur-sm", tier.chipClass)}>
+                    <Badge
+                      variant="outline"
+                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-1 py-0 text-[8px] font-bold backdrop-blur-sm h-auto"
+                    >
                       {m.dist < 1 ? `${Math.round(m.dist * 1000)}m` : `${m.dist.toFixed(1)}k`}
-                    </span>
+                    </Badge>
                   </span>
 
                   {/* Hovered tooltip */}
                   {isHovered && (
-                    <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-3 w-44 -translate-x-1/2 rounded-xl border border-white/[0.08] bg-black/90 px-2.5 py-2 shadow-lg backdrop-blur-xl animate-pop-in">
-                      <span className="block max-w-[160px] truncate font-display text-[11px] font-bold text-white">{m.party.title}</span>
-                      <span className={cn("mt-0.5 flex items-center gap-1 text-[9px] font-bold", tier.textClass)}>
-                        <span className={cn("inline-block h-1.5 w-1.5 rounded-full", tier.dotClass)} />
-                        {tier.label} · {m.score}/100
-                      </span>
-                      <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-white/10">
-                        <span className={cn("block h-full rounded-full", TIER_BAR[m.tier])} style={{ width: `${m.score}%` }} />
-                      </span>
-                      <span className="mt-1 block text-[9px] text-white/50">
-                        {m.dist < 1 ? `${Math.round(m.dist * 1000)}m away` : `${m.dist.toFixed(1)}km away`}
-                        {m.isLive && <span className="ml-1 text-purple-300">· Live</span>}
-                      </span>
-                    </span>
+                    <Card className="pointer-events-none absolute left-1/2 top-full z-30 mt-3 w-44 -translate-x-1/2 border-white/[0.08] bg-black/90 backdrop-blur-xl animate-pop-in rounded-xl shadow-lg">
+                      <CardContent className="px-2.5 py-2">
+                        <span className="block max-w-[160px] truncate font-display text-[11px] font-bold text-white">{m.party.title}</span>
+                        <span className={cn("mt-0.5 flex items-center gap-1 text-[9px] font-bold", tier.textClass)}>
+                          <span className={cn("inline-block h-1.5 w-1.5 rounded-full", tier.dotClass)} />
+                          {tier.label} · {m.score}/100
+                        </span>
+                        <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-white/10">
+                          <span className={cn("block h-full rounded-full", TIER_BAR[m.tier])} style={{ width: `${m.score}%` }} />
+                        </span>
+                        <span className="mt-1 block text-[9px] text-white/50">
+                          {m.dist < 1 ? `${Math.round(m.dist * 1000)}m away` : `${m.dist.toFixed(1)}km away`}
+                          {m.isLive && <span className="ml-1 text-purple-300">· Live</span>}
+                        </span>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Pin tail */}
@@ -415,41 +430,50 @@ export function MapScreen() {
             {/* Loading overlay */}
             {isLoading && mapReady && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
-                <div className="flex items-center gap-2 rounded-xl border border-purple-500/25 bg-black/85 px-3 py-1.5 text-[11px] text-purple-300 backdrop-blur-sm">
-                  <Sparkles className="h-3 w-3 animate-pulse text-purple-400" />
-                  Scanning the area…
-                </div>
+                <Card className="border-purple-500/25 bg-black/85 backdrop-blur-sm">
+                  <CardContent className="flex items-center gap-2 px-3 py-1.5">
+                    <Sparkles className="h-3 w-3 animate-pulse text-purple-400" />
+                    <span className="text-[11px] text-purple-300">Scanning the area…</span>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
         </div>
 
         {/* Open in Google Maps */}
-        <a
-          href={mapLinkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-
-
-
-          className="absolute right-3 top-3 z-20 flex h-9 items-center gap-1.5 rounded-xl border border-purple-500/30 bg-black/85 px-3 text-[11px] font-bold text-purple-300 backdrop-blur-sm transition hover:border-purple-400 hover:text-purple-200"
-          aria-label="Open in Google Maps"
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="absolute right-3 top-3 z-20 gap-1.5 rounded-xl border-purple-500/30 bg-black/85 text-[11px] font-bold text-purple-300 backdrop-blur-sm hover:border-purple-400 hover:text-purple-200"
         >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Maps
-        </a>
+          <a
+            href={mapLinkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open in Google Maps"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Maps
+          </a>
+        </Button>
 
         {/* Error overlay */}
         {isError && !isLoading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center px-6">
             <EmptyState
-              icon={MapPin}
+              icon={AlertCircle}
               title="Couldn't scan the area"
               description="Something went wrong fetching nearby parties."
               action={
-                <button onClick={() => refetch()} className="rounded-xl bg-purple-500 px-4 py-2 text-sm font-bold text-white">
+                <Button
+                  onClick={() => refetch()}
+                  className="gap-2 rounded-xl bg-purple-500 px-4 py-2 text-sm font-bold text-white"
+                >
+                  <RefreshCw className="h-4 w-4" />
                   Retry
-                </button>
+                </Button>
               }
             />
           </div>
@@ -458,34 +482,36 @@ export function MapScreen() {
         {/* Empty state */}
         {!isLoading && !isError && parties.length === 0 && (
           <div className="absolute inset-0 z-20 flex items-center justify-center px-6">
-            <div
-
-
-              className="flex flex-col items-center gap-3 rounded-2xl border border-purple-500/20 bg-black/80 px-6 py-8 text-center backdrop-blur-xl"
-            >
-              <span className="text-4xl" aria-hidden>🗺️</span>
-              <h3 className="font-display text-base font-bold text-foreground">No parties nearby</h3>
-              <p className="max-w-[220px] text-xs text-muted-foreground">
-                {radius <= 2 ? "Try widening the radius." : liveOnly ? "Toggle off Live to see all upcoming parties." : "Be the first — launch a vibe."}
-              </p>
-              <button
-                onClick={() => liveOnly ? setLiveOnly(false) : setScreen("create")}
-
-                className="rounded-xl bg-purple-500 px-4 py-2 text-xs font-bold text-white"
-              >
-                {liveOnly ? "Show all parties" : "Launch a vibe"}
-              </button>
-            </div>
+            <EmptyState
+              icon={MapPin}
+              title="No parties nearby"
+              description={
+                radius <= 2
+                  ? "Try widening the radius."
+                  : liveOnly
+                    ? "Toggle off Live to see all upcoming parties."
+                    : "Be the first — launch a vibe."
+              }
+              action={
+                <Button
+                  onClick={() => liveOnly ? setLiveOnly(false) : setScreen("create")}
+                  className="rounded-xl bg-purple-500 px-4 py-2 text-xs font-bold text-white"
+                >
+                  {liveOnly ? "Show all parties" : "Launch a vibe"}
+                </Button>
+              }
+            />
           </div>
         )}
 
         {/* Floating controls */}
         <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={useMyLocation}
             disabled={locating}
-
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-black/70 text-purple-400 backdrop-blur-xl transition hover:border-purple-500/30 disabled:opacity-70"
+            className="h-11 w-11 rounded-xl border-white/[0.08] bg-black/70 text-purple-400 backdrop-blur-xl hover:border-purple-500/30 disabled:opacity-70"
             aria-label="Use my GPS location"
           >
             {locating ? (
@@ -493,7 +519,7 @@ export function MapScreen() {
             ) : (
               <Crosshair className="h-4 w-4" />
             )}
-          </button>
+          </Button>
           <div className="no-scrollbar flex max-w-[260px] items-center gap-1.5 overflow-x-auto">
             <CityDot label="India" active={!userLocation && !cityFilter} onClick={() => switchCity(null)} />
             {CITIES.map((c) => (
@@ -511,9 +537,9 @@ export function MapScreen() {
         <div className="flex items-center justify-between px-4 pb-1">
           <div className="flex items-center gap-2">
             <h2 className="font-display text-sm font-bold text-purple-300">Nearby parties</h2>
-            <span className="rounded-lg bg-purple-500/15 border border-purple-500/25 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
+            <Badge variant="outline" className="rounded-lg bg-purple-500/15 border-purple-500/25 text-[10px] font-bold text-purple-300">
               {parties.length}
-            </span>
+            </Badge>
           </div>
           <span className="text-[11px] text-muted-foreground/50">sorted by distance</span>
         </div>
@@ -522,11 +548,11 @@ export function MapScreen() {
           {isLoading && (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-16 rounded-xl bg-white/[0.03] animate-pulse" />
+                <Skeleton key={i} className="h-16 rounded-xl bg-white/[0.03]" />
               ))}
             </div>
           )}
-          {!isLoading && parties.length === 0 && (
+          {!isLoading && !isError && parties.length === 0 && (
             <p className="py-6 text-center text-xs text-muted-foreground">No parties to list — try widening the radius.</p>
           )}
           {!isLoading && parties.length > 0 && projectedParties.map((m) => {
@@ -540,7 +566,6 @@ export function MapScreen() {
                 onClick={() => openParty(m.party.id)}
                 onMouseEnter={() => setHoveredId(m.party.id)}
                 onMouseLeave={() => setHoveredId(null)}
-
                 className={cn(
                   "relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition",
                   "border-white/[0.06] bg-white/[0.03] hover:border-purple-500/25 hover:bg-white/[0.06]",
@@ -561,7 +586,9 @@ export function MapScreen() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display text-sm font-bold text-foreground">{m.party.title}</span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-[10px]">
-                    <span className={cn("rounded-full border px-1.5 py-0.5 font-bold", tier.chipClass)}>{tier.label}</span>
+                    <Badge variant="outline" className={cn("rounded-full px-1.5 py-0.5 font-bold text-[10px] h-auto", tier.chipClass)}>
+                      {tier.label}
+                    </Badge>
                     {m.isLive && (
                       <span className="flex items-center gap-0.5 font-bold text-purple-300">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
@@ -570,9 +597,9 @@ export function MapScreen() {
                     )}
                   </span>
                 </span>
-                <span className={cn("shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-bold", tier.chipClass)}>
+                <Badge variant="outline" className={cn("shrink-0 rounded-lg text-[10px] font-bold h-auto py-0.5", tier.chipClass)}>
                   {m.dist < 1 ? `${Math.round(m.dist * 1000)}m` : `${m.dist.toFixed(1)}km`}
-                </span>
+                </Badge>
               </button>
             );
           })}
