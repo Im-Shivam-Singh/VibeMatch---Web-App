@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/lib/db/models";
 
 // ── /api/parties/[id]/media ───────────────────────────────────────────
 // Host manage-party endpoints for the live event gallery + group-chat toggle.

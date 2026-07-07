@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Order, Party, User, Ticket, JoinRequest, Message, ChatThread, GroupChat } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Order, Party, User, Ticket, JoinRequest, Message, ChatThread, GroupChat } from "@/lib/db/models";
 import { currencyForCity } from "@/lib/types";
 import { createNotification } from "@/lib/notifications";
 

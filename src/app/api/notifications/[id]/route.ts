@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDB } from '@/lib/mongodb';
-import Notification from '@/models/Notification';
+import { withDB } from '@/lib/db/mongodb';
+import Notification from '@/lib/db/models/Notification';
 
 // PATCH /api/notifications/[id] — mark single notification as read
 async function _PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

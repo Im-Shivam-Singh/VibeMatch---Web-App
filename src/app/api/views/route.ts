@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { PartyView, Party } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { PartyView, Party } from "@/lib/db/models";
 
 // POST /api/views — record a party view
 async function _POST(req: NextRequest) {

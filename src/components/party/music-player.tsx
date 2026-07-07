@@ -16,8 +16,8 @@ import {
   SkipBack,
   Music2,
 } from "lucide-react";
-import { useMusicStore } from "@/lib/music-store";
-import { MUSIC_TRACKS, getTrack, formatTime } from "@/lib/music-tracks";
+import { useMusicStore } from "@/lib/music/store";
+import { MUSIC_TRACKS, getTrack, formatTime } from "@/lib/music/tracks";
 import {
   Dialog,
   DialogContent,

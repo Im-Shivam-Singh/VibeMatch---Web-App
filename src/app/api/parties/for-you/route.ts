@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Party as PartyModel, User } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Party as PartyModel, User } from "@/lib/db/models";
 import { parseVibes, type Party } from "@/lib/types";
 
 function serialize(p: any, hostMap?: Map<string, any>): Party {

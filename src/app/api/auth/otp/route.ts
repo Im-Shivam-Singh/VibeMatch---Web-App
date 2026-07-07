@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import { User } from "@/models";
+import { connectDB } from "@/lib/db/mongodb";
+import { User } from "@/lib/db/models";
 import type { VibeUser } from "@/lib/types";
 
 function serializeUser(u: any): VibeUser {
@@ -183,5 +183,5 @@ async function _POST(req: NextRequest) {
   return NextResponse.json({ error: "Invalid step" }, { status: 400 });
 }
 
-import { withDB } from "@/lib/mongodb";
+import { withDB } from "@/lib/db/mongodb";
 export const POST = withDB(_POST);

@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { EmptyState } from "@/components/vibe/empty-state";
-import { HostAnalytics as HostAnalyticsCard } from "@/components/vibe/host-analytics";
+import { EmptyState } from "@/components/shared/empty-state";
+import { HostAnalytics as HostAnalyticsCard } from "@/components/party/host-analytics";
 import {
   currencyForCity,
   formatDateLabel,

@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { LoadingProvider } from "@/lib/loading-context";
+import { LoadingProvider } from "@/components/shared/loading-context";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {

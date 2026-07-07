@@ -47,8 +47,8 @@ import {
   type PartyMedia,
   type MenuItem,
 } from "@/lib/types";
-import { ReviewsSection } from "@/components/vibe/reviews-section";
-import { UserAvatar } from "@/components/vibe/user-avatar";
+import { ReviewsSection } from "@/components/party/reviews-section";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

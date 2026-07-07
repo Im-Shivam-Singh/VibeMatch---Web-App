@@ -25,7 +25,7 @@ import {
   type GroupChatMessage,
   type GroupChatMember,
 } from "@/lib/types";
-import { UserAvatar } from "@/components/vibe/user-avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,

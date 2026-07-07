@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Message, ChatThread, User } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Message, ChatThread, User } from "@/lib/db/models";
 import { createNotification } from "@/lib/notifications";
 
 // POST /api/messages — persist a message (used as fallback when WS unavailable)

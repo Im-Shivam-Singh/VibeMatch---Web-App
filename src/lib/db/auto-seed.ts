@@ -17,7 +17,7 @@ import {
   Ticket,
   SavedParty,
   TrustRating,
-} from "@/models";
+} from "@/lib/db/models";
 
 let seeded = false;
 

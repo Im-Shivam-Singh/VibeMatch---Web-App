@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Review, User } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Review, User } from "@/lib/db/models";
 import type { PartyReview } from "@/lib/types";
 
 function serialize(r: any, user?: any): PartyReview {

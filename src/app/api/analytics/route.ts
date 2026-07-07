@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Party, JoinRequest, PartyView, Review } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Party, JoinRequest, PartyView, Review } from "@/lib/db/models";
 import type { HostAnalytics } from "@/lib/types";
 
 // GET /api/analytics?hostId=...

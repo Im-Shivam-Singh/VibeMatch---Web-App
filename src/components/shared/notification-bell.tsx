@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, X, MessageSquare, Users, CreditCard, Star, MapPin, PartyPopper } from "lucide-react";
-import { useNotifications, type AppNotification } from "@/lib/use-notifications";
+import { useNotifications, type AppNotification } from "@/lib/hooks/use-notifications";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/types";

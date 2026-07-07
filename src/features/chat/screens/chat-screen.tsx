@@ -23,10 +23,10 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { useChatSocket, type ChatMessageEvent } from "@/lib/use-chat-socket";
+import { useChatSocket, type ChatMessageEvent } from "@/lib/hooks/use-chat-socket";
 import { relativeTime, type ChatMessage, formatFee } from "@/lib/types";
-import { UserAvatar } from "@/components/vibe/user-avatar";
-import { RatingPill } from "@/components/vibe/rating-pill";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { RatingPill } from "@/components/shared/rating-pill";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,

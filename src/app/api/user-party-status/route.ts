@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { JoinRequest, Ticket } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { JoinRequest, Ticket } from "@/lib/db/models";
 
 // GET /api/user-party-status?userId=...&partyId=...
 // Returns whether the user has an accepted request or ticket for the party.

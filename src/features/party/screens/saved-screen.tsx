@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Heart, Search, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { PartyCard } from "@/components/vibe/party-card";
+import { PartyCard } from "@/components/party/party-card";
 import { cn } from "@/lib/utils";
 
 export function SavedScreen() {

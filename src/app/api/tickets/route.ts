@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Ticket, Party, Order } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Ticket, Party, Order } from "@/lib/db/models";
 
 // GET /api/tickets?userId=...  → list a user's tickets (with party + order)
 async function _GET(req: NextRequest) {

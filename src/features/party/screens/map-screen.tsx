@@ -31,7 +31,7 @@ import {
   type Party,
   type FunTier,
 } from "@/lib/types";
-import { EmptyState } from "@/components/vibe/empty-state";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 
 const RADII = [1, 2, 5, 10, 25] as const;

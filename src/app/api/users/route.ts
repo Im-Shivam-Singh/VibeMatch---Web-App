@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { User } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { User } from "@/lib/db/models";
 import type { VibeUser } from "@/lib/types";
 
 function serializeUser(u: any): VibeUser {

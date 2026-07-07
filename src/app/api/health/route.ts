@@ -43,15 +43,15 @@ export async function GET() {
 
   // Try to connect
   try {
-    const { connectDB } = await import("@/lib/mongodb");
+    const { connectDB } = await import("@/lib/db/mongodb");
     const mongoose = await connectDB();
     diagnostics.mongodb.connection_state = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
     diagnostics.status = "healthy";
 
     // Try a simple query
-    const { User } = await import("@/models");
+    const { User } = await import("@/lib/db/models");
     const userCount = await User.countDocuments();
-    const { Party } = await import("@/models");
+    const { Party } = await import("@/lib/db/models");
     const partyCount = await Party.countDocuments();
     diagnostics.mongodb.user_count = userCount;
     diagnostics.mongodb.party_count = partyCount;

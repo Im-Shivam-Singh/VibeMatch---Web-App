@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { SavedParty, Party } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { SavedParty, Party } from "@/lib/db/models";
 
 // GET /api/saved?userId=... — list saved party IDs for a user
 async function _GET(req: NextRequest) {

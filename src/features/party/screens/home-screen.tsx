@@ -30,11 +30,11 @@ import {
   haversineKm,
   type Party,
 } from "@/lib/types";
-import { EmptyState } from "@/components/vibe/empty-state";
-import { MusicPlayerButton } from "@/components/vibe/music-player";
-import { PartyCard } from "@/components/vibe/party-card";
-import { ThemeToggle } from "@/components/vibe/theme-toggle";
-import { NotificationBell } from "@/components/vibe/notification-bell";
+import { EmptyState } from "@/components/shared/empty-state";
+import { MusicPlayerButton } from "@/components/party/music-player";
+import { PartyCard } from "@/components/party/party-card";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn, formatLocation } from "@/lib/utils";
 import { toast } from "sonner";
 

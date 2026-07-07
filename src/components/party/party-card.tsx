@@ -28,8 +28,8 @@ import {
   currencyForCity,
   type Party,
 } from "@/lib/types";
-import { GuestAvatars } from "./guest-avatars";
-import { LiveCountdown } from "./live-countdown";
+import { GuestAvatars } from "@/components/shared/guest-avatars";
+import { LiveCountdown } from "@/components/party/live-countdown";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 

@@ -1,4 +1,4 @@
-import Notification from '@/models/Notification';
+import Notification from '@/lib/db/models/Notification';
 
 type NotificationType = 'message' | 'spot_request' | 'spot_accepted' | 'spot_rejected' | 'payment_received' | 'new_party_nearby' | 'review' | 'party_reminder';
 

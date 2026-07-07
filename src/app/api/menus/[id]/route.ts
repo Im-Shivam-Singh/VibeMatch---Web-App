@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { MenuItem } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { MenuItem } from "@/lib/db/models";
 
 // DELETE /api/menus/[id] — remove a menu item (host manage-party)
 async function _DELETE(

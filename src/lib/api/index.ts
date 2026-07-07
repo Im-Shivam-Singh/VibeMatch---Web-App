@@ -14,7 +14,7 @@ import type {
   GroupChat,
   GroupChatMessage,
 } from "@/lib/types";
-import { trackRequestStart, trackRequestEnd } from "@/lib/loading-context";
+import { trackRequestStart, trackRequestEnd } from "@/components/shared/loading-context";
 
 async function jfetch<T>(url: string, init?: RequestInit): Promise<T> {
   trackRequestStart();

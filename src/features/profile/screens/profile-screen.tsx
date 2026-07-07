@@ -31,10 +31,10 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { UserAvatar } from "@/components/vibe/user-avatar";
-import { RatingPill } from "@/components/vibe/rating-pill";
-import { ThemeToggle } from "@/components/vibe/theme-toggle";
-import { NotificationBell } from "@/components/vibe/notification-bell";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { RatingPill } from "@/components/shared/rating-pill";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 

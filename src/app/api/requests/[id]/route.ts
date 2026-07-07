@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Party, User, JoinRequest, ChatThread, Message } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Party, User, JoinRequest, ChatThread, Message } from "@/lib/db/models";
 import { createNotification } from "@/lib/notifications";
 
 // ── PATCH /api/requests/[id]  { status: "accepted" | "rejected" } ─────

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { MenuItem } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { MenuItem } from "@/lib/db/models";
 
 // GET /api/menus?partyId=...  → list menu items for a party
 async function _GET(req: NextRequest) {

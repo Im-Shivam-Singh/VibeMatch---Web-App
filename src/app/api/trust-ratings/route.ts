@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { TrustRating, User, Party } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { TrustRating, User, Party } from "@/lib/db/models";
 
 // GET /api/trust-ratings?guestId=...  → all trust ratings received by a guest
 // GET /api/trust-ratings?partyId=...  → all trust ratings for a party's guests

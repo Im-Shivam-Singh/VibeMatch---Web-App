@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { Party as PartyModel, User, PartyMedia as PartyMediaModel } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { Party as PartyModel, User, PartyMedia as PartyMediaModel } from "@/lib/db/models";
 import {
   parseVibes,
   partyCoords,

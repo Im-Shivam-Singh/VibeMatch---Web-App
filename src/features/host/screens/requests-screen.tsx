@@ -15,8 +15,8 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { UserAvatar } from "@/components/vibe/user-avatar";
-import { EmptyState } from "@/components/vibe/empty-state";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { EmptyState } from "@/components/shared/empty-state";
 import { relativeTime } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

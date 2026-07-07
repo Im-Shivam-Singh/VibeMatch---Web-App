@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDB } from '@/lib/mongodb';
-import Notification from '@/models/Notification';
+import { withDB } from '@/lib/db/mongodb';
+import Notification from '@/lib/db/models/Notification';
 
 // GET /api/notifications?userId=xxx&limit=20&offset=0
 async function _GET(req: NextRequest) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDB } from "@/lib/mongodb";
-import { ChatThread, User, Message, JoinRequest, Order } from "@/models";
+import { withDB } from "@/lib/db/mongodb";
+import { ChatThread, User, Message, JoinRequest, Order } from "@/lib/db/models";
 
 // GET /api/threads/[id]?userId=... — full thread with messages + other user
 async function _GET(
