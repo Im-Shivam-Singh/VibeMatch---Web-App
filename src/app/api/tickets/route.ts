@@ -25,13 +25,19 @@ async function _GET(req: NextRequest) {
     Order.find({ _id: { $in: orderIds } }).lean({ virtuals: true }),
   ]);
 
-  const partyMap = new Map(parties.map((p) => [p.id ?? p._id?.toString(), p]));
+  // Also try matching by string-based partyId in case _id lookup fails
+  const partyByIdOrStr = new Map<string, any>();
+  for (const p of parties) {
+    const id = p.id ?? p._id?.toString();
+    if (id) partyByIdOrStr.set(id, { ...p, id });
+  }
+
   const orderMap = new Map(orders.map((o) => [o.id ?? o._id?.toString(), o]));
 
   const enriched = tickets.map((t) => ({
     ...t,
     id: t.id ?? t._id?.toString(),
-    party: partyMap.get(t.partyId) ?? null,
+    party: partyByIdOrStr.get(t.partyId) ?? partyByIdOrStr.get(t.partyId?.toString()) ?? null,
     order: (() => {
       const o = orderMap.get(t.orderId);
       if (!o) return null;

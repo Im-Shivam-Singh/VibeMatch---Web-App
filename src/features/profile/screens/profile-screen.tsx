@@ -2,27 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
-  Settings,
   Pencil,
   Flame,
   Sparkles,
   Star,
   ChevronRight,
   CalendarDays,
-  Inbox as InboxIcon,
   Heart,
-  Bell,
-  Shield,
   ShieldCheck,
-  HelpCircle,
   LogOut,
-  Moon,
   Globe,
-  Crown,
-  Trophy,
-  Zap,
   BarChart3,
   Ticket,
   Camera,
@@ -33,7 +23,6 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { RatingPill } from "@/components/shared/rating-pill";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -66,7 +55,6 @@ function AnimatedStat({
   label,
   value,
   icon,
-  delay,
 }: {
   label: string;
   value: number;
@@ -75,18 +63,13 @@ function AnimatedStat({
 }) {
   const counted = useCountUp(value, 1000);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] px-3 py-4 text-center"
-    >
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] px-3 py-4 text-center">
       <span className="text-purple-bright">{icon}</span>
       <p className="font-display text-2xl font-bold text-white">{counted}</p>
       <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/50">
         {label}
       </p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -98,7 +81,6 @@ function QuickAction({
   label,
   badge,
   onClick,
-  delay,
   accent = "purple",
 }: {
   icon: React.ReactNode;
@@ -121,10 +103,7 @@ function QuickAction({
     coral: "bg-coral-500/15 text-coral-bright",
   };
   return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+    <button
       onClick={onClick}
       className={cn(
         "relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 transition-all duration-200 active:scale-[0.97]",
@@ -145,7 +124,7 @@ function QuickAction({
           {badge}
         </span>
       )}
-    </motion.button>
+    </button>
   );
 }
 
@@ -230,14 +209,14 @@ export function ProfileScreen() {
   const isHost = role === "host";
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
       {/* ---- Hero header ---- */}
       <div className="relative overflow-hidden">
         {/* Gradient background */}
         <div className="absolute inset-0 bg-gradient-to-b from-purple-deep via-purple/30 to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(83,74,183,0.45),transparent_60%)]" />
 
-        <div className="relative px-4 pt-[max(env(safe-area-inset-top),16px)] pb-6 lg:px-6">
+        <div className="relative max-w-2xl mx-auto px-4 pt-[max(env(safe-area-inset-top),16px)] pb-6 lg:px-6">
           {/* Top bar */}
           <div className="flex items-center justify-between pb-4">
             <h1 className="font-display text-xl font-bold text-white">
@@ -245,17 +224,11 @@ export function ProfileScreen() {
             </h1>
             <div className="flex items-center gap-2">
               <NotificationBell />
-              <ThemeToggle />
             </div>
           </div>
 
           {/* Avatar + info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-center text-center"
-          >
+          <div className="flex flex-col items-center text-center">
             {/* Avatar with gradient ring */}
             <div className="relative">
               <div className="rounded-full bg-gradient-to-br from-purple-bright via-purple to-teal p-[3px]">
@@ -321,19 +294,18 @@ export function ProfileScreen() {
             </div>
 
             {/* Edit profile button */}
-            <motion.button
-              whileTap={{ scale: 0.96 }}
+            <button
               onClick={() => setScreen("edit-profile")}
-              className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white/[0.08] px-5 text-sm font-semibold text-white ring-1 ring-white/[0.12] transition hover:bg-white/[0.12]"
+              className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white/[0.08] px-5 text-sm font-semibold text-white ring-1 ring-white/[0.12] transition hover:bg-white/[0.12] active:scale-[0.97]"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit profile
-            </motion.button>
-          </motion.div>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ---- Scrollable body ---- */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 pb-8 lg:px-6">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden max-w-2xl mx-auto w-full px-4 pb-8 lg:px-6">
         {/* Stats row */}
         <section className="-mt-2 grid grid-cols-3 gap-2 sm:gap-3">
           <AnimatedStat
@@ -388,9 +360,9 @@ export function ProfileScreen() {
                   accent="teal"
                 />
                 <QuickAction
-                  icon={<Settings className="h-5 w-5" />}
-                  label="Settings"
-                  onClick={() => toast.info("Settings coming soon")}
+                  icon={<Ticket className="h-5 w-5" />}
+                  label="Tickets"
+                  onClick={() => setScreen("tickets")}
                   delay={0.3}
                   accent="amber"
                 />
@@ -420,9 +392,9 @@ export function ProfileScreen() {
                   accent="teal"
                 />
                 <QuickAction
-                  icon={<Settings className="h-5 w-5" />}
-                  label="Settings"
-                  onClick={() => toast.info("Settings coming soon")}
+                  icon={<BarChart3 className="h-5 w-5" />}
+                  label="Host Dashboard"
+                  onClick={() => setScreen("host-dashboard")}
                   delay={0.3}
                   accent="amber"
                 />
@@ -460,21 +432,6 @@ export function ProfileScreen() {
                 }
                 toast.success(`Switched to ${newRole === 'host' ? '🎉 Host' : '🎊 Partier'} mode`);
               }}
-            />
-            <MenuRow
-              icon={<Bell className="h-4 w-4" />}
-              label="Notifications"
-              onClick={() => toast.info("Notifications coming soon")}
-            />
-            <MenuRow
-              icon={<Shield className="h-4 w-4" />}
-              label="Privacy & Safety"
-              onClick={() => toast.info("Privacy settings coming soon")}
-            />
-            <MenuRow
-              icon={<HelpCircle className="h-4 w-4" />}
-              label="Help & Support"
-              onClick={() => toast.info("Help center coming soon")}
             />
             <MenuRow
               icon={<Info className="h-4 w-4" />}

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
   Calendar,
@@ -93,7 +92,7 @@ export const PartyCard = React.memo(function PartyCard({ party, onOpen, classNam
   const gradientClass = VIBE_GRADIENTS[firstVibe] ?? "from-purple-900/80 via-purple-800/60 to-indigo-950/80";
 
   return (
-    <motion.div
+    <div
       role="button"
       tabIndex={0}
       onClick={() => onOpen(party.id)}
@@ -103,15 +102,7 @@ export const PartyCard = React.memo(function PartyCard({ party, onOpen, classNam
           onOpen(party.id);
         }
       }}
-      initial={{ opacity: 0, y: 24, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.45,
-        delay: index * 0.06,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      whileHover={{ y: -6, transition: { duration: 0.25, ease: "easeOut" } }}
-      whileTap={{ scale: 0.975 }}
+
       className={cn(
         "group relative w-full cursor-pointer overflow-hidden text-left",
         "rounded-2xl lg:rounded-3xl",
@@ -199,10 +190,10 @@ export const PartyCard = React.memo(function PartyCard({ party, onOpen, classNam
           </div>
 
           {/* Save heart button */}
-          <motion.button
+          <button
             onClick={onSave}
             aria-label={saved ? "Unsave party" : "Save party"}
-            whileTap={{ scale: 0.85 }}
+
             className={cn(
               "relative flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
               "border backdrop-blur-md",
@@ -219,7 +210,7 @@ export const PartyCard = React.memo(function PartyCard({ party, onOpen, classNam
               )}
               onAnimationEnd={() => setHeartAnimating(false)}
             />
-          </motion.button>
+          </button>
         </div>
 
         {/* ====== Bottom badges on cover ====== */}
@@ -341,7 +332,7 @@ export const PartyCard = React.memo(function PartyCard({ party, onOpen, classNam
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 

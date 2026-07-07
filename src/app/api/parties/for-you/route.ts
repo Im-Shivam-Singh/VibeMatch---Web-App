@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/db/mongodb";
 import { Party as PartyModel, User } from "@/lib/db/models";
-import { parseVibes, type Party } from "@/lib/types";
+import { parseVibes, haversineKm, type Party } from "@/lib/types";
 
 function serialize(p: any, hostMap?: Map<string, any>): Party {
   const hostId = p.hostId;
@@ -36,15 +36,21 @@ function serialize(p: any, hostMap?: Map<string, any>): Party {
   };
 }
 
-// GET /api/parties/for-you?userId=...
+// GET /api/parties/for-you?userId=...&lat=...&lng=...
 // Personalized feed: rank parties by overlap with the user's vibe preferences
 // (User.vibes — a comma-separated string saved from onboarding) and city.
+// When lat/lng are provided, also sorts by proximity.
 async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
+
+  const latParam = searchParams.get("lat");
+  const lngParam = searchParams.get("lng");
+  const userLat = latParam ? parseFloat(latParam) : null;
+  const userLng = lngParam ? parseFloat(lngParam) : null;
 
   const user = await User.findById(userId).lean({ virtuals: true });
   const userVibes = user?.vibePrefs ? parseVibes(user.vibePrefs) : [];
@@ -69,7 +75,25 @@ async function _GET(req: NextRequest) {
       const cityBonus = userCity && p.city === userCity ? 0.15 : 0;
       const socialScore = Math.min(0.2, p.guestCount / 100); // up to 0.2 boost for popular parties
       const freshness = Math.max(0, 1 - (Date.now() - new Date(p.createdAt).getTime()) / (14 * 86_400_000)) * 0.1;
-      const score = vibeScore * 0.55 + cityBonus + socialScore + freshness;
+
+      // Proximity boost: if user location is known, parties within 25km get a bonus
+      let proximityBonus = 0;
+      if (
+        userLat != null &&
+        userLng != null &&
+        typeof p.lat === "number" &&
+        typeof p.lng === "number"
+      ) {
+        const dist = haversineKm(
+          { lat: userLat, lng: userLng },
+          { lat: p.lat, lng: p.lng },
+        );
+        if (dist <= 5) proximityBonus = 0.3;
+        else if (dist <= 10) proximityBonus = 0.2;
+        else if (dist <= 25) proximityBonus = 0.1;
+      }
+
+      const score = vibeScore * 0.55 + cityBonus + socialScore + freshness + proximityBonus;
       return { party: p, score, overlap, pv };
     })
     .sort((a, b) => b.score - a.score);

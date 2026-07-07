@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -84,77 +84,18 @@ function ScreenContent({ screen }: { screen: string }) {
   }
 }
 
-// ── Ordered screen list for direction detection ────────────────────────────
-// Higher index = "further forward". Moving to a higher index = slide-in from
-// right (forward). Moving to a lower index = slide-in from left (back).
-const SCREEN_ORDER: string[] = [
-  "login",
-  "onboarding",
-  "home",
-  "filter",
-  "map",
-  "saved",
-  "detail",
-  "inbox",
-  "chat",
-  "group-chat",
-  "tickets",
-  "payment",
-  "confirmation",
-  "countdown",
-  "profile",
-  "edit-profile",
-  "my-parties",
-  "host-dashboard",
-  "manage-party",
-  "requests",
-  "create",
-  "admin",
-];
-
-function screenIndex(s: string): number {
-  const i = SCREEN_ORDER.indexOf(s);
-  return i >= 0 ? i : 0;
-}
-
-// ── Transition variants ────────────────────────────────────────────────────
-const slideDuration = 0.2;
-
-const variantsForward = {
-  initial: { x: 60, opacity: 0 },
-  animate: { x: 0, opacity: 1 },
-  exit: { x: -40, opacity: 0 },
-};
-
-const variantsBack = {
-  initial: { x: -60, opacity: 0 },
-  animate: { x: 0, opacity: 1 },
-  exit: { x: 40, opacity: 0 },
-};
-
-const transition = {
-  type: "tween" as const,
-  ease: "easeOut" as [number, number, number, number],
-  duration: slideDuration,
-};
-
 // ── Loading Screen Component ────────────────────────────────────────────────
 function LoadingScreen() {
   return (
     <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-col items-center gap-4"
-        >
+        <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
             <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
           </div>
           <p className="text-sm text-muted-foreground">Loading VibeMatch...</p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
@@ -163,19 +104,44 @@ function LoadingScreen() {
 // ── Main AppShell ──────────────────────────────────────────────────────────
 export function AppShell() {
   const screen = useAppStore((s) => s.screen);
-  const prevScreen = useAppStore((s) => s.prevScreen);
   const authed = useAppStore((s) => s.authed);
   const onboarded = useAppStore((s) => s.onboarded);
   const currentUser = useAppStore((s) => s.currentUser);
   const setScreen = useAppStore((s) => s.setScreen);
 
+  // Invalidate queries when screen changes so fresh data is fetched on tab switch
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    switch (screen) {
+      case "home":
+        qc.invalidateQueries({ queryKey: ["parties"] });
+        qc.invalidateQueries({ queryKey: ["parties-for-you"] });
+        break;
+      case "tickets":
+        qc.invalidateQueries({ queryKey: ["tickets"] });
+        break;
+      case "inbox":
+        qc.invalidateQueries({ queryKey: ["threads"] });
+        break;
+      case "profile":
+        qc.invalidateQueries({ queryKey: ["user"] });
+        break;
+      case "saved":
+        qc.invalidateQueries({ queryKey: ["saved"] });
+        break;
+      case "my-parties":
+        qc.invalidateQueries({ queryKey: ["my-parties"] });
+        break;
+      case "host-dashboard":
+        qc.invalidateQueries({ queryKey: ["analytics"] });
+        break;
+    }
+  }, [screen, qc]);
+
   // Track initialization state for auth check
   const [isInitializing, setIsInitializing] = useState(true);
   const hasCheckedAuth = useRef(false);
-
-  // Track direction for animation — derived directly from store values
-  const isForward =
-    !prevScreen || screenIndex(screen) >= screenIndex(prevScreen);
 
   // Validate persisted user on app load - runs once
   useEffect(() => {
@@ -242,14 +208,11 @@ export function AppShell() {
   // Determine whether nav should be visible
   const showNav = authed && current !== "login" && current !== "onboarding";
 
-  // Pick transition direction
-  const v = isForward ? variantsForward : variantsBack;
-
   // Login and onboarding screens should be full-width centered
   const isAuthFlow = current === "login" || current === "onboarding";
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-x-hidden overflow-y-auto bg-background">
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden overflow-y-auto bg-background">
       {/* Desktop sidebar — hidden on mobile/tablet and during auth flow */}
       {!isAuthFlow && <SidebarNav />}
 
@@ -259,7 +222,7 @@ export function AppShell() {
           className={cn(
             "relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-background",
             isAuthFlow
-              ? "max-w-[100vw] items-center justify-center"
+              ? "items-center justify-center"
               : "max-w-2xl mx-auto lg:max-w-6xl"
           )}
           style={{
@@ -268,21 +231,15 @@ export function AppShell() {
               : 0,
           }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={current}
-              initial={v.initial}
-              animate={v.animate}
-              exit={v.exit}
-              transition={transition}
-              className={cn(
-                "flex flex-1 flex-col",
-                isAuthFlow && "w-full max-w-md mx-auto"
-              )}
-            >
-              <ScreenContent screen={current} />
-            </motion.div>
-          </AnimatePresence>
+          <div
+            key={current}
+            className={cn(
+              "flex flex-1 flex-col",
+              isAuthFlow && "w-full max-w-md mx-auto"
+            )}
+          >
+            <ScreenContent screen={current} />
+          </div>
         </main>
       </div>
 

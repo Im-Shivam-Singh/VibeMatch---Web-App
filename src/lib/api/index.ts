@@ -187,10 +187,17 @@ export const api = {
     }),
 
   // "For You" personalized feed
-  forYou: (userId: string) =>
-    jfetch<{ parties: Party[]; matchedVibes: string[] }>(
-      `/api/parties/for-you?userId=${userId}`,
-    ),
+  forYou: (userId: string, location?: { lat: number; lng: number } | null) => {
+    const sp = new URLSearchParams();
+    sp.set("userId", userId);
+    if (location) {
+      sp.set("lat", String(location.lat));
+      sp.set("lng", String(location.lng));
+    }
+    return jfetch<{ parties: Party[]; matchedVibes: string[] }>(
+      `/api/parties/for-you?${sp.toString()}`,
+    );
+  },
 
   // accept/reject a join request
   updateRequest: (id: string, status: "accepted" | "rejected") =>
@@ -370,4 +377,13 @@ export const api = {
     jfetch<{ isInParty: boolean; hasTicket: boolean; requestStatus: string | null; requestId: string | null; ticketId: string | null }>(
       `/api/user-party-status?userId=${userId}&partyId=${partyId}`
     ),
+
+  // Cleanup status for a specific party
+  getCleanupStatus: (partyId: string) =>
+    jfetch<{
+      partyId: string;
+      mediaCleaned: boolean;
+      cleanedAt: string | null;
+      cleanedMessage: string | null;
+    }>(`/api/cleanup?partyId=${partyId}`),
 };

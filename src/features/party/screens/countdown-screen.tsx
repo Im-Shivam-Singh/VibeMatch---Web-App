@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
   ChevronLeft,
   Check,
@@ -105,7 +104,7 @@ function StepRow({ step, state, isLast }: { step: TrackerStep; state: StepState;
 
 function CountdownSkeleton() {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
@@ -128,12 +127,12 @@ function CountdownSkeleton() {
 
 function EmptyState({ goBack }: { goBack: () => void }) {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
-          <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
         </div>
       </header>
@@ -145,13 +144,13 @@ function EmptyState({ goBack }: { goBack: () => void }) {
         <p className="max-w-xs text-sm text-muted-foreground">
           Pick a party from the feed to see what happens between paying and arriving.
         </p>
-        <motion.button
+        <button
           onClick={() => useAppStore.getState().setScreen("home")}
-          whileTap={{ scale: 0.97 }}
+
           className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
         >
           Browse parties
-        </motion.button>
+        </button>
       </div>
     </div>
   );
@@ -210,18 +209,18 @@ export function CountdownScreen() {
   const partyCountdown = countdownTo(party.date, party.time);
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="min-w-0 flex-1">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Countdown</span>
             <h1 className="truncate font-display text-base font-bold leading-tight text-foreground">{party.title}</h1>
@@ -230,16 +229,16 @@ export function CountdownScreen() {
             {partyCountdown}
           </span>
         </div>
-      </motion.header>
+      </header>
 
       {/* Body */}
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* No-ticket banner */}
         {!hasTicket && currentUser && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+          <section
+
+
+
             className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4"
           >
             <div className="flex items-start gap-3">
@@ -262,14 +261,14 @@ export function CountdownScreen() {
                 </button>
               </div>
             </div>
-          </motion.section>
+          </section>
         )}
 
         {/* Step tracker */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <div className="mb-3 flex items-center justify-between">
@@ -286,14 +285,14 @@ export function CountdownScreen() {
               />
             ))}
           </ol>
-        </motion.section>
+        </section>
 
         {/* Location-drop alert */}
         {!revealDropped && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
+          <section
+
+
+
             className="rounded-2xl border border-coral/20 bg-coral/[0.06] p-4"
           >
             <div className="flex items-start gap-3">
@@ -307,14 +306,14 @@ export function CountdownScreen() {
                 </p>
               </div>
             </div>
-          </motion.section>
+          </section>
         )}
 
         {/* Location card */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4"
         >
           <div className="flex items-start gap-3">
@@ -338,13 +337,13 @@ export function CountdownScreen() {
               </button>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* Party chat preview */}
-        <motion.button
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+        <button
+
+
+
           onClick={() => setScreen("inbox")}
           className="block w-full rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4 text-left"
         >
@@ -375,13 +374,13 @@ export function CountdownScreen() {
             </span>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-        </motion.button>
+        </button>
 
         {/* Invite friends */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25, duration: 0.4 }}
+        <button
+
+
+
           onClick={() => {
             if (navigator.share) {
               navigator.share({
@@ -394,7 +393,7 @@ export function CountdownScreen() {
         >
           <Share2 className="h-4 w-4" />
           Invite friends
-        </motion.button>
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Check,
@@ -129,7 +128,7 @@ export function OnboardingScreen() {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col overflow-hidden bg-[#09080f]">
+    <div className="relative flex min-h-[100dvh] w-full overflow-x-hidden flex-col overflow-hidden bg-[#09080f]">
       {/* Background ambient orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-bokeh-1 absolute -left-20 top-[10%] h-72 w-72 rounded-full bg-purple-500/[0.06] blur-[100px]" />
@@ -146,16 +145,10 @@ export function OnboardingScreen() {
             const isActive = stepIndex >= i;
             const isCurrent = stepIndex === i;
             return (
-              <motion.div
+              <div
                 key={s}
-                initial={false}
-                animate={{
-                  width: isCurrent ? 32 : isCompleted ? 24 : 12,
-                  backgroundColor: isActive
-                    ? "rgba(127, 119, 221, 1)"
-                    : "rgba(255, 255, 255, 0.1)",
-                }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+
+
                 className={cn(
                   "h-1.5 rounded-full",
                   isCurrent && "animate-dot-pulse"
@@ -167,36 +160,27 @@ export function OnboardingScreen() {
 
         {/* Step Content with slide transitions */}
         <div className="relative flex flex-1 flex-col justify-center overflow-hidden">
-          <AnimatePresence mode="wait" custom={direction}>
             {/* ──── Step 1: Role Selection ──── */}
             {step === "role" && (
-              <motion.div
+              <div
                 key="role"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{
-                  duration: 0.35,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
+
                 className="space-y-6"
               >
                 <div className="text-center">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -30 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 20,
-                      delay: 0.1,
-                    }}
+                  <div
+
+
+
                     className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 shadow-[0_0_24px_-4px_rgba(127,119,221,0.5)]"
                   >
                     <Sparkles className="h-8 w-8 text-white" />
-                  </motion.div>
+                  </div>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-white">
                     How will you{" "}
                     <span className="bg-gradient-to-r from-purple-300 to-teal-300 bg-clip-text text-transparent">
@@ -210,10 +194,10 @@ export function OnboardingScreen() {
 
                 <div className="space-y-3">
                   {/* Host Card */}
-                  <motion.button
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.15, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  <button
+
+
+
                     onClick={() => setRole("host")}
                     className={cn(
                       "group relative w-full overflow-hidden rounded-2xl border p-5 text-left transition-all duration-300",
@@ -223,13 +207,13 @@ export function OnboardingScreen() {
                     )}
                   >
                     {role === "host" && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
+                      <span
+
+
                         className="animate-check-ring absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-purple-500"
                       >
                         <Check className="h-3.5 w-3.5 text-white" />
-                      </motion.span>
+                      </span>
                     )}
                     <div className="flex items-start gap-4">
                       <span
@@ -268,13 +252,13 @@ export function OnboardingScreen() {
                     {role === "host" && (
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-purple-500/5 to-transparent" />
                     )}
-                  </motion.button>
+                  </button>
 
                   {/* Partier Card */}
-                  <motion.button
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  <button
+
+
+
                     onClick={() => setRole("partier")}
                     className={cn(
                       "group relative w-full overflow-hidden rounded-2xl border p-5 text-left transition-all duration-300",
@@ -284,13 +268,13 @@ export function OnboardingScreen() {
                     )}
                   >
                     {role === "partier" && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
+                      <span
+
+
                         className="animate-check-ring absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-teal-500"
                       >
                         <Check className="h-3.5 w-3.5 text-white" />
-                      </motion.span>
+                      </span>
                     )}
                     <div className="flex items-start gap-4">
                       <span
@@ -331,39 +315,32 @@ export function OnboardingScreen() {
                     {role === "partier" && (
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-teal-500/5 to-transparent" />
                     )}
-                  </motion.button>
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {/* ──── Step 2: Vibe Preferences ──── */}
             {step === "vibes" && (
-              <motion.div
+              <div
                 key="vibes"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{
-                  duration: 0.35,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
+
                 className="space-y-5"
               >
                 <div className="text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 20,
-                    }}
+                  <div
+
+
+
                     className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-[0_0_20px_-4px_rgba(139,92,246,0.5)]"
                   >
                     <Sparkles className="h-7 w-7 text-white" />
-                  </motion.div>
+                  </div>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-white">
                     Pick your{" "}
                     <span className="bg-gradient-to-r from-violet-300 to-purple-300 bg-clip-text text-transparent">
@@ -382,15 +359,11 @@ export function OnboardingScreen() {
                     const style = VIBE_PILL_STYLES[v];
                     const isBouncing = bouncingVibe === v;
                     return (
-                      <motion.button
+                      <button
                         key={v}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{
-                          delay: i * 0.05,
-                          duration: 0.3,
-                          ease: [0.22, 1, 0.36, 1],
-                        }}
+
+
+
                         onClick={() => toggle(v)}
                         className={cn(
                           "relative flex items-center gap-2 overflow-hidden rounded-full border px-4 py-2.5 text-sm font-semibold transition-all duration-300",
@@ -403,20 +376,16 @@ export function OnboardingScreen() {
                         <span className="text-lg">{VIBE_EMOJI[v]}</span>
                         <span>{v}</span>
                         {active && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 400,
-                              damping: 15,
-                            }}
+                          <span
+
+
+
                             className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/20"
                           >
                             <Check className="h-2.5 w-2.5 text-current" />
-                          </motion.span>
+                          </span>
                         )}
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
@@ -434,37 +403,30 @@ export function OnboardingScreen() {
                     ? `${picks.length} vibes selected — nice!`
                     : `Pick at least 2 vibes (${picks.length}/2)`}
                 </p>
-              </motion.div>
+              </div>
             )}
 
             {/* ──── Step 3: City Selection ──── */}
             {step === "city" && (
-              <motion.div
+              <div
                 key="city"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{
-                  duration: 0.35,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
+
                 className="space-y-5"
               >
                 <div className="text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 20,
-                    }}
+                  <div
+
+
+
                     className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 shadow-[0_0_20px_-4px_rgba(127,119,221,0.5)]"
                   >
                     <MapPin className="h-7 w-7 text-white" />
-                  </motion.div>
+                  </div>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-white">
                     Where are you{" "}
                     <span className="bg-gradient-to-r from-purple-300 to-teal-300 bg-clip-text text-transparent">
@@ -488,8 +450,8 @@ export function OnboardingScreen() {
                       className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] pl-11 pr-4 text-base font-medium text-white placeholder:text-white/25 focus:border-purple-400/50 focus:outline-none focus:ring-2 focus:ring-purple-400/25 transition-all"
                     />
                   </div>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
+                  <button
+
                     onClick={() => {
                       if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(
@@ -506,42 +468,34 @@ export function OnboardingScreen() {
                   >
                     <MapPin className="h-4 w-4" />
                     Use current location
-                  </motion.button>
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {/* ──── Step 4: Done ──── */}
             {step === "done" && (
-              <motion.div
+              <div
                 key="done"
                 custom={direction}
                 variants={slideVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{
-                  duration: 0.35,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
+
                 className="space-y-5 text-center"
               >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 15,
-                    delay: 0.1,
-                  }}
+                <div
+
+
+
                   className="relative mx-auto mb-2 flex h-20 w-20 items-center justify-center"
                 >
                   <div className="animate-logo-pulse-ring absolute inset-0 rounded-3xl" />
                   <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-purple-500 via-purple-600 to-teal-600 shadow-[0_0_40px_-8px_rgba(127,119,221,0.7)]">
                     <PartyPopper className="h-10 w-10 text-white" />
                   </div>
-                </motion.div>
+                </div>
 
                 <div>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-white">
@@ -583,25 +537,24 @@ export function OnboardingScreen() {
                 </div>
 
                 {/* Enter VibeMatch button */}
-                <motion.button
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3, duration: 0.4 }}
+                <button
+
+
+
                   onClick={finish}
                   className="btn-shimmer flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 via-purple-600 to-teal-600 text-base font-bold text-white shadow-[0_0_24px_-6px_rgba(127,119,221,0.6)] transition-all active:scale-[0.97] hover:shadow-[0_0_32px_-4px_rgba(127,119,221,0.8)]"
                 >
                   Enter VibeMatch <ArrowRight className="h-4 w-4" />
-                </motion.button>
-              </motion.div>
+                </button>
+              </div>
             )}
-          </AnimatePresence>
         </div>
 
         {/* Bottom Navigation Bar */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+        <div
+
+
+
           className="mt-4 flex gap-2"
         >
           {/* Back button (not on first step) */}
@@ -644,7 +597,7 @@ export function OnboardingScreen() {
               Skip for now
             </button>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withDB } from "@/lib/db/mongodb";
-import { Review, User } from "@/lib/db/models";
+import { Review, User, JoinRequest, Ticket } from "@/lib/db/models";
 import type { PartyReview } from "@/lib/types";
 
 function serialize(r: any, user?: any): PartyReview {
@@ -70,6 +70,17 @@ async function _POST(req: NextRequest) {
 
   if (rating < 1 || rating > 5) {
     return NextResponse.json({ error: "rating must be 1..5" }, { status: 400 });
+  }
+
+  // Verify the user is in this party (accepted request or has ticket)
+  const hasAccess =
+    !!(await JoinRequest.findOne({ requesterId: userId, partyId, status: "accepted" }).lean()) ||
+    !!(await Ticket.findOne({ userId, partyId }).lean());
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: "You must be in this party to leave a review" },
+      { status: 403 },
+    );
   }
 
   // upsert: one review per user per party

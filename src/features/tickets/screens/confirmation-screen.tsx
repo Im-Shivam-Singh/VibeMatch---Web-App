@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
   ChevronLeft,
   Check,
@@ -45,7 +44,7 @@ export function ConfirmationScreen() {
   // ── Loading ─────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10" />
@@ -67,12 +66,12 @@ export function ConfirmationScreen() {
   // ── Error / not found ───────────────────────────────────────────
   if (isError || !order || !order.party) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
-            <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
               <ChevronLeft className="h-5 w-5" />
-            </motion.button>
+            </button>
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Confirmed</span>
           </div>
         </header>
@@ -84,13 +83,13 @@ export function ConfirmationScreen() {
           <p className="max-w-xs text-sm text-muted-foreground">
             We couldn&apos;t find that order. It may have been removed, or your session may have changed.
           </p>
-          <motion.button
+          <button
             onClick={() => setScreen("home")}
-            whileTap={{ scale: 0.97 }}
+
             className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
           >
             Back to home
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -101,75 +100,75 @@ export function ConfirmationScreen() {
   const guestCount = (party.guestCount || 0) + 1;
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Confirmed</span>
             <h1 className="font-display text-lg font-bold leading-tight text-foreground">You&apos;re in!</h1>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       {/* Body */}
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* ── Success banner with checkmark ─────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        <section
+
+
+
           className="rounded-2xl border border-teal-500/20 bg-teal-500/[0.06] p-5 text-center"
         >
           {/* Animated checkmark */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 }}
+          <div
+
+
+
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-500/20 shadow-[0_0_30px_-8px_rgba(29,158,117,0.4)]"
           >
             <Check className="h-8 w-8 text-teal-300" strokeWidth={3} />
-          </motion.div>
+          </div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.4 }}
+          <h2
+
+
+
             className="font-display text-2xl font-bold text-teal-200"
           >
             You&apos;re in!
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.4 }}
+          </h2>
+          <p
+
+
+
             className="mt-1 text-sm font-medium text-foreground/80"
           >
             {party.title} · {formatDateLabel(party.date)} · {formatTime(party.time)}
-          </motion.p>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
+          </p>
+          <p
+
+
+
             className="mt-1 text-xs text-teal-300/70"
           >
             Group chat is now unlocked
-          </motion.p>
-        </motion.section>
+          </p>
+        </section>
 
         {/* ── Ticket preview with QR ───────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm overflow-hidden"
         >
           {/* Ticket header */}
@@ -219,23 +218,23 @@ export function ConfirmationScreen() {
               Show at the door · host scans to check in
             </p>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── Countdown to party start ─────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <CountdownDisplay date={party.date} time={party.time} />
-        </motion.section>
+        </section>
 
         {/* ── Group chat preview ───────────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] p-4"
         >
           <div className="mb-3 flex items-center justify-between">
@@ -260,41 +259,41 @@ export function ConfirmationScreen() {
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── CTAs ─────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.4 }}
+        <div
+
+
+
           className="grid grid-cols-2 gap-3"
         >
-          <motion.button
+          <button
             onClick={() => {
               setSelectedPartyId(party.id);
               setScreen("group-chat");
             }}
-            whileTap={{ scale: 0.97 }}
+
             className="flex items-center justify-center gap-2 rounded-2xl bg-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
           >
             <MessageCircle className="h-4 w-4" />
             Open chat
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             onClick={() => setScreen("tickets")}
-            whileTap={{ scale: 0.97 }}
+
             className="flex items-center justify-center gap-2 rounded-2xl border border-purple-500/25 bg-transparent px-4 py-3 text-sm font-semibold text-purple-300 transition hover:bg-purple-500/10"
           >
             <QrCode className="h-4 w-4" />
             View QR
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
 
         {/* Share with friends */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.4 }}
+        <button
+
+
+
           onClick={() => {
             if (navigator.share) {
               navigator.share({
@@ -307,7 +306,7 @@ export function ConfirmationScreen() {
         >
           <Share2 className="h-4 w-4" />
           Share with friends
-        </motion.button>
+        </button>
       </div>
     </div>
   );

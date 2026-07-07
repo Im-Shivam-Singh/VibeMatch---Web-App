@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   X,
@@ -33,7 +32,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { MusicPlayerButton } from "@/components/party/music-player";
 import { PartyCard } from "@/components/party/party-card";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
+
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { cn, formatLocation } from "@/lib/utils";
 import { toast } from "sonner";
@@ -70,6 +69,8 @@ export function HomeScreen() {
   const setScreen = useAppStore((s) => s.setScreen);
   const savedCount = useAppStore((s) => s.savedPartyIds.length);
   const currentUser = useAppStore((s) => s.currentUser);
+  const userLocation = useAppStore((s) => s.userLocation);
+  const setUserLocation = useAppStore((s) => s.setUserLocation);
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -77,6 +78,22 @@ export function HomeScreen() {
 
   const searchRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // Request geolocation on mount — silently fail if denied
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude, label: "Current Location" });
+      },
+      (error) => {
+        // Silently fail - location is optional
+        console.log("Geolocation denied or unavailable:", error.message);
+      },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
+    );
+  }, [setUserLocation]);
 
   // Close search suggestions when clicking outside
   useEffect(() => {
@@ -127,6 +144,20 @@ export function HomeScreen() {
     [parties],
   );
 
+  // Near You: parties sorted by distance from user's current location
+  const nearYouParties = useMemo(() => {
+    if (!userLocation) return [];
+    return [...parties]
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({
+        party: p,
+        distance: haversineKm(userLocation, { lat: p.lat!, lng: p.lng! }),
+      }))
+      .filter((x) => x.distance <= 25) // within 25 km
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 8);
+  }, [parties, userLocation]);
+
   // All parties (no tab filtering)
   const filteredParties = parties;
 
@@ -155,7 +186,7 @@ export function HomeScreen() {
   const recentSearches = ["Lo-fi", "Koramangala", "R&B"];
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* ====== Sticky Header ====== */}
       <header className="sticky top-0 z-30 glass-strong px-4 pt-3 pb-3 lg:px-6 lg:pt-4 lg:pb-4">
         {/* Top row: Greeting + actions */}
@@ -168,7 +199,6 @@ export function HomeScreen() {
           </div>
           <div className="flex items-center gap-2">
             <MusicPlayerButton />
-            <ThemeToggle />
             {/* Filter button */}
             <button
               onClick={() => setScreen("filter")}
@@ -248,13 +278,12 @@ export function HomeScreen() {
           </form>
 
           {/* Search suggestions dropdown */}
-          <AnimatePresence>
             {showSearchSuggestions && !localSearch && (
-              <motion.div
-                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              <div
+
+
+
+
                 className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-background/95 backdrop-blur-xl shadow-2xl"
               >
                 <div className="p-3">
@@ -278,9 +307,8 @@ export function HomeScreen() {
                     ))}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
 
       </header>
@@ -315,6 +343,28 @@ export function HomeScreen() {
           </section>
         )}
 
+        {/* Near You — Horizontal scroll of parties close to user's location */}
+        {nearYouParties.length > 0 && (
+          <section className="mt-4">
+            <div className="flex items-center justify-between px-4 lg:px-6">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-teal-400" />
+                <h2 className="font-display text-base font-bold text-foreground">
+                  Near You
+                </h2>
+              </div>
+              <span className="text-xs font-medium text-teal-300">
+                {nearYouParties.length} nearby
+              </span>
+            </div>
+            <div className="no-scrollbar scroll-fade-x mt-3 flex gap-3 overflow-x-auto px-4 lg:px-6 max-w-full">
+              {nearYouParties.map(({ party: p, distance }, i) => (
+                <NearYouCard key={p.id} party={p} distance={distance} onOpen={openParty} index={i} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Vibe Filter — Story-style circles */}
         <section className="mt-4">
           <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 lg:mx-0 lg:px-6 lg:overflow-visible">
@@ -339,13 +389,12 @@ export function HomeScreen() {
         </section>
 
         {/* Active filter bar */}
-        <AnimatePresence>
           {(vibeFilter || searchQuery) && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-              exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            <div
+
+
+
+
               className="overflow-hidden px-4 lg:px-6"
             >
               <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-purple-500/10 p-3 border border-purple-500/20">
@@ -370,9 +419,8 @@ export function HomeScreen() {
                   Clear all
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
 
         {/* Section header */}
         <div className="mb-3 mt-5 flex items-baseline justify-between px-4 lg:px-6">
@@ -468,9 +516,9 @@ function VibeStory({
   gradient: string;
 }) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileTap={{ scale: 0.9 }}
+
       className="flex shrink-0 flex-col items-center gap-1.5"
     >
       <div
@@ -500,7 +548,7 @@ function VibeStory({
       >
         {label}
       </span>
-    </motion.button>
+    </button>
   );
 }
 
@@ -558,13 +606,8 @@ function HotTonightCard({
   };
 
   return (
-    <motion.div
+    <div
       onClick={() => onOpen(party.id)}
-      initial={{ opacity: 0, x: 30, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      transition={{ duration: 0.4, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      whileTap={{ scale: 0.97 }}
       className="relative w-[280px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/[0.06] bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(83,74,183,0.2)] transition-shadow duration-300"
     >
       {/* Cover */}
@@ -677,7 +720,153 @@ function HotTonightCard({
           </span>
         </div>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+/* ====== Near You Card ====== */
+function NearYouCard({
+  party,
+  distance,
+  onOpen,
+  index,
+}: {
+  party: Party;
+  distance: number;
+  onOpen: (id: string) => void;
+  index: number;
+}) {
+  const vibes = parseVibes(party.vibes);
+  const firstVibe = vibes[0] ?? "Chill";
+  const left = slotsLeft(party.maxGuests, party.guestCount);
+  const isLow = left > 0 && left <= 3;
+  const isFull = left === 0;
+  const status = partyLiveStatus(party.date, party.time);
+  const isLive = status === "live";
+  const coverSrc = party.media?.[0]?.url ?? party.coverUrl;
+
+  const saved = useAppStore((s) => s.savedPartyIds.includes(party.id));
+  const toggleSaved = useAppStore((s) => s.toggleSaved);
+
+  const onSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleSaved(party.id);
+    toast.success(saved ? "Removed from saved" : "Saved to your list", {
+      duration: 1500,
+    });
+  };
+
+  const distLabel =
+    distance < 1
+      ? `${Math.round(distance * 1000)}m away`
+      : `${distance.toFixed(1)}km away`;
+
+  return (
+    <div
+      onClick={() => onOpen(party.id)}
+      className="relative w-[260px] max-w-[80vw] shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-teal-500/20 bg-card/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(29,158,117,0.25)] transition-shadow duration-300"
+    >
+      {/* Cover */}
+      <div className="relative h-32 w-full overflow-hidden">
+        {coverSrc ? (
+          <img
+            src={coverSrc}
+            alt={party.title}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className={cn(
+              "h-full w-full bg-gradient-to-br gradient-shift",
+              VIBE_GRADIENT_BG[firstVibe] ?? "from-teal-600 to-cyan-800",
+            )}
+          />
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+        {/* Distance badge */}
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-teal-500/90 px-2.5 py-1 text-[10px] font-bold text-white">
+          <MapPin className="h-3 w-3" />
+          {distLabel}
+        </span>
+
+        {/* LIVE badge */}
+        {isLive && (
+          <span className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-coral/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+            <span className="relative flex h-2 w-2">
+              <span className="live-pulse-ring absolute inline-flex h-full w-full rounded-full bg-coral/60" />
+              <span className="live-pulse-dot relative inline-flex h-2 w-2 rounded-full bg-white" />
+            </span>
+            LIVE
+          </span>
+        )}
+
+        {/* Save heart */}
+        <button
+          onClick={onSave}
+          aria-label={saved ? "Unsave" : "Save"}
+          className={cn(
+            "absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all",
+            saved
+              ? "bg-coral/20 border-coral/50"
+              : "bg-black/40 border-white/15 hover:bg-black/60",
+          )}
+        >
+          <Heart
+            className={cn(
+              "h-3.5 w-3.5 transition-colors",
+              saved ? "fill-coral text-coral" : "text-white/80",
+            )}
+          />
+        </button>
+
+        {/* Fee + spots */}
+        <div className="absolute bottom-0 inset-x-0 flex items-end justify-between p-3">
+          <span
+            className={cn(
+              "rounded-lg px-2.5 py-1 text-xs font-bold shadow-lg backdrop-blur-sm",
+              party.fee === 0
+                ? "bg-teal-500/90 text-white"
+                : "bg-amber-400/95 text-black",
+            )}
+          >
+            {formatFee(party.fee, party.city)}
+          </span>
+          {isFull ? (
+            <span className="rounded-lg bg-black/50 px-2 py-1 text-[10px] font-semibold text-white/60 backdrop-blur-sm">
+              Sold out
+            </span>
+          ) : isLow ? (
+            <span className="urgency-flash rounded-lg bg-coral/85 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+              {left} left!
+            </span>
+          ) : (
+            <span className="rounded-lg bg-black/40 px-2 py-1 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+              {party.guestCount} going
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-3">
+        <h3 className="mb-1 text-sm font-semibold text-foreground line-clamp-1">
+          {party.title}
+        </h3>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1 truncate">
+            <MapPin className="h-3 w-3 shrink-0 text-teal-400" />
+            <span className="truncate">{formatLocation(party.area, party.city)}</span>
+          </span>
+          <span className="shrink-0 text-white/10">·</span>
+          <span className="flex shrink-0 items-center gap-1">
+            <Clock className="h-3 w-3 text-teal-400" />
+            {formatTime(party.time)}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 

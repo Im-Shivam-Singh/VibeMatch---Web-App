@@ -25,11 +25,12 @@ import { cn } from "@/lib/utils";
 
 interface ReviewsSectionProps {
   partyId: string;
+  isInParty?: boolean;
 }
 
 const STAR_LEVELS = [5, 4, 3, 2, 1] as const;
 
-export function ReviewsSection({ partyId }: ReviewsSectionProps) {
+export function ReviewsSection({ partyId, isInParty }: ReviewsSectionProps) {
   const qc = useQueryClient();
   const currentUser = useAppStore((s) => s.currentUser);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -147,13 +148,19 @@ export function ReviewsSection({ partyId }: ReviewsSectionProps) {
           </div>
         </div>
 
-        <Button
-          onClick={() => setDialogOpen(true)}
-          className="mt-4 h-11 w-full rounded-full bg-amber-400 text-black text-sm font-semibold hover:bg-amber-400"
-        >
-          <Star className="h-4 w-4" />
-          Write a review
-        </Button>
+        {isInParty ? (
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="mt-4 h-11 w-full rounded-full bg-amber-400 text-black text-sm font-semibold hover:bg-amber-400"
+          >
+            <Star className="h-4 w-4" />
+            Write a review
+          </Button>
+        ) : (
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            Join this party to leave a review
+          </p>
+        )}
       </div>
 
       {/* Reviews list / empty state */}

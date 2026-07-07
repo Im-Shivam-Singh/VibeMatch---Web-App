@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Inbox as InboxIcon,
@@ -85,24 +84,24 @@ export function RequestsScreen() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* ── Frosted header ─────────────────────────────────────────── */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl"
       >
         <div className="flex items-center gap-3 px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
-          <motion.button
+          <button
             onClick={goBack}
-            whileTap={{ scale: 0.9 }}
-            whileHover={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+
+
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
 
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
@@ -116,23 +115,23 @@ export function RequestsScreen() {
           </div>
 
           {pendingCount > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
+            <span
+
+
               className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-amber-500/20 border border-amber-500/30 px-2 text-xs font-bold text-amber-300"
             >
               {pendingCount}
-            </motion.span>
+            </span>
           )}
         </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 px-4 pb-3">
           {(["all", "pending", "accepted"] as const).map((t) => (
-            <motion.button
+            <button
               key={t}
               onClick={() => setTab(t)}
-              whileTap={{ scale: 0.95 }}
+
               className={cn(
                 "relative flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition-colors",
                 tab === t
@@ -141,10 +140,10 @@ export function RequestsScreen() {
               )}
             >
               {tab === t && (
-                <motion.div
+                <div
                   layoutId="request-tab"
                   className="absolute inset-0 rounded-xl bg-purple-500/20 border border-purple-500/30"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+
                 />
               )}
               <span className="relative z-10">
@@ -153,10 +152,10 @@ export function RequestsScreen() {
                   <span className="ml-1 text-[10px]">({pendingCount})</span>
                 )}
               </span>
-            </motion.button>
+            </button>
           ))}
         </div>
-      </motion.header>
+      </header>
 
       {/* ── Content ────────────────────────────────────────────────── */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4">
@@ -167,15 +166,15 @@ export function RequestsScreen() {
             title="No hosted parties yet"
             description="Once you launch a vibe, join requests from guests will show up here."
             action={
-              <motion.button
+              <button
                 onClick={() => setScreen("create")}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
+
+
                 className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
               >
                 <Sparkles className="h-4 w-4" />
                 Launch a vibe
-              </motion.button>
+              </button>
             }
           />
         )}
@@ -184,11 +183,11 @@ export function RequestsScreen() {
         {activePartyId && isLoading && (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08, duration: 0.4 }}
+
+
+
                 className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4"
               >
                 <div className="flex items-start gap-3">
@@ -199,7 +198,7 @@ export function RequestsScreen() {
                     <div className="h-3 w-1/2 rounded-lg bg-white/[0.04] animate-pulse" />
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
@@ -216,19 +215,13 @@ export function RequestsScreen() {
         {/* Request list */}
         {activePartyId && !isLoading && requests.length > 0 && (
           <ul className="space-y-3">
-            <AnimatePresence mode="popLayout">
               {requests.map((r, i) => (
-                <motion.li
+                <li
                   key={r.id}
-                  layout
-                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -40, scale: 0.95 }}
-                  transition={{
-                    duration: 0.4,
-                    delay: i * 0.05,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
+
+
+
+
                   className={cn(
                     "overflow-hidden rounded-2xl border bg-white/[0.03] backdrop-blur-sm",
                     r.status === "pending"
@@ -300,29 +293,29 @@ export function RequestsScreen() {
                         {/* Action buttons or status */}
                         {r.status === "pending" ? (
                           <div className="mt-3 flex gap-2">
-                            <motion.button
+                            <button
                               onClick={() => act(r.id, "accepted")}
-                              whileTap={{ scale: 0.93 }}
+
                               disabled={actMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 px-4 py-2 text-xs font-bold text-teal-200 transition-colors hover:bg-teal-500/25 disabled:opacity-50"
                             >
                               <Check className="h-3.5 w-3.5" />
                               Accept
-                            </motion.button>
-                            <motion.button
+                            </button>
+                            <button
                               onClick={() => act(r.id, "rejected")}
-                              whileTap={{ scale: 0.93 }}
+
                               disabled={actMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70 disabled:opacity-50"
                             >
                               <X className="h-3.5 w-3.5" />
                               Decline
-                            </motion.button>
+                            </button>
                           </div>
                         ) : (
-                          <motion.div
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
+                          <div
+
+
                             className="mt-3"
                           >
                             <span
@@ -340,14 +333,13 @@ export function RequestsScreen() {
                               )}
                               {r.status === "accepted" ? "Accepted · chat opened" : "Declined"}
                             </span>
-                          </motion.div>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
-                </motion.li>
+                </li>
               ))}
-            </AnimatePresence>
           </ul>
         )}
       </div>

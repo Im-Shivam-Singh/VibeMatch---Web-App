@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   List,
@@ -218,18 +217,18 @@ export function MapScreen() {
   const mapLinkUrl = buildMapLinkUrl(center.lat, center.lng, zoom);
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden bg-black">
+    <div className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-black">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-2.5 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] text-white/80" aria-label="Back">
+          <button onClick={goBack} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] text-white/80" aria-label="Back">
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-lg font-bold tracking-tight text-foreground">Map</h1>
             <p className="truncate text-[11px] text-muted-foreground/50">
@@ -238,17 +237,17 @@ export function MapScreen() {
               {liveOnly && <> · <span className="text-purple-300">{liveCount} live</span></>}
             </p>
           </div>
-          <motion.button
+          <button
             onClick={handleListToggle}
-            whileTap={{ scale: 0.95 }}
+
             className="flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-purple-500/30 hover:text-purple-300"
             aria-label="Switch to list view"
           >
             <List className="h-4 w-4" />
             List
-          </motion.button>
+          </button>
         </div>
-      </motion.header>
+      </header>
 
       {/* Radius + Live filter */}
       <div className="z-20 flex items-center gap-2 border-b border-white/[0.06] bg-background/50 backdrop-blur-xl px-3 py-2">
@@ -257,10 +256,10 @@ export function MapScreen() {
           {RADII.map((r) => {
             const active = radius === r;
             return (
-              <motion.button
+              <button
                 key={r}
                 onClick={() => setRadius(r)}
-                whileTap={{ scale: 0.93 }}
+
                 aria-pressed={active}
                 className={cn(
                   "shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
@@ -270,13 +269,13 @@ export function MapScreen() {
                 )}
               >
                 {r < 1 ? `${r * 1000}m` : `${r}km`}
-              </motion.button>
+              </button>
             );
           })}
         </div>
-        <motion.button
+        <button
           onClick={() => setLiveOnly((v) => !v)}
-          whileTap={{ scale: 0.93 }}
+
           aria-pressed={liveOnly}
           className={cn(
             "flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
@@ -287,7 +286,7 @@ export function MapScreen() {
         >
           <Flame className={cn("h-3 w-3", liveOnly && "drop-shadow-[0_0_6px_rgba(83,74,183,0.9)]")} />
           Live
-        </motion.button>
+        </button>
       </div>
 
       {/* Map canvas */}
@@ -304,14 +303,14 @@ export function MapScreen() {
         {/* Loading shimmer */}
         {!mapReady && (
           <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#1a1a2e]">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <div
+
+
               className="flex items-center gap-2 rounded-xl border border-purple-500/25 bg-black/85 px-4 py-2 text-xs font-semibold text-purple-300 backdrop-blur-sm"
             >
               <Sparkles className="h-3.5 w-3.5 animate-pulse text-purple-400" />
               Loading map…
-            </motion.div>
+            </div>
           </div>
         )}
 
@@ -426,19 +425,19 @@ export function MapScreen() {
         </div>
 
         {/* Open in Google Maps */}
-        <motion.a
+        <a
           href={mapLinkUrl}
           target="_blank"
           rel="noopener noreferrer"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
+
+
+
           className="absolute right-3 top-3 z-20 flex h-9 items-center gap-1.5 rounded-xl border border-purple-500/30 bg-black/85 px-3 text-[11px] font-bold text-purple-300 backdrop-blur-sm transition hover:border-purple-400 hover:text-purple-200"
           aria-label="Open in Google Maps"
         >
           <ExternalLink className="h-3.5 w-3.5" />
           Maps
-        </motion.a>
+        </a>
 
         {/* Error overlay */}
         {isError && !isLoading && (
@@ -448,9 +447,9 @@ export function MapScreen() {
               title="Couldn't scan the area"
               description="Something went wrong fetching nearby parties."
               action={
-                <motion.button onClick={() => refetch()} whileTap={{ scale: 0.95 }} className="rounded-xl bg-purple-500 px-4 py-2 text-sm font-bold text-white">
+                <button onClick={() => refetch()} className="rounded-xl bg-purple-500 px-4 py-2 text-sm font-bold text-white">
                   Retry
-                </motion.button>
+                </button>
               }
             />
           </div>
@@ -459,9 +458,9 @@ export function MapScreen() {
         {/* Empty state */}
         {!isLoading && !isError && parties.length === 0 && (
           <div className="absolute inset-0 z-20 flex items-center justify-center px-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+            <div
+
+
               className="flex flex-col items-center gap-3 rounded-2xl border border-purple-500/20 bg-black/80 px-6 py-8 text-center backdrop-blur-xl"
             >
               <span className="text-4xl" aria-hidden>🗺️</span>
@@ -469,23 +468,23 @@ export function MapScreen() {
               <p className="max-w-[220px] text-xs text-muted-foreground">
                 {radius <= 2 ? "Try widening the radius." : liveOnly ? "Toggle off Live to see all upcoming parties." : "Be the first — launch a vibe."}
               </p>
-              <motion.button
+              <button
                 onClick={() => liveOnly ? setLiveOnly(false) : setScreen("create")}
-                whileTap={{ scale: 0.95 }}
+
                 className="rounded-xl bg-purple-500 px-4 py-2 text-xs font-bold text-white"
               >
                 {liveOnly ? "Show all parties" : "Launch a vibe"}
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
           </div>
         )}
 
         {/* Floating controls */}
         <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
-          <motion.button
+          <button
             onClick={useMyLocation}
             disabled={locating}
-            whileTap={{ scale: 0.93 }}
+
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-black/70 text-purple-400 backdrop-blur-xl transition hover:border-purple-500/30 disabled:opacity-70"
             aria-label="Use my GPS location"
           >
@@ -494,7 +493,7 @@ export function MapScreen() {
             ) : (
               <Crosshair className="h-4 w-4" />
             )}
-          </motion.button>
+          </button>
           <div className="no-scrollbar flex max-w-[260px] items-center gap-1.5 overflow-x-auto">
             <CityDot label="India" active={!userLocation && !cityFilter} onClick={() => switchCity(null)} />
             {CITIES.map((c) => (
@@ -536,12 +535,12 @@ export function MapScreen() {
             const emoji = vibes[0] ? (VIBE_EMOJI[vibes[0]] ?? "✨") : "✨";
             const isHovered = hoveredId === m.party.id;
             return (
-              <motion.button
+              <button
                 key={m.party.id}
                 onClick={() => openParty(m.party.id)}
                 onMouseEnter={() => setHoveredId(m.party.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                whileTap={{ scale: 0.98 }}
+
                 className={cn(
                   "relative flex w-full items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition",
                   "border-white/[0.06] bg-white/[0.03] hover:border-purple-500/25 hover:bg-white/[0.06]",
@@ -574,7 +573,7 @@ export function MapScreen() {
                 <span className={cn("shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-bold", tier.chipClass)}>
                   {m.dist < 1 ? `${Math.round(m.dist * 1000)}m` : `${m.dist.toFixed(1)}km`}
                 </span>
-              </motion.button>
+              </button>
             );
           })}
         </div>

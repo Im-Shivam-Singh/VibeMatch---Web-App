@@ -113,6 +113,10 @@ export interface Party {
   // New (purchase-flow rewrite) — unlocks group chat once first guest pays
   groupChatEnabled?: boolean;
   spotifyPlaylistUrl?: string;
+  // Cleanup tracking — media removed 1 week after event ends
+  mediaCleaned?: boolean;
+  cleanedAt?: string | null;
+  cleanedMessage?: string | null;
   createdAt: string;
   // Media gallery — full list (image + video). Empty in list payloads,
   // populated on the GET /api/parties/[id] route.

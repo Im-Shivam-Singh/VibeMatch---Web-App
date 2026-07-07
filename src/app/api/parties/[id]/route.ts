@@ -26,6 +26,9 @@ function serialize(p: any): Party {
     securityStatus: p.securityStatus,
     groupChatEnabled: p.groupChatEnabled,
     spotifyPlaylistUrl: p.spotifyPlaylistUrl || '',
+    mediaCleaned: p.mediaCleaned ?? false,
+    cleanedAt: p.cleanedAt?.toISOString?.() ?? (p.cleanedAt ? String(p.cleanedAt) : null),
+    cleanedMessage: p.cleanedMessage ?? null,
     createdAt: p.createdAt?.toISOString?.() ?? String(p.createdAt ?? ""),
     media: Array.isArray(p.media)
       ? (p.media

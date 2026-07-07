@@ -25,6 +25,9 @@ export interface IParty extends Document {
   locationRevealAt?: Date;
   groupChatEnabled: boolean;
   spotifyPlaylistUrl?: string;
+  mediaCleaned: boolean;
+  cleanedAt?: Date;
+  cleanedMessage?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -130,6 +133,18 @@ const PartySchema = new Schema<IParty>(
     spotifyPlaylistUrl: {
       type: String,
       default: '',
+    },
+    mediaCleaned: {
+      type: Boolean,
+      default: false,
+    },
+    cleanedAt: {
+      type: Date,
+      default: null,
+    },
+    cleanedMessage: {
+      type: String,
+      default: null,
     },
   },
   {

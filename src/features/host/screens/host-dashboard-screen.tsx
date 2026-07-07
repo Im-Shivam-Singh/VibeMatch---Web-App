@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import {
   ChevronLeft,
   Users,
@@ -46,18 +45,7 @@ interface PrepRow {
   totalQty: number;
 }
 
-const stagger = {
-  initial: { opacity: 0, y: 16 },
-  animate: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * 0.06,
-      duration: 0.45,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  }),
-};
+
 
 export function HostDashboardScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -182,24 +170,24 @@ export function HostDashboardScreen() {
   // ── Empty state: no party selected ─────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header
+
+
+          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
         >
           <div className="flex items-center gap-3">
-            <motion.button
+            <button
               onClick={goBack}
-              whileTap={{ scale: 0.9 }}
+
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80"
               aria-label="Back"
             >
               <ChevronLeft className="h-5 w-5" />
-            </motion.button>
+            </button>
             <span className="font-display text-lg font-bold text-foreground">Dashboard</span>
           </div>
-        </motion.header>
+        </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 border border-purple-500/20 shadow-[0_0_30px_-8px_rgba(83,74,183,0.3)]">
             <Users className="h-7 w-7 text-purple-300" />
@@ -210,14 +198,14 @@ export function HostDashboardScreen() {
           <p className="max-w-xs text-sm text-muted-foreground">
             Pick a party from My Parties to see live guest counts, prep list, and earnings.
           </p>
-          <motion.button
+          <button
             onClick={() => setScreen("my-parties")}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+
+
             className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
           >
             Go to My Parties
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -233,24 +221,24 @@ export function HostDashboardScreen() {
   // ── Error state ─────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header
+
+
+          className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
         >
           <div className="flex items-center gap-3">
-            <motion.button
+            <button
               onClick={goBack}
-              whileTap={{ scale: 0.9 }}
+
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80"
               aria-label="Back"
             >
               <ChevronLeft className="h-5 w-5" />
-            </motion.button>
+            </button>
             <span className="font-display text-lg font-bold text-foreground">Dashboard</span>
           </div>
-        </motion.header>
+        </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-coral/10 border border-coral/20">
             <span className="text-2xl">⚠</span>
@@ -263,14 +251,14 @@ export function HostDashboardScreen() {
               ? partyQuery.error.message
               : "We couldn't load this party. Try again later."}
           </p>
-          <motion.button
+          <button
             onClick={() => partyQuery.refetch()}
-            whileTap={{ scale: 0.97 }}
+
             className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -278,23 +266,23 @@ export function HostDashboardScreen() {
 
   // ── Main render ─────────────────────────────────────────────────
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
+      <header
+
+
+
+        className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full"
       >
         <div className="flex items-center gap-3">
-          <motion.button
+          <button
             onClick={goBack}
-            whileTap={{ scale: 0.9 }}
+
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
               Dashboard
@@ -307,13 +295,12 @@ export function HostDashboardScreen() {
             </p>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       {/* Scrollable body */}
-      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32">
+      <div className="fancy-scrollbar flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 pb-32 max-w-4xl mx-auto w-full">
         {/* ── Summary stat cards (4-up) ──────────────────────────── */}
-        <motion.section
-          variants={stagger}
+        <section
           initial="initial"
           animate="animate"
           className="grid grid-cols-2 gap-3"
@@ -346,13 +333,13 @@ export function HostDashboardScreen() {
             value={avgRating > 0 ? avgRating.toFixed(1) : "—"}
             label="Rating"
           />
-        </motion.section>
+        </section>
 
         {/* ── Simple bar chart (guest fill per party) ────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <div className="flex items-center justify-between mb-4">
@@ -365,13 +352,9 @@ export function HostDashboardScreen() {
           </div>
           {/* Bar */}
           <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{
-                width: `${capacity > 0 ? Math.min(100, (confirmedGuests / capacity) * 100) : 0}%`,
-              }}
-              transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
+            <div
               className="h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-400 to-teal-400"
+              style={{ width: `${fillPct}%` }}
             />
           </div>
           <div className="mt-3 flex justify-between text-[10px] text-muted-foreground/50">
@@ -379,14 +362,14 @@ export function HostDashboardScreen() {
             <span>{Math.round(capacity / 2)}</span>
             <span>{capacity}</span>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── Recent activity (orders) ───────────────────────────── */}
         {orders.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.4 }}
+          <section
+
+
+
             className="space-y-3"
           >
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
@@ -413,14 +396,14 @@ export function HostDashboardScreen() {
                 </div>
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
 
         {/* ── Guest list ─────────────────────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.4 }}
+        <section
+
+
+
           className="space-y-3"
         >
           <div className="flex items-center justify-between">
@@ -442,11 +425,11 @@ export function HostDashboardScreen() {
                 const initial =
                   request.requesterName?.slice(0, 1).toUpperCase() ?? "?";
                 return (
-                  <motion.li
+                  <li
                     key={request.id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.04, duration: 0.3 }}
+
+
+
                     className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3"
                   >
                     <span
@@ -473,18 +456,18 @@ export function HostDashboardScreen() {
                         Entry only
                       </span>
                     )}
-                  </motion.li>
+                  </li>
                 );
               })}
             </ul>
           )}
-        </motion.section>
+        </section>
 
         {/* ── Prep list ──────────────────────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.4 }}
+        <section
+
+
+
           className="space-y-3"
         >
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
@@ -520,13 +503,13 @@ export function HostDashboardScreen() {
               </ul>
             </div>
           )}
-        </motion.section>
+        </section>
 
         {/* ── Earnings card ───────────────────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <div className="mb-3 flex items-center justify-between">
@@ -549,38 +532,38 @@ export function HostDashboardScreen() {
               {sym}{netProfit.toFixed(2)}
             </span>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── CTA: Scan guests ───────────────────────────────────── */}
-        <motion.button
+        <button
           onClick={handleScan}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.4 }}
+
+
+
+
+
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-purple-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
         >
           <ScanLine className="h-5 w-5" strokeWidth={2.5} />
           Scan guests in ▦
-        </motion.button>
+        </button>
 
         {/* ── CTA: Group chat ────────────────────────────────────── */}
         {party.groupChatEnabled && (
-          <motion.button
+          <button
             onClick={() => {
               setSelectedPartyId(party.id);
               setScreen("group-chat");
             }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65, duration: 0.4 }}
+
+
+
+
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-teal-500/25 bg-teal-500/[0.06] px-4 py-3 text-sm font-semibold text-teal-200 transition hover:bg-teal-500/15"
           >
             <MessageCircle className="h-4 w-4 text-teal-300" />
             Open group chat · {confirmedGuests} paid
-          </motion.button>
+          </button>
         )}
       </div>
     </div>
@@ -624,8 +607,7 @@ function DashboardStat({
   };
   const t = tints[tint];
   return (
-    <motion.div
-      variants={stagger}
+    <div
       custom={i}
       className={cn(
         "rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4",
@@ -639,7 +621,7 @@ function DashboardStat({
         {value}
       </p>
       <p className="mt-1.5 text-[11px] text-muted-foreground">{label}</p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -656,8 +638,8 @@ function EarningRow({ label, value }: { label: string; value: string }) {
 
 function HostDashboardSkeleton() {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+      <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />
           <div className="flex-1 space-y-1.5">

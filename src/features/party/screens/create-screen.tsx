@@ -2,7 +2,6 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ImagePlus,
@@ -317,18 +316,18 @@ export function CreateScreen() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
+      <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3 max-w-xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <motion.button
+          <button
             onClick={handleBack}
-            whileTap={{ scale: 0.9 }}
+
             className="flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-card/50 text-foreground transition hover:bg-card"
             aria-label="Back"
           >
             <ChevronLeft className="h-4 w-4" />
-          </motion.button>
+          </button>
           <div className="flex-1">
             <h2 className="font-display text-base font-bold text-foreground">
               Create a Party
@@ -355,7 +354,7 @@ export function CreateScreen() {
               disabled={i > step}
             >
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40 transition-all">
-                <motion.div
+                <div
                   className={cn(
                     "h-full rounded-full",
                     i < step
@@ -364,8 +363,8 @@ export function CreateScreen() {
                         ? "bg-gradient-to-r from-purple-500 to-violet-400"
                         : "bg-transparent",
                   )}
-                  animate={{ width: i <= step ? "100%" : "0%" }}
-                  transition={{ duration: 0.4, ease: "easeInOut" }}
+
+
                 />
               </div>
             </button>
@@ -375,16 +374,15 @@ export function CreateScreen() {
 
       {/* ── Step content ────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-hidden relative">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
+          <div
             key={step}
             custom={direction}
             variants={slideVariants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute inset-0 fancy-scrollbar overflow-y-auto overflow-x-hidden px-4 py-5 max-w-full"
+
+            className="absolute inset-0 fancy-scrollbar overflow-y-auto overflow-x-hidden px-4 py-5 max-w-xl mx-auto"
           >
             {step === 0 && (
               <StepBasics form={form} set={set} coverPresets={COVER_PRESETS} />
@@ -411,8 +409,7 @@ export function CreateScreen() {
                 setEmojiPickerOpen={setEmojiPickerOpen}
               />
             )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </div>
 
       {/* ── Upload overlay ──────────────────────────────────────────── */}
@@ -426,10 +423,9 @@ export function CreateScreen() {
       />
       {uploadPct !== null && (
         <div className="fixed inset-x-0 top-0 z-50 h-1">
-          <motion.div
+          <div
             className="h-full bg-gradient-to-r from-purple-500 to-violet-400"
-            animate={{ width: `${uploadPct}%` }}
-            transition={{ duration: 0.2 }}
+            style={{ width: `${uploadPct}%` }}
           />
         </div>
       )}
@@ -477,7 +473,7 @@ export function CreateScreen() {
           )}
 
           {/* Next / Create */}
-          <motion.div whileTap={{ scale: 0.97 }}>
+          <div>
             <Button
               onClick={handleNext}
               disabled={!canProceed() || createMutation.isPending}
@@ -505,7 +501,7 @@ export function CreateScreen() {
                 </>
               )}
             </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
@@ -642,9 +638,9 @@ function StepBasics({
             </p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
               {coverPresets.map((url, i) => (
-                <motion.button
+                <button
                   key={i}
-                  whileTap={{ scale: 0.95 }}
+
                   onClick={() => set("coverUrl", url)}
                   className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-border/40 transition hover:border-purple-500/40"
                 >
@@ -654,7 +650,7 @@ function StepBasics({
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                </motion.button>
+                </button>
               ))}
             </div>
           </div>
@@ -744,9 +740,9 @@ function StepWhenWhere({
 
       {/* Map preview placeholder */}
       {form.city && form.area && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
+        <div
+
+
           className="rounded-2xl border border-border/40 bg-card/30 p-4 text-center"
         >
           <MapPin className="mx-auto h-8 w-8 text-purple-400" />
@@ -756,7 +752,7 @@ function StepWhenWhere({
           <p className="mt-1 text-[10px] text-muted-foreground">
             Pin preview will appear here
           </p>
-        </motion.div>
+        </div>
       )}
 
       {/* Security add-on */}
@@ -781,9 +777,9 @@ function StepWhenWhere({
           />
         </div>
         {form.securityBooked && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
+          <div
+
+
             className="mt-3 rounded-xl bg-teal-500/5 border border-teal-500/20 p-3"
           >
             <p className="text-[11px] text-teal-300/80 leading-relaxed">
@@ -791,7 +787,7 @@ function StepWhenWhere({
               &quot;Safe&quot; badge on your party — major trust signal,
               especially for women.
             </p>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>
@@ -823,9 +819,9 @@ function StepVibeSettings({
             const emoji = VIBE_EMOJI[vibe] || "✨";
             const colorCls = VIBE_COLORS[vibe] || "bg-purple-500/15 text-purple-300 border-purple-500/45";
             return (
-              <motion.button
+              <button
                 key={vibe}
-                whileTap={{ scale: 0.95 }}
+
                 onClick={() => toggleVibe(vibe)}
                 className={cn(
                   "relative flex items-center gap-2 rounded-2xl border p-3 text-left transition-all",
@@ -837,15 +833,15 @@ function StepVibeSettings({
                 <span className="text-xl">{emoji}</span>
                 <span className="text-sm font-semibold truncate">{vibe}</span>
                 {active && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
+                  <div
+
+
                     className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/20"
                   >
                     <Check className="h-3 w-3" />
-                  </motion.div>
+                  </div>
                 )}
-              </motion.button>
+              </button>
             );
           })}
         </div>
@@ -1046,12 +1042,11 @@ function StepMenu({
         {form.menuItems
           .filter((item) => item.category === menuCat)
           .map((item) => (
-            <motion.div
+            <div
               key={item.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+
+
+
               className="rounded-2xl border border-border/40 bg-card/30 p-3 space-y-3"
             >
               <div className="flex items-center gap-2">
@@ -1100,12 +1095,11 @@ function StepMenu({
               </div>
 
               {/* Emoji picker dropdown */}
-              <AnimatePresence>
                 {emojiPickerOpen === item.id && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
+                  <div
+
+
+
                     className="flex flex-wrap gap-1.5 overflow-hidden"
                   >
                     {MENU_EMOJIS.map((emoji) => (
@@ -1124,10 +1118,9 @@ function StepMenu({
                         {emoji}
                       </button>
                     ))}
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
-            </motion.div>
+            </div>
           ))}
       </div>
 

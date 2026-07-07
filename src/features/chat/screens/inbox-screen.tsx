@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Inbox as InboxIcon,
@@ -101,10 +100,10 @@ function TabBar({
           )}
           {tab}
           {active === tab && (
-            <motion.div
+            <div
               layoutId="inbox-tab-indicator"
               className="absolute inset-0 -z-10 rounded-full bg-purple-500/20 ring-1 ring-purple-500/40"
-              transition={{ type: "spring", stiffness: 500, damping: 35 }}
+
             />
           )}
         </button>
@@ -135,11 +134,11 @@ function ThreadCard({
     : false;
 
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+
+
+
       className={cn(
         "group flex w-full items-center gap-3.5 rounded-2xl p-3 text-left transition-all duration-200 press-feedback",
         "hover:bg-white/[0.04]",
@@ -218,7 +217,7 @@ function ThreadCard({
           )}
         </div>
       </div>
-    </motion.button>
+    </button>
   );
 }
 
@@ -313,9 +312,9 @@ export function InboxScreen() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)]">
+      <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-4 pb-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
@@ -327,13 +326,13 @@ export function InboxScreen() {
               </h1>
             </div>
             {totalUnread > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+              <span
+
+
                 className="flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-coral px-2 text-[11px] font-bold text-white shadow-[0_2px_10px_-2px_rgba(216,90,48,0.5)]"
               >
                 {totalUnread}
-              </motion.span>
+              </span>
             )}
           </div>
         </div>
@@ -351,7 +350,7 @@ export function InboxScreen() {
       </header>
 
       {/* ── Content ────────────────────────────────────────────── */}
-      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden max-w-2xl mx-auto w-full">
         {isLoading && <InboxSkeleton />}
 
         {!isLoading && (
@@ -364,14 +363,13 @@ export function InboxScreen() {
 
             {/* Thread list */}
             <div className="space-y-1.5 px-3 pt-2 pb-24">
-              <AnimatePresence mode="popLayout">
                 {threads.length === 0 && (
-                  <motion.div
+                  <div
                     key="empty"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
+
+
+
+
                   >
                     <EmptyState
                       icon={search ? Search : InboxIcon}
@@ -401,7 +399,7 @@ export function InboxScreen() {
                         )
                       }
                     />
-                  </motion.div>
+                  </div>
                 )}
 
                 {threads.map((t) => {
@@ -417,7 +415,6 @@ export function InboxScreen() {
                     />
                   );
                 })}
-              </AnimatePresence>
             </div>
           </>
         )}

@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Plus,
@@ -226,10 +225,10 @@ export function ManagePartyScreen() {
     const validTypes = new Set(["image/jpeg","image/png","image/webp","image/gif","image/avif","video/mp4","video/webm","video/quicktime","video/ogg"]);
     const bad = files.find((f) => !validTypes.has(f.type));
     if (bad) { toast.error(`Unsupported file: ${bad.name}`, { description: "Use JPG, PNG, WebP, GIF, MP4, WebM, or MOV" }); return; }
-    const tooBigImage = files.find((f) => f.type.startsWith("image/") && f.size > 10 * 1024 * 1024);
-    if (tooBigImage) { toast.error(`"${tooBigImage.name}" is over 10 MB`); return; }
-    const tooBigVideo = files.find((f) => f.type.startsWith("video/") && f.size > 60 * 1024 * 1024);
-    if (tooBigVideo) { toast.error(`"${tooBigVideo.name}" is over 60 MB`); return; }
+    const tooBigImage = files.find((f) => f.type.startsWith("image/") && f.size > 5 * 1024 * 1024);
+    if (tooBigImage) { toast.error(`"${tooBigImage.name}" is over 5 MB`); return; }
+    const tooBigVideo = files.find((f) => f.type.startsWith("video/") && f.size > 5 * 1024 * 1024);
+    if (tooBigVideo) { toast.error(`"${tooBigVideo.name}" is over 5 MB`); return; }
     const toUpload = files.slice(0, slotsLeft);
     if (files.length > slotsLeft) toast.warning(`Only ${slotsLeft} slot${slotsLeft > 1 ? "s" : ""} left`);
     uploadMutation.mutate({ files: toUpload });
@@ -258,28 +257,28 @@ export function ManagePartyScreen() {
   // ── Empty state ────────────────────────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header
+
+
           className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
         >
           <div className="flex items-center gap-3">
-            <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
               <ChevronLeft className="h-5 w-5" />
-            </motion.button>
+            </button>
             <span className="font-display text-lg font-bold text-foreground">Manage</span>
           </div>
-        </motion.header>
+        </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 border border-purple-500/20 shadow-[0_0_30px_-8px_rgba(83,74,183,0.3)]">
             <UtensilsCrossed className="h-7 w-7 text-purple-300" />
           </div>
           <h2 className="font-display text-xl font-bold text-foreground">No party selected</h2>
           <p className="max-w-xs text-sm text-muted-foreground">Pick one of your parties to edit its menu, photos, videos, and group chat settings.</p>
-          <motion.button onClick={goBack} whileTap={{ scale: 0.97 }} className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
+          <button onClick={goBack} className="rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
             Go back
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -292,27 +291,27 @@ export function ManagePartyScreen() {
   // ── Error ──────────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
+        <header
+
+
           className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
         >
           <div className="flex items-center gap-3">
-            <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
+            <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80">
               <ChevronLeft className="h-5 w-5" />
-            </motion.button>
+            </button>
             <span className="font-display text-lg font-bold text-foreground">Manage</span>
           </div>
-        </motion.header>
+        </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
           <h2 className="font-display text-xl font-bold text-foreground">Couldn&apos;t load party</h2>
           <p className="max-w-xs text-sm text-muted-foreground">
             {partyQuery.error instanceof Error ? partyQuery.error.message : "Try again in a moment."}
           </p>
-          <motion.button onClick={() => partyQuery.refetch()} whileTap={{ scale: 0.97 }} className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
+          <button onClick={() => partyQuery.refetch()} className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white">
             <RefreshCw className="h-4 w-4" /> Retry
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -327,23 +326,23 @@ export function ManagePartyScreen() {
   ];
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button
+          <button
             onClick={goBack}
-            whileTap={{ scale: 0.9 }}
+
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Manage</p>
             <h1 className="font-display text-base font-bold leading-tight truncate text-foreground">{party.title}</h1>
@@ -356,40 +355,39 @@ export function ManagePartyScreen() {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
             return (
-              <motion.button
+              <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                whileTap={{ scale: 0.95 }}
+
                 className={cn(
                   "relative flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-colors",
                   isActive ? "text-white" : "text-white/35 hover:text-white/55",
                 )}
               >
                 {isActive && (
-                  <motion.div
+                  <div
                     layoutId="manage-tab"
                     className="absolute inset-0 rounded-xl bg-purple-500/15 border border-purple-500/25"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+
                   />
                 )}
                 <Icon className="h-3.5 w-3.5 relative z-10" />
                 <span className="relative z-10 hidden sm:inline">{tab.label}</span>
-              </motion.button>
+              </button>
             );
           })}
         </div>
-      </motion.header>
+      </header>
 
       {/* Content */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
-        <AnimatePresence mode="wait">
           {activeTab === "menu" && (
-            <motion.div
+            <div
               key="menu"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.3 }}
+
+
+
+
               className="space-y-4"
             >
               {/* Add menu item form */}
@@ -511,9 +509,8 @@ export function ManagePartyScreen() {
                           <span className="text-[10px] text-muted-foreground">{items.length}</span>
                         </div>
                         {items.map((it) => (
-                          <motion.div
+                          <div
                             key={it.id}
-                            layout
                             className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2.5"
                           >
                             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-lg">
@@ -534,23 +531,23 @@ export function ManagePartyScreen() {
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     );
                   })}
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {activeTab === "media" && (
-            <motion.div
+            <div
               key="media"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.3 }}
+
+
+
+
               className="space-y-4"
             >
               <input
@@ -630,13 +627,13 @@ export function ManagePartyScreen() {
                 </button>
               </div>
 
-              <p className="text-[10px] text-muted-foreground/50">{mediaList.length}/{MAX_MEDIA} · JPG/PNG/WebP/GIF ≤ 10 MB · MP4/WebM/MOV ≤ 60 MB</p>
+              <p className="text-[10px] text-muted-foreground/50">{mediaList.length}/{MAX_MEDIA} · JPG/PNG/WebP/GIF ≤ 5 MB · MP4/WebM/MOV ≤ 5 MB</p>
 
               {presetOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
+                <div
+
+
+
                   className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3"
                 >
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-200">
@@ -695,18 +692,18 @@ export function ManagePartyScreen() {
                       );
                     })}
                   </div>
-                </motion.div>
+                </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {activeTab === "chat" && (
-            <motion.div
+            <div
               key="chat"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.3 }}
+
+
+
+
               className="space-y-4"
             >
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4">
@@ -768,16 +765,16 @@ export function ManagePartyScreen() {
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
           {activeTab === "settings" && (
-            <motion.div
+            <div
               key="settings"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.3 }}
+
+
+
+
               className="space-y-4"
             >
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4 space-y-4">
@@ -822,9 +819,8 @@ export function ManagePartyScreen() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
 
       {/* Footer */}
@@ -842,7 +838,7 @@ export function ManagePartyScreen() {
 
 function ManagePartySkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10" />

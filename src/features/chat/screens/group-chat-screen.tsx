@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Send,
@@ -111,10 +110,10 @@ function OfferCard({ msg }: { msg: GroupChatMessage }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+    <div
+
+
+
       className="my-2 flex justify-center px-2"
     >
       <div className="relative w-full max-w-[92%] overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-purple-500/60 via-pink-500/30 to-teal-400/50 shadow-[0_6px_24px_-10px_rgba(83,74,183,0.5)]">
@@ -158,7 +157,7 @@ function OfferCard({ msg }: { msg: GroupChatMessage }) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -287,7 +286,7 @@ function HeaderSkeleton() {
 function LockedState() {
   const goBack = useAppStore((s) => s.goBack);
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
       <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
           <button
@@ -307,16 +306,16 @@ function LockedState() {
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-16 text-center">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        <div
+
+
+
           className="vibe-float"
         >
           <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-purple-500/10 ring-1 ring-purple-500/25 shadow-[0_6px_24px_-6px_rgba(83,74,183,0.4)]">
             <Lock className="h-9 w-9 text-purple-400" />
           </div>
-        </motion.div>
+        </div>
         <div className="space-y-1.5">
           <p className="font-display text-xl font-bold text-white">
             Group chat is locked
@@ -357,10 +356,10 @@ function GroupMessageBubble({
   const color = senderColor(m.senderId);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+    <div
+
+
+
       className={cn(
         "flex items-end gap-2",
         mine ? "justify-end" : "justify-start",
@@ -400,7 +399,7 @@ function GroupMessageBubble({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -470,7 +469,7 @@ export function GroupChatScreen() {
 
   if (groupChatQuery.isLoading || partyQuery.isLoading) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
         <HeaderSkeleton />
         <div className="flex-1 space-y-3 p-4">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -503,7 +502,7 @@ export function GroupChatScreen() {
   const memberCount = members.length;
 
   return (
-    <div className="flex h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden animate-screen-in">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
@@ -550,10 +549,10 @@ export function GroupChatScreen() {
         className="fancy-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Welcome banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
+        <div
+
+
+
           className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/[0.08] to-teal-500/[0.04] p-4 text-center ring-1 ring-white/[0.08]"
         >
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
@@ -567,7 +566,7 @@ export function GroupChatScreen() {
             <span className="font-semibold text-purple-300">group perks</span> —
             referral offers from Swiggy, Blinkit &amp; more.
           </p>
-        </motion.div>
+        </div>
 
         {grouped.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
@@ -587,17 +586,17 @@ export function GroupChatScreen() {
             {items.map((m, i) => {
               if (m.kind === "system") {
                 return (
-                  <motion.div
+                  <div
                     key={m.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
+
+
+
                     className="my-2 flex justify-center"
                   >
                     <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-white/[0.04] px-3.5 py-1.5 text-center text-[11px] leading-relaxed text-white/50 ring-1 ring-white/[0.08]">
                       {m.content}
                     </span>
-                  </motion.div>
+                  </div>
                 );
               }
 
@@ -659,10 +658,10 @@ export function GroupChatScreen() {
             placeholder="Message the group…"
             className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none"
           />
-          <motion.button
+          <button
             onClick={send}
             disabled={!text.trim() || sendMutation.isPending}
-            whileTap={{ scale: 0.9 }}
+
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
               text.trim() && !sendMutation.isPending
@@ -672,7 +671,7 @@ export function GroupChatScreen() {
             aria-label="Send"
           >
             <Send className="h-4 w-4" />
-          </motion.button>
+          </button>
         </div>
       </footer>
 

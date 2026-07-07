@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Check,
@@ -103,7 +102,7 @@ export function EditProfileScreen() {
   if (!currentUser) return null;
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
       {/* ---- Sticky header ---- */}
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/[0.08] px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <button
@@ -128,9 +127,9 @@ export function EditProfileScreen() {
           )}
         >
           {saveMutation.isPending ? (
-            <motion.span
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+            <span
+
+
               className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
             />
           ) : (
@@ -144,10 +143,10 @@ export function EditProfileScreen() {
       {/* ---- Scrollable body ---- */}
       <div className="fancy-scrollbar flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-12">
         {/* ---- Avatar section ---- */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+        <section
+
+
+
           className="flex flex-col items-center gap-4"
         >
           <div className="relative">
@@ -178,13 +177,13 @@ export function EditProfileScreen() {
               </button>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* ---- Form fields ---- */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08, duration: 0.4 }}
+        <div
+
+
+
           className="space-y-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5"
         >
           {/* Name */}
@@ -275,13 +274,13 @@ export function EditProfileScreen() {
               />
             </div>
           </Field>
-        </motion.div>
+        </div>
 
         {/* ---- Vibe preferences ---- */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.16, duration: 0.4 }}
+        <section
+
+
+
         >
           <h3 className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
             Vibe Preferences
@@ -291,9 +290,9 @@ export function EditProfileScreen() {
               const isSelected = selectedVibes.includes(tag);
               const colorClasses = VIBE_COLORS[tag] || "";
               return (
-                <motion.button
+                <button
                   key={tag}
-                  whileTap={{ scale: 0.93 }}
+
                   onClick={() => toggleVibe(tag)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium border transition-all duration-200",
@@ -304,17 +303,17 @@ export function EditProfileScreen() {
                 >
                   <span aria-hidden>{VIBE_EMOJI[tag]}</span>
                   {tag}
-                </motion.button>
+                </button>
               );
             })}
           </div>
-        </motion.section>
+        </section>
 
         {/* ---- Delete account ---- */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.24 }}
+        <section
+
+
+
         >
           <button
             onClick={() => setShowDeleteDialog(true)}
@@ -323,24 +322,23 @@ export function EditProfileScreen() {
             <Trash2 className="h-4 w-4" />
             Delete Account
           </button>
-        </motion.section>
+        </section>
       </div>
 
       {/* ---- Delete confirmation dialog ---- */}
-      <AnimatePresence>
         {showDeleteDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
+
+
+
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={() => setShowDeleteDialog(false)}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            <div
+
+
+
+
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-sm rounded-2xl bg-[#18152e] border border-white/[0.08] p-6 shadow-2xl"
             >
@@ -373,10 +371,9 @@ export function EditProfileScreen() {
                   Delete
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

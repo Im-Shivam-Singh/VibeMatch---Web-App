@@ -138,7 +138,7 @@ export function AdminScreen() {
   // ── Empty state: no party selected ──────────────────────────────
   if (!selectedPartyId) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
         <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <button
             onClick={goBack}
@@ -173,7 +173,7 @@ export function AdminScreen() {
   // ── Error state ─────────────────────────────────────────────────
   if (!party) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
         <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <button
             onClick={goBack}
@@ -211,7 +211,7 @@ export function AdminScreen() {
   const pendingCount = pending.length;
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
       {/* ── Sticky header ────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <button
@@ -495,7 +495,7 @@ function ToggleRow({
 
 function AdminSkeleton() {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col animate-screen-in">
       <header className="sticky top-0 z-20 flex items-center gap-2 glass-strong border-b border-white/10 px-3 py-3 pt-[max(env(safe-area-inset-top),12px)]">
         <div className="h-9 w-9" />
         <div className="flex-1 space-y-1.5">

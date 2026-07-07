@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Compass,
   MessageCircle,
@@ -9,7 +9,6 @@ import {
   Ticket,
   type LucideIcon,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import type { Screen } from "@/lib/types";
@@ -142,35 +141,26 @@ function NavButton({
       className="relative flex flex-1 flex-col items-center gap-0.5 py-1.5 transition-all duration-200 active:scale-95"
     >
       {/* ── Active indicator dot with pulse ────────────────────────── */}
-      <AnimatePresence>
-        {active && (
-          <motion.span
-            aria-hidden
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute -top-0.5 h-1 w-1 rounded-full bg-purple-400"
-            style={{ boxShadow: "0 0 8px rgba(192,132,252,0.9)" }}
-          >
-            {/* Pulse ring */}
-            <span className="absolute inset-0 animate-ping rounded-full bg-purple-400/60 [animation-duration:2s]" />
-          </motion.span>
-        )}
-      </AnimatePresence>
+      {active && (
+        <span
+          aria-hidden
+          className="absolute -top-0.5 h-1 w-1 rounded-full bg-purple-400"
+          style={{ boxShadow: "0 0 8px rgba(192,132,252,0.9)" }}
+        >
+          {/* Pulse ring */}
+          <span className="absolute inset-0 animate-ping rounded-full bg-purple-400/60 [animation-duration:2s]" />
+        </span>
+      )}
 
       {/* ── Icon wrapper ────────────────────────────────────────────── */}
       <span className="relative flex h-7 w-7 items-center justify-center">
         {/* Active pill background */}
-        <motion.span
+        <span
           aria-hidden
-          initial={false}
-          animate={{
-            opacity: active ? 1 : 0,
-            scale: active ? 1 : 0.75,
-          }}
-          transition={{ duration: 0.2 }}
-          className="absolute inset-0 -m-1.5 rounded-2xl bg-purple-500/15"
+          className={cn(
+            "absolute inset-0 -m-1.5 rounded-2xl bg-purple-500/15 transition-all duration-200",
+            active ? "opacity-100 scale-100" : "opacity-0 scale-75"
+          )}
         />
 
         <Icon
@@ -227,13 +217,9 @@ function NavButton({
 
 // ── CreateButton (Host FAB) ────────────────────────────────────────────────
 function CreateButton({ onClick }: { onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       aria-label="Host a vibe"
       className="group relative -mt-6 flex shrink-0 flex-col items-center"
     >
@@ -259,13 +245,9 @@ function CreateButton({ onClick }: { onClick: () => void }) {
           className="absolute inset-0 rounded-full bg-gradient-to-br from-white/25 to-transparent"
         />
 
-        <motion.span
-          animate={{ rotate: hovered ? 90 : 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className="relative"
-        >
+        <span className="relative">
           <Plus className="h-6 w-6 text-white" strokeWidth={2.75} />
-        </motion.span>
+        </span>
       </span>
 
       {/* ── Host label ─────────────────────────────────────────────── */}

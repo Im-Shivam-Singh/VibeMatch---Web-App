@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { ChevronLeft, Minus, Plus, Lock, ShieldCheck, CreditCard, Smartphone, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -116,7 +115,7 @@ export function PaymentScreen() {
   // Guard
   if (!partyId || !currentUser) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-sm text-muted-foreground">Pick a party to confirm your spot.</p>
         <Button variant="outline" onClick={() => setScreen("home")}>Browse parties</Button>
       </div>
@@ -126,7 +125,7 @@ export function PaymentScreen() {
   // Loading
   if (partyQuery.isLoading || !party) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+      <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-xl" />
@@ -148,23 +147,23 @@ export function PaymentScreen() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button
+          <button
             onClick={goBack}
-            whileTap={{ scale: 0.9 }}
+
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="min-w-0 flex-1">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
               Step 4 of 9 · Checkout
@@ -177,15 +176,15 @@ export function PaymentScreen() {
             </p>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       {/* Body */}
       <div className="fancy-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Order summary */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <div className="mb-3 flex items-center gap-2">
@@ -209,13 +208,13 @@ export function PaymentScreen() {
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground/50">Fixed</p>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* Add drinks & snacks */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <div className="mb-1 flex items-start justify-between gap-2">
@@ -254,11 +253,11 @@ export function PaymentScreen() {
                       <p className="text-xs text-purple-300/80">{formatPrice(item.price)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <motion.button
+                      <button
                         type="button"
                         onClick={() => setQty(item.id, -1)}
                         disabled={qty === 0}
-                        whileTap={{ scale: 0.9 }}
+
                         aria-label={`Remove one ${item.name}`}
                         className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-full border transition",
@@ -268,32 +267,32 @@ export function PaymentScreen() {
                         )}
                       >
                         <Minus className="h-3.5 w-3.5" />
-                      </motion.button>
+                      </button>
                       <span className="w-5 text-center text-sm font-medium tabular-nums text-foreground">
                         {qty}
                       </span>
-                      <motion.button
+                      <button
                         type="button"
                         onClick={() => setQty(item.id, 1)}
-                        whileTap={{ scale: 0.9 }}
+
                         aria-label={`Add one ${item.name}`}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-purple-500/30 text-purple-200 transition hover:bg-purple-500/10"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                      </motion.button>
+                      </button>
                     </div>
                   </li>
                 );
               })}
             </ul>
           )}
-        </motion.section>
+        </section>
 
         {/* Payment method */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
+        <section
+
+
+
           className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-4"
         >
           <h2 className="mb-3 font-display text-base font-semibold text-foreground">
@@ -305,10 +304,10 @@ export function PaymentScreen() {
               const Icon = m.icon;
               return (
                 <li key={m.id}>
-                  <motion.button
+                  <button
                     type="button"
                     onClick={() => setPaymentMethod(m.id)}
-                    whileTap={{ scale: 0.98 }}
+
                     className={cn(
                       "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition",
                       selected ? "bg-purple-500/10 border border-purple-500/20" : "hover:bg-white/[0.04]",
@@ -329,18 +328,18 @@ export function PaymentScreen() {
                       </p>
                       {m.sub && <p className="text-xs text-muted-foreground">{m.sub}</p>}
                     </div>
-                  </motion.button>
+                  </button>
                 </li>
               );
             })}
           </ul>
-        </motion.section>
+        </section>
 
         {/* Total + CTA */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+        <section
+
+
+
           className="pt-2"
         >
           <div className="flex items-end justify-between border-t border-white/[0.06] pt-4">
@@ -355,7 +354,7 @@ export function PaymentScreen() {
             </p>
           </div>
 
-          <motion.div whileTap={{ scale: 0.98 }}>
+          <div>
             <Button
               type="button"
               onClick={() => submit(false)}
@@ -374,7 +373,7 @@ export function PaymentScreen() {
                 </>
               )}
             </Button>
-          </motion.div>
+          </div>
 
           <div className="mt-2 text-center">
             <button
@@ -391,7 +390,7 @@ export function PaymentScreen() {
             <ShieldCheck className="h-3 w-3" />
             Secured by Stripe · refundable if host cancels
           </p>
-        </motion.section>
+        </section>
       </div>
     </div>
   );

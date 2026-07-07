@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   Plus,
@@ -99,24 +98,24 @@ export function MyPartiesScreen() {
   );
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* ── Frosted header ───────────────────────────────────────── */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button
+          <button
             onClick={goBack}
-            whileTap={{ scale: 0.9 }}
-            whileHover={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+
+
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors"
             aria-label="Back"
           >
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
 
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
@@ -127,40 +126,40 @@ export function MyPartiesScreen() {
             </p>
           </div>
 
-          <motion.button
+          <button
             onClick={openCreate}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.93 }}
+
+
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500 text-white shadow-[0_0_20px_-4px_rgba(83,74,183,0.5)]"
             aria-label="Create party"
           >
             <Plus className="h-5 w-5" strokeWidth={2.5} />
-          </motion.button>
+          </button>
         </div>
-      </motion.header>
+      </header>
 
       {/* ── Content ──────────────────────────────────────────────── */}
       <div className="fancy-scrollbar flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
         {/* Analytics summary */}
         {currentUser && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
+          <section
+
+
+
             className="mb-5"
           >
             <HostAnalyticsCard hostId={currentUser.id} />
-          </motion.section>
+          </section>
         )}
 
         {/* Create CTA banner */}
-        <motion.button
+        <button
           onClick={openCreate}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+
+
+
+
+
           className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-purple-500/20 bg-purple-500/[0.07] p-4 text-left backdrop-blur-sm transition-colors hover:bg-purple-500/[0.12]"
         >
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 shadow-[0_0_16px_-4px_rgba(83,74,183,0.3)]">
@@ -175,17 +174,17 @@ export function MyPartiesScreen() {
             </p>
           </div>
           <ChevronLeft className="h-4 w-4 rotate-180 text-purple-400/40" />
-        </motion.button>
+        </button>
 
         {/* Loading skeleton */}
         {isLoading && (
           <div className="space-y-4">
             {[0, 1, 2].map((i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 + 0.2, duration: 0.4 }}
+
+
+
                 className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4"
               >
                 <div className="flex items-center gap-3">
@@ -201,7 +200,7 @@ export function MyPartiesScreen() {
                     <div key={j} className="h-14 rounded-xl bg-white/[0.04] animate-pulse" />
                   ))}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
@@ -213,26 +212,24 @@ export function MyPartiesScreen() {
             title="You haven't hosted yet"
             description="Launch your first vibe and watch the requests roll in."
             action={
-              <motion.button
+              <button
                 onClick={openCreate}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
+
+
                 className="inline-flex items-center gap-2 rounded-2xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)]"
               >
                 <Plus className="h-4 w-4" />
                 Launch a vibe
-              </motion.button>
+              </button>
             }
           />
         )}
 
         {/* Active events */}
         {!isLoading && parties.length > 0 && (
-          <AnimatePresence mode="popLayout">
+          <>
             {activeEvents.length > 0 && (
-              <motion.section
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+              <section
                 className="mb-5 space-y-3"
               >
                 <div className="flex items-center gap-2 px-1">
@@ -254,14 +251,11 @@ export function MyPartiesScreen() {
                     <ActiveEventCard key={p.id} party={p} index={i} />
                   ))}
                 </div>
-              </motion.section>
+              </section>
             )}
 
             {/* Upcoming parties */}
-            <motion.section
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
+            <section
               className="space-y-3"
             >
               {upcomingParties.length > 0 && (
@@ -283,8 +277,8 @@ export function MyPartiesScreen() {
                   />
                 ))}
               </div>
-            </motion.section>
-          </AnimatePresence>
+            </section>
+          </>
         )}
       </div>
     </div>
@@ -313,14 +307,10 @@ function ActiveEventCard({ party, index }: { party: Party; index: number }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.45,
-        delay: index * 0.06,
-        ease: [0.22, 1, 0.36, 1],
-      }}
+    <div
+
+
+
       className="overflow-hidden rounded-2xl border border-teal-500/20 bg-teal-500/[0.04] backdrop-blur-sm"
     >
       <div className="p-4">
@@ -360,11 +350,9 @@ function ActiveEventCard({ party, index }: { party: Party; index: number }) {
             </p>
             {/* Fill bar */}
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${fillPct}%` }}
-                transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
+              <div
                 className="h-full rounded-full bg-gradient-to-r from-teal-500 to-purple-500"
+                style={{ width: `${fillPct}%` }}
               />
             </div>
           </div>
@@ -384,25 +372,25 @@ function ActiveEventCard({ party, index }: { party: Party; index: number }) {
 
         {/* CTA buttons */}
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <motion.button
+          <button
             onClick={openInsights}
-            whileTap={{ scale: 0.97 }}
+
             className="flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/[0.08]"
           >
             <BarChart3 className="h-3.5 w-3.5 text-teal-300" />
             Insights
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             onClick={openGroupChat}
-            whileTap={{ scale: 0.97 }}
+
             className="flex items-center justify-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-2.5 text-xs font-semibold text-teal-200 transition-colors hover:bg-teal-500/20"
           >
             <MessageCircle className="h-3.5 w-3.5" />
             Group chat
-          </motion.button>
+          </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -427,15 +415,11 @@ function PartyRowCard({ party, index }: { party: Party; index: number }) {
   const revenue = party.guestCount * party.fee;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.45,
-        delay: index * 0.06,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      whileHover={{ y: -2 }}
+    <div
+
+
+
+
       className="group overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm transition-all hover:border-purple-500/20 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.3)]"
     >
       <button
@@ -504,6 +488,6 @@ function PartyRowCard({ party, index }: { party: Party; index: number }) {
           </span>
         </div>
       </button>
-    </motion.div>
+    </div>
   );
 }

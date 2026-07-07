@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   MoreVertical,
@@ -115,26 +114,26 @@ const MessageBubble = React.memo(function MessageBubble({
   // System messages: centered, muted text
   if (kind === "system") {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.2 }}
+      <div
+
+
+
         className="my-3 flex justify-center"
       >
         <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-white/[0.04] px-3.5 py-1.5 text-center text-[11px] leading-relaxed text-white/50 ring-1 ring-white/[0.08]">
           <Clock className="h-3 w-3 shrink-0 text-purple-400/70" />
           {m.content}
         </span>
-      </motion.div>
+      </div>
     );
   }
 
   // Text + video bubbles
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+    <div
+
+
+
       className={cn(
         "flex items-end gap-2",
         mine ? "justify-end" : "justify-start",
@@ -211,7 +210,7 @@ const MessageBubble = React.memo(function MessageBubble({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 });
 
@@ -239,10 +238,10 @@ function PaymentCard({
   const isPaid = paid && m.requestId === requestId;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+    <div
+
+
+
       className={cn("my-3 flex", mine ? "justify-start" : "justify-end")}
     >
       {isPaid ? (
@@ -300,7 +299,7 @@ function PaymentCard({
           </div>
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -310,10 +309,10 @@ function PaymentCard({
 
 function TypingIndicator({ name, avatar, avatarUrl }: { name: string; avatar?: boolean; avatarUrl?: string | null }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
+    <div
+
+
+
       className="flex items-end gap-2"
     >
       {avatar && <UserAvatar name={name} src={avatarUrl} size={28} />}
@@ -322,7 +321,7 @@ function TypingIndicator({ name, avatar, avatarUrl }: { name: string; avatar?: b
         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400 [animation-delay:-0.15s]" />
         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400" />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -361,7 +360,7 @@ function SheetButton({
 
 function ChatSkeleton() {
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-hidden flex-col animate-screen-in">
+    <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col animate-screen-in">
       <header className="sticky top-0 z-20 glass-strong border-b border-white/[0.08] px-3 py-2">
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-9 rounded-full vibe-skeleton" />
@@ -564,7 +563,7 @@ export function ChatScreen() {
 
   if (!other) {
     return (
-      <div className="flex min-h-[100dvh] w-full max-w-[100vw] flex-col items-center justify-center gap-3 overflow-hidden p-6 text-center animate-screen-in">
+      <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center gap-3 overflow-hidden p-6 text-center animate-screen-in">
         <p className="text-sm text-muted-foreground">
           This conversation couldn't be loaded.
         </p>
@@ -578,7 +577,7 @@ export function ChatScreen() {
   const grouped = groupByDay(messages);
 
   return (
-    <div className="flex h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden animate-screen-in">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden animate-screen-in">
       {/* ── Header ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 shrink-0 glass-strong border-b border-white/[0.08] px-3 py-2 pt-[max(env(safe-area-inset-top),10px)]">
         <div className="flex items-center gap-2">
@@ -663,10 +662,10 @@ export function ChatScreen() {
         className="fancy-scrollbar flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4"
       >
         {/* Intro card */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
+        <div
+
+
+
           className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/[0.08] to-teal-500/[0.04] p-5 text-center ring-1 ring-white/[0.08]"
         >
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 ring-1 ring-purple-500/25">
@@ -686,7 +685,7 @@ export function ChatScreen() {
             <Sparkles className="h-3 w-3 text-purple-400" />
             You connected over a party. Be kind, be safe.
           </p>
-        </motion.div>
+        </div>
 
         {/* Day groups */}
         {grouped.map(({ label, items }) => (
@@ -741,7 +740,6 @@ export function ChatScreen() {
         ))}
 
         {/* Typing indicator */}
-        <AnimatePresence>
           {isTyping && (
             <TypingIndicator
               name={other.name ?? "Unknown User"}
@@ -749,7 +747,6 @@ export function ChatScreen() {
               avatarUrl={other.avatarUrl}
             />
           )}
-        </AnimatePresence>
 
         {/* Sending indicator */}
         {sendMutation.isPending && (
@@ -783,12 +780,11 @@ export function ChatScreen() {
         )}
 
         {/* Lock hint */}
-        <AnimatePresence>
           {lockHint && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
+            <div
+
+
+
               className="overflow-hidden"
             >
               <div
@@ -806,9 +802,8 @@ export function ChatScreen() {
                 <lockHint.icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 leading-tight">{lockHint.text}</span>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
 
         {/* Request to join quick-action */}
         {composerLocked && requestStatus === "pending" && (
@@ -854,10 +849,10 @@ export function ChatScreen() {
               composerLocked && "cursor-not-allowed opacity-50",
             )}
           />
-          <motion.button
+          <button
             onClick={() => send()}
             disabled={composerLocked || !text.trim()}
-            whileTap={{ scale: 0.9 }}
+
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
               text.trim() && !composerLocked
@@ -867,7 +862,7 @@ export function ChatScreen() {
             aria-label="Send"
           >
             <Send className="h-4 w-4" />
-          </motion.button>
+          </button>
         </div>
       </footer>
 

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 // Global loading state for API latency indication
 interface LoadingState {
@@ -116,19 +115,15 @@ export function useLoading() {
 // The actual loading indicator component
 function LatencyIndicator({ show }: { show: boolean }) {
   return (
-    <AnimatePresence>
+    <>
       {show && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.2 }}
+        <div
           className="fixed top-4 right-4 z-[9999] flex items-center gap-2 px-3 py-2 rounded-full bg-primary/90 text-primary-foreground shadow-lg backdrop-blur-sm"
         >
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-xs font-medium">Loading...</span>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

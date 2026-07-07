@@ -15,8 +15,13 @@ import {
   SkipForward,
   SkipBack,
   Music2,
+  Plus,
+  Trash2,
+  Save,
+  ListMusic,
+  Link,
 } from "lucide-react";
-import { useMusicStore } from "@/lib/music/store";
+import { useMusicStore, type PlaylistEntry } from "@/lib/music/store";
 import { MUSIC_TRACKS, getTrack, formatTime } from "@/lib/music/tracks";
 import {
   Dialog,
@@ -27,6 +32,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -164,18 +170,26 @@ export function MusicPlayerButton() {
 //  • Volume slider + mute toggle
 //  • Skip prev / next
 //  • Expandable track list with mood accents
+//  • My Playlist tab with save + add custom tracks
 // ─────────────────────────────────────────────────────────────────────
 export function MusicPlayerBar() {
   const isPlaying = useMusicStore((s) => s.isPlaying);
   const currentTrackId = useMusicStore((s) => s.currentTrackId);
   const volume = useMusicStore((s) => s.volume);
   const barExpanded = useMusicStore((s) => s.barExpanded);
+  const userPlaylist = useMusicStore((s) => s.userPlaylist);
+  const autoPlayOnLoad = useMusicStore((s) => s.autoPlayOnLoad);
   const toggle = useMusicStore((s) => s.toggle);
   const pause = useMusicStore((s) => s.pause);
   const play = useMusicStore((s) => s.play);
   const setVolume = useMusicStore((s) => s.setVolume);
   const setTrack = useMusicStore((s) => s.setTrack);
   const setBarExpanded = useMusicStore((s) => s.setBarExpanded);
+  const addToPlaylist = useMusicStore((s) => s.addToPlaylist);
+  const removeFromPlaylist = useMusicStore((s) => s.removeFromPlaylist);
+  const clearPlaylist = useMusicStore((s) => s.clearPlaylist);
+  const savePlaylist = useMusicStore((s) => s.savePlaylist);
+  const loadSavedPlaylist = useMusicStore((s) => s.loadSavedPlaylist);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [expanded, setExpanded] = useState(barExpanded);
@@ -186,13 +200,44 @@ export function MusicPlayerBar() {
   const [loading, setLoading] = useState(false);
   const [localVolume, setLocalVolume] = useState(volume);
   const prevMuted = useRef<number>(0);
+  const [activeTab, setActiveTab] = useState<"tracks" | "playlist">("tracks");
+  const [customUrl, setCustomUrl] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const autoPlayedRef = useRef(false);
 
   // sync expanded state with store so it persists across mounts
   useEffect(() => {
     setBarExpanded(expanded);
   }, [expanded, setBarExpanded]);
 
-  const track = getTrack(currentTrackId);
+  // Load saved playlist on mount and auto-play if available
+  useEffect(() => {
+    loadSavedPlaylist();
+  }, [loadSavedPlaylist]);
+
+  // Auto-play saved playlist on first load
+  useEffect(() => {
+    if (autoPlayedRef.current) return;
+    if (autoPlayOnLoad && userPlaylist.length > 0 && !isPlaying) {
+      autoPlayedRef.current = true;
+      // Play the first track in the user's playlist
+      const first = userPlaylist[0];
+      if (first) {
+        setTrack(first.id);
+      }
+    }
+  }, [autoPlayOnLoad, userPlaylist, isPlaying, setTrack]);
+
+  // Resolve the current track — check built-in tracks first, then user playlist
+  const track = (() => {
+    const builtIn = getTrack(currentTrackId);
+    if (builtIn && builtIn.id === currentTrackId) return builtIn;
+    // Check user playlist for custom tracks
+    const custom = userPlaylist.find((t) => t.id === currentTrackId);
+    if (custom) return custom;
+    return builtIn; // fallback
+  })();
 
   // Wire audio events
   useEffect(() => {
@@ -240,29 +285,44 @@ export function MusicPlayerBar() {
     const audio = audioRef.current;
     if (!audio || !track) return;
 
+    // Determine if this track has a playable audio URL
+    const rawUrl = (track as any).audioUrl || (track as any).url || "";
+    const isPlayableAudio =
+      rawUrl.endsWith(".mp3") ||
+      rawUrl.endsWith(".wav") ||
+      rawUrl.endsWith(".ogg") ||
+      rawUrl.endsWith(".m4a") ||
+      rawUrl.includes("soundhelix.com") ||
+      rawUrl.includes("/api/upload");
+
     let srcChanged = false;
-    if (audio.src !== track.audioUrl) {
-      audio.src = track.audioUrl;
+    if (isPlayableAudio && rawUrl && audio.src !== rawUrl) {
+      audio.src = rawUrl;
       audio.load();
       srcChanged = true;
-      // Defer state resets so we don't trigger a cascading render inside
-      // the effect body. The audio element itself is the source of truth
-      // until the new metadata fires.
       queueMicrotask(() => {
         setCurrentTime(0);
         setDuration(0);
         setBuffered(0);
         setLoading(true);
       });
+    } else if (!isPlayableAudio) {
+      // External link — pause audio, don't try to load
+      audio.pause();
+      audio.removeAttribute("src");
+      queueMicrotask(() => {
+        setCurrentTime(0);
+        setDuration(0);
+        setBuffered(0);
+        setLoading(false);
+        setAudioError(false);
+      });
+      srcChanged = true;
     }
 
     audio.volume = volume;
 
-    if (isPlaying) {
-      // Audio elements need data before play() can succeed. If the src was
-      // just set, the play() promise may reject with AbortError — that's
-      // fine, the `canplay` handler will retry. We do NOT call pause() on
-      // rejection because that would silently kill the user's intent.
+    if (isPlaying && isPlayableAudio) {
       const p = audio.play();
       if (p && typeof p.catch === "function") {
         p.catch(() => {
@@ -294,20 +354,30 @@ export function MusicPlayerBar() {
     [duration],
   );
 
+  // All available tracks = built-in + user playlist
+  const allTracks = (() => {
+    const builtIn: { id: string; title: string; emoji: string; color: string; mood: string; duration: string; audioUrl?: string; url?: string; isCustom?: boolean }[] =
+      MUSIC_TRACKS.map((t) => ({ ...t }));
+    const custom: { id: string; title: string; emoji: string; color: string; mood: string; duration: string; audioUrl?: string; url?: string; isCustom?: boolean }[] =
+      userPlaylist
+        .filter((t) => t.isCustom)
+        .map((t) => ({ ...t, url: t.url }));
+    return [...builtIn, ...custom];
+  })();
+
   const skipTo = useCallback(
     (dir: 1 | -1) => {
-      const idx = MUSIC_TRACKS.findIndex((t) => t.id === currentTrackId);
-      const nextIdx = (idx + dir + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
-      setTrack(MUSIC_TRACKS[nextIdx].id);
+      const idx = allTracks.findIndex((t) => t.id === currentTrackId);
+      const nextIdx =
+        (idx + dir + allTracks.length) % allTracks.length;
+      setTrack(allTracks[nextIdx].id);
     },
-    [currentTrackId, setTrack],
+    [currentTrackId, setTrack, allTracks],
   );
 
   // Auto-advance when a track ends
   const onEnded = useCallback(() => {
-    // Auto-play next track for continuous vibes
     skipTo(1);
-    // The setTrack above flips isPlaying=true; the effect will call .play()
   }, [skipTo]);
 
   // Volume slider: mute toggle on click of the volume icon
@@ -320,10 +390,65 @@ export function MusicPlayerBar() {
     }
   };
 
+  // Add a built-in track to the user playlist
+  const addBuiltinToPlaylist = (t: (typeof MUSIC_TRACKS)[number]) => {
+    addToPlaylist({
+      id: t.id,
+      title: t.title,
+      url: t.audioUrl,
+      emoji: t.emoji,
+      color: t.color,
+      mood: t.mood,
+      duration: t.duration,
+      isCustom: false,
+    });
+  };
+
+  // Add a custom track (Spotify/YouTube link)
+  const addCustomTrack = () => {
+    const url = customUrl.trim();
+    const title = customTitle.trim() || "Custom Track";
+    if (!url) return;
+    const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const isSpotify = url.includes("spotify.com");
+    const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+    addToPlaylist({
+      id,
+      title,
+      url,
+      emoji: isSpotify ? "🟢" : isYouTube ? "🔴" : "🎵",
+      color: isSpotify ? "#1DB954" : isYouTube ? "#FF0000" : "#a78bfa",
+      mood: isSpotify ? "Spotify" : isYouTube ? "YouTube" : "Custom",
+      duration: "—",
+      isCustom: true,
+    });
+    setCustomUrl("");
+    setCustomTitle("");
+    setShowAddForm(false);
+  };
+
+  // Handle save playlist button
+  const handleSavePlaylist = () => {
+    savePlaylist();
+    // Quick visual feedback via a brief toast-like approach
+  };
+
   if (!track) return null;
 
   const progress = duration > 0 ? currentTime / duration : 0;
   const bufferedFrac = duration > 0 ? buffered / duration : 0;
+
+  // Determine the display audio URL for custom tracks
+  const trackAudioUrl = (track as any).audioUrl || (track as any).url || "";
+  const isCustomTrack = !!(track as any).isCustom;
+  const isExternalLink =
+    isCustomTrack &&
+    !trackAudioUrl.endsWith(".mp3") &&
+    !trackAudioUrl.endsWith(".wav") &&
+    !trackAudioUrl.endsWith(".ogg") &&
+    !trackAudioUrl.endsWith(".m4a") &&
+    !trackAudioUrl.includes("soundhelix.com") &&
+    !trackAudioUrl.includes("/api/upload");
 
   return (
     <>
@@ -333,14 +458,9 @@ export function MusicPlayerBar() {
         onError={() => {
           setAudioError(true);
           setLoading(false);
-          // Don't auto-pause — keep the bar visible so the user can retry.
-          // The audio element fires onError for network issues; the user can
-          // tap play again or skip to the next track.
         }}
         onLoadedMetadata={() => setLoading(false)}
         onCanPlay={() => {
-          // If the user wanted to play but the earlier play() call was
-          // rejected because the audio wasn't ready, retry now that it is.
           setLoading(false);
           if (useMusicStore.getState().isPlaying && audioRef.current) {
             audioRef.current.play().catch(() => {
@@ -361,30 +481,32 @@ export function MusicPlayerBar() {
             }}
           >
             {/* Progress bar across the very top edge */}
-            <div className="relative h-1 w-full bg-white/10">
-              <div
-                className="absolute inset-y-0 left-0 bg-white/15"
-                style={{ width: `${bufferedFrac * 100}%` }}
-              />
-              <div
-                className="absolute inset-y-0 left-0 rounded-r-full"
-                style={{
-                  width: `${progress * 100}%`,
-                  background: `linear-gradient(90deg, ${track.color}, #fff)`,
-                }}
-              />
-              {/* Seekable click target */}
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.001}
-                value={progress}
-                onChange={(e) => seekTo(parseFloat(e.target.value))}
-                aria-label="Seek"
-                className="absolute inset-0 w-full cursor-pointer opacity-0"
-              />
-            </div>
+            {!isExternalLink && (
+              <div className="relative h-1 w-full bg-white/10">
+                <div
+                  className="absolute inset-y-0 left-0 bg-white/15"
+                  style={{ width: `${bufferedFrac * 100}%` }}
+                />
+                <div
+                  className="absolute inset-y-0 left-0 rounded-r-full"
+                  style={{
+                    width: `${progress * 100}%`,
+                    background: `linear-gradient(90deg, ${track.color}, #fff)`,
+                  }}
+                />
+                {/* Seekable click target */}
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.001}
+                  value={progress}
+                  onChange={(e) => seekTo(parseFloat(e.target.value))}
+                  aria-label="Seek"
+                  className="absolute inset-0 w-full cursor-pointer opacity-0"
+                />
+              </div>
+            )}
 
             {/* Main row */}
             <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -396,32 +518,34 @@ export function MusicPlayerBar() {
                 style={{ background: `${track.color}25` }}
               >
                 {/* Progress ring around the disc */}
-                <svg
-                  className="absolute inset-0 h-full w-full -rotate-90"
-                  viewBox="0 0 44 44"
-                  aria-hidden
-                >
-                  <circle
-                    cx="22"
-                    cy="22"
-                    r="20"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.1)"
-                    strokeWidth="1.5"
-                  />
-                  <circle
-                    cx="22"
-                    cy="22"
-                    r="20"
-                    fill="none"
-                    stroke={track.color}
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeDasharray={2 * Math.PI * 20}
-                    strokeDashoffset={2 * Math.PI * 20 * (1 - progress)}
-                    style={{ transition: "stroke-dashoffset 0.25s linear" }}
-                  />
-                </svg>
+                {!isExternalLink && (
+                  <svg
+                    className="absolute inset-0 h-full w-full -rotate-90"
+                    viewBox="0 0 44 44"
+                    aria-hidden
+                  >
+                    <circle
+                      cx="22"
+                      cy="22"
+                      r="20"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.1)"
+                      strokeWidth="1.5"
+                    />
+                    <circle
+                      cx="22"
+                      cy="22"
+                      r="20"
+                      fill="none"
+                      stroke={track.color}
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 20}
+                      strokeDashoffset={2 * Math.PI * 20 * (1 - progress)}
+                      style={{ transition: "stroke-dashoffset 0.25s linear" }}
+                    />
+                  </svg>
+                )}
                 <span
                   className={cn(
                     "relative z-10",
@@ -450,10 +574,20 @@ export function MusicPlayerBar() {
                       · unavailable
                     </span>
                   )}
+                  {isExternalLink && isCustomTrack && (
+                    <a
+                      href={(track as any).url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-[10px] text-purple-400 hover:text-purple-300 underline"
+                    >
+                      open link
+                    </a>
+                  )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   {/* mini equalizer */}
-                  {isPlaying && !audioError && (
+                  {isPlaying && !audioError && !isExternalLink && (
                     <span className="flex items-end gap-[1.5px] h-2.5 mr-0.5">
                       {[0, 1, 2, 3].map((i) => (
                         <span
@@ -468,11 +602,15 @@ export function MusicPlayerBar() {
                       ))}
                     </span>
                   )}
-                  <span className="truncate">{track.mood}</span>
-                  <span className="text-white/20">·</span>
-                  <span className="tabular-nums">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
+                  <span className="truncate">{(track as any).mood}</span>
+                  {!isExternalLink && (
+                    <>
+                      <span className="text-white/20">·</span>
+                      <span className="tabular-nums">
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -542,7 +680,7 @@ export function MusicPlayerBar() {
               )}
             </div>
 
-            {/* Expanded panel: volume + track list */}
+            {/* Expanded panel: volume + track list + playlist */}
             {expanded && (
               <div className="border-t border-white/10 px-3 pb-3 pt-2 animate-screen-in">
                 {/* Volume row */}
@@ -594,76 +732,309 @@ export function MusicPlayerBar() {
                   </button>
                 </div>
 
-                {/* Track list */}
-                <p className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Music2 className="h-3 w-3" /> Switch vibe
-                </p>
-                <div className="max-h-44 space-y-0.5 overflow-y-auto fancy-scrollbar pr-1">
-                  {MUSIC_TRACKS.map((t) => {
-                    const active = t.id === currentTrackId;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => {
-                          setTrack(t.id);
-                        }}
-                        className={cn(
-                          "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition",
-                          active
-                            ? "bg-white/8 ring-1"
-                            : "hover:bg-white/5",
-                        )}
-                        style={
-                          active
-                            ? {
-                                boxShadow: `inset 0 0 0 1px ${t.color}55`,
-                              }
-                            : undefined
-                        }
-                      >
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm"
-                          style={{ background: `${t.color}25` }}
-                        >
-                          {active && isPlaying ? (
-                            <Disc3
-                              className="h-4 w-4 animate-spin [animation-duration:3s]"
-                              style={{ color: t.color }}
-                            />
-                          ) : (
-                            <span>{t.emoji}</span>
-                          )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className={cn(
-                              "truncate text-xs font-medium",
-                              active ? "text-foreground" : "text-foreground/90",
-                            )}
-                          >
-                            {t.title}
-                          </p>
-                          <p className="truncate text-[10px] text-muted-foreground">
-                            {t.mood} · {t.duration}
-                          </p>
-                        </div>
-                        {active ? (
-                          <span
-                            className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                            style={{
-                              background: `${t.color}25`,
-                              color: t.color,
-                            }}
-                          >
-                            Now
-                          </span>
-                        ) : (
-                          <Play className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        )}
-                      </button>
-                    );
-                  })}
+                {/* Tab switcher */}
+                <div className="mb-2 flex gap-1">
+                  <button
+                    onClick={() => setActiveTab("tracks")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition",
+                      activeTab === "tracks"
+                        ? "bg-white/10 text-foreground"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                    )}
+                  >
+                    <Music2 className="h-3 w-3" /> Tracks
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("playlist")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition",
+                      activeTab === "playlist"
+                        ? "bg-white/10 text-foreground"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                    )}
+                  >
+                    <ListMusic className="h-3 w-3" /> My Playlist
+                    {userPlaylist.length > 0 && (
+                      <span className="rounded-full bg-purple-500/25 px-1.5 py-0.5 text-[9px] font-bold text-purple-300">
+                        {userPlaylist.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
+
+                {/* Built-in tracks list */}
+                {activeTab === "tracks" && (
+                  <>
+                    <p className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <Music2 className="h-3 w-3" /> Switch vibe
+                    </p>
+                    <div className="max-h-44 space-y-0.5 overflow-y-auto fancy-scrollbar pr-1">
+                      {MUSIC_TRACKS.map((t) => {
+                        const active = t.id === currentTrackId;
+                        const inPlaylist = userPlaylist.some(
+                          (p) => p.id === t.id,
+                        );
+                        return (
+                          <div
+                            key={t.id}
+                            className="flex items-center"
+                          >
+                            <button
+                              onClick={() => setTrack(t.id)}
+                              className={cn(
+                                "flex flex-1 items-center gap-2.5 rounded-lg px-2 py-2 text-left transition",
+                                active
+                                  ? "bg-white/8 ring-1"
+                                  : "hover:bg-white/5",
+                              )}
+                              style={
+                                active
+                                  ? {
+                                      boxShadow: `inset 0 0 0 1px ${t.color}55`,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <span
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm"
+                                style={{ background: `${t.color}25` }}
+                              >
+                                {active && isPlaying ? (
+                                  <Disc3
+                                    className="h-4 w-4 animate-spin [animation-duration:3s]"
+                                    style={{ color: t.color }}
+                                  />
+                                ) : (
+                                  <span>{t.emoji}</span>
+                                )}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={cn(
+                                    "truncate text-xs font-medium",
+                                    active
+                                      ? "text-foreground"
+                                      : "text-foreground/90",
+                                  )}
+                                >
+                                  {t.title}
+                                </p>
+                                <p className="truncate text-[10px] text-muted-foreground">
+                                  {t.mood} · {t.duration}
+                                </p>
+                              </div>
+                              {active ? (
+                                <span
+                                  className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                  style={{
+                                    background: `${t.color}25`,
+                                    color: t.color,
+                                  }}
+                                >
+                                  Now
+                                </span>
+                              ) : (
+                                <Play className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              )}
+                            </button>
+                            {/* Add to playlist button */}
+                            <button
+                              onClick={() => addBuiltinToPlaylist(t)}
+                              disabled={inPlaylist}
+                              aria-label={
+                                inPlaylist
+                                  ? "Already in playlist"
+                                  : "Add to playlist"
+                              }
+                              className={cn(
+                                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition ml-1",
+                                inPlaylist
+                                  ? "text-purple-400/40"
+                                  : "text-muted-foreground hover:bg-white/10 hover:text-purple-300",
+                              )}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* My Playlist tab */}
+                {activeTab === "playlist" && (
+                  <>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <ListMusic className="h-3 w-3" /> Your saved tracks
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {userPlaylist.length > 0 && (
+                          <>
+                            <button
+                              onClick={handleSavePlaylist}
+                              aria-label="Save playlist"
+                              className="flex h-6 items-center gap-1 rounded-full bg-purple-500/15 px-2 text-[9px] font-bold text-purple-300 transition hover:bg-purple-500/25"
+                            >
+                              <Save className="h-2.5 w-2.5" /> Save
+                            </button>
+                            <button
+                              onClick={clearPlaylist}
+                              aria-label="Clear playlist"
+                              className="flex h-6 items-center gap-1 rounded-full bg-coral/10 px-2 text-[9px] font-bold text-coral/80 transition hover:bg-coral/20"
+                            >
+                              <Trash2 className="h-2.5 w-2.5" /> Clear
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {userPlaylist.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-6 text-center">
+                        <ListMusic className="h-8 w-8 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground">
+                          No tracks saved yet
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60">
+                          Add tracks from the Tracks tab or paste a link below
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="max-h-44 space-y-0.5 overflow-y-auto fancy-scrollbar pr-1">
+                        {userPlaylist.map((t) => {
+                          const active = t.id === currentTrackId;
+                          return (
+                            <div
+                              key={t.id}
+                              className="flex items-center"
+                            >
+                              <button
+                                onClick={() => setTrack(t.id)}
+                                className={cn(
+                                  "flex flex-1 items-center gap-2.5 rounded-lg px-2 py-2 text-left transition",
+                                  active
+                                    ? "bg-white/8 ring-1"
+                                    : "hover:bg-white/5",
+                                )}
+                                style={
+                                  active
+                                    ? {
+                                        boxShadow: `inset 0 0 0 1px ${t.color}55`,
+                                      }
+                                    : undefined
+                                }
+                              >
+                                <span
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm"
+                                  style={{ background: `${t.color}25` }}
+                                >
+                                  {active && isPlaying ? (
+                                    <Disc3
+                                      className="h-4 w-4 animate-spin [animation-duration:3s]"
+                                      style={{ color: t.color }}
+                                    />
+                                  ) : (
+                                    <span>{t.emoji}</span>
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p
+                                    className={cn(
+                                      "truncate text-xs font-medium",
+                                      active
+                                        ? "text-foreground"
+                                        : "text-foreground/90",
+                                    )}
+                                  >
+                                    {t.title}
+                                  </p>
+                                  <p className="truncate text-[10px] text-muted-foreground">
+                                    {t.mood}
+                                    {t.isCustom && " · External link"}
+                                  </p>
+                                </div>
+                                {active ? (
+                                  <span
+                                    className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                    style={{
+                                      background: `${t.color}25`,
+                                      color: t.color,
+                                    }}
+                                  >
+                                    Now
+                                  </span>
+                                ) : (
+                                  <Play className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => removeFromPlaylist(t.id)}
+                                aria-label="Remove from playlist"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-coral/10 hover:text-coral ml-1"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Add custom track form */}
+                    <div className="mt-2 space-y-1.5">
+                      {showAddForm ? (
+                        <div className="space-y-1.5 rounded-lg border border-white/10 bg-white/5 p-2">
+                          <Input
+                            value={customTitle}
+                            onChange={(e) => setCustomTitle(e.target.value)}
+                            placeholder="Track name (optional)"
+                            className="h-8 rounded-lg border-white/10 bg-white/5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-purple-400"
+                          />
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={customUrl}
+                              onChange={(e) => setCustomUrl(e.target.value)}
+                              placeholder="Paste Spotify / YouTube link"
+                              className="h-8 flex-1 rounded-lg border-white/10 bg-white/5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-purple-400"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") addCustomTrack();
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={addCustomTrack}
+                              disabled={!customUrl.trim()}
+                              className="h-8 rounded-lg bg-purple-500 px-3 text-[10px] font-bold text-white hover:bg-purple-500/90"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowAddForm(false);
+                              setCustomUrl("");
+                              setCustomTitle("");
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowAddForm(true)}
+                          className="flex w-full items-center gap-2 rounded-lg border border-dashed border-white/10 px-3 py-2 text-[10px] text-muted-foreground transition hover:border-purple-400/40 hover:text-purple-300"
+                        >
+                          <Link className="h-3 w-3" /> Add Spotify / YouTube
+                          link
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

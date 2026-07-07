@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Ticket as TicketIcon,
   RefreshCw,
@@ -192,9 +191,9 @@ function TicketSkeleton() {
 function EmptyTickets() {
   const setScreen = useAppStore((s) => s.setScreen);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
+
+
       className="flex flex-col items-center justify-center gap-5 px-6 py-20 text-center"
     >
       <div className="vibe-float">
@@ -210,15 +209,15 @@ function EmptyTickets() {
           Join a party to get your entry QR code — it&apos;ll show up right here
         </p>
       </div>
-      <motion.button
-        whileTap={{ scale: 0.96 }}
+      <button
+
         onClick={() => setScreen("home")}
         className="rounded-full bg-purple-bright px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple/30 hover:brightness-110 transition"
       >
         <Sparkles className="mr-1.5 inline h-4 w-4" />
         Find a party
-      </motion.button>
-    </motion.div>
+      </button>
+    </div>
   );
 }
 
@@ -234,9 +233,12 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
   const setScreen = useAppStore((s) => s.setScreen);
   const [expanded, setExpanded] = useState(false);
 
+  // Resolve party id (API should always include id, but fallback to partyId on ticket)
+  const partyId = party?.id ?? ticket.partyId;
+
   const openGroupChat = () => {
     if (!party) return;
-    setSelectedPartyId(party.id);
+    setSelectedPartyId(partyId);
     setScreen("group-chat");
   };
 
@@ -252,11 +254,10 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
   const vibes = parseVibes(party.vibes);
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    <div
+
+
+
       className="overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06]"
     >
       {/* Gradient accent strip */}
@@ -359,32 +360,31 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => {
-              setSelectedPartyId(party.id);
+              setSelectedPartyId(partyId);
               setScreen("detail");
             }}
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/[0.08] py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/[0.1] hover:text-white"
           >
             View Party
           </button>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+          <button
+
             onClick={() => setExpanded(!expanded)}
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-bright/15 border border-purple-bright/25 py-2.5 text-sm font-semibold text-purple-bright transition hover:bg-purple-bright/25"
           >
             <QrCode className="h-4 w-4" />
             {expanded ? "Hide QR" : "Show QR"}
-          </motion.button>
+          </button>
         </div>
       </div>
 
       {/* ---- Expanded detail ---- */}
-      <AnimatePresence>
         {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          <div
+
+
+
+
             className="overflow-hidden"
           >
             <div className="border-t border-white/[0.06] px-5 py-5 space-y-4">
@@ -456,10 +456,9 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
                 Open group chat
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
@@ -492,9 +491,9 @@ export function TicketsScreen() {
   }, [tickets, filter]);
 
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex-col">
+    <div className="flex min-h-[100dvh] w-full overflow-x-hidden flex-col">
       {/* Sticky header */}
-      <header className="sticky top-0 z-10 glass-strong border-b border-white/[0.06] px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]">
+      <header className="sticky top-0 z-10 glass-strong border-b border-white/[0.06] px-4 py-3 pt-[max(env(safe-area-inset-top),12px)] max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div>
             <span className="eyebrow">My Tickets</span>
@@ -531,7 +530,7 @@ export function TicketsScreen() {
       </header>
 
       {/* Scrollable body */}
-      <div className="fancy-scrollbar w-full flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32">
+      <div className="fancy-scrollbar w-full flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4 pb-32 max-w-lg mx-auto">
         {isLoading && (
           <>
             <TicketSkeleton />
@@ -540,9 +539,9 @@ export function TicketsScreen() {
         )}
 
         {!isLoading && isError && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <div
+
+
             className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center"
           >
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl coral-foil">
@@ -562,7 +561,7 @@ export function TicketsScreen() {
             >
               Retry
             </button>
-          </motion.div>
+          </div>
         )}
 
         {!isLoading && !isError && tickets.length === 0 && <EmptyTickets />}
@@ -571,15 +570,15 @@ export function TicketsScreen() {
           !isError &&
           tickets.length > 0 &&
           filteredTickets.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <div
+
+
               className="flex flex-col items-center justify-center gap-3 py-12 text-center"
             >
               <p className="text-sm text-white/40">
                 No {filter} tickets
               </p>
-            </motion.div>
+            </div>
           )}
 
         {!isLoading &&

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { ChevronLeft, Settings2, MapPin, Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -105,37 +104,37 @@ export function FilterScreen() {
     "[&_[data-slot=slider-thumb]]:focus-visible:ring-purple-300/50";
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-[100vw] flex-col overflow-hidden">
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      <header
+
+
+
         className="sticky top-0 z-20 border-b border-white/[0.06] bg-background/70 backdrop-blur-2xl px-4 py-3 pt-[max(env(safe-area-inset-top),12px)]"
       >
         <div className="flex items-center gap-3">
-          <motion.button onClick={goBack} whileTap={{ scale: 0.9 }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors" aria-label="Back">
+          <button onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/80 transition-colors" aria-label="Back">
             <ChevronLeft className="h-5 w-5" />
-          </motion.button>
+          </button>
           <div className="min-w-0 flex-1">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Step 2 of 9 · Guest</span>
             <h1 className="font-display text-lg font-bold leading-tight text-foreground">Filter parties</h1>
           </div>
-          <motion.button
+          <button
             type="button"
-            whileTap={{ scale: 0.9 }}
+
             aria-label="Settings"
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 transition hover:bg-purple-500/20"
           >
             <Settings2 className="h-4 w-4" />
-          </motion.button>
+          </button>
         </div>
-      </motion.header>
+      </header>
 
       {/* Body */}
       <div className="fancy-scrollbar flex-1 min-h-0 space-y-6 overflow-y-auto overflow-x-hidden p-4 pb-40">
         {/* Search */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="space-y-3">
+        <section className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Search</span>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-400" />
@@ -156,10 +155,10 @@ export function FilterScreen() {
               </button>
             )}
           </div>
-        </motion.section>
+        </section>
 
         {/* City input */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
+        <section className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">City</span>
           <div className="relative">
             <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-400" />
@@ -181,10 +180,10 @@ export function FilterScreen() {
               </button>
             )}
           </div>
-        </motion.section>
+        </section>
 
         {/* Vibe multi-select */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="space-y-3">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Vibe</span>
             {selectedVibes.length > 0 && (
@@ -197,11 +196,11 @@ export function FilterScreen() {
             {VIBE_TAGS.map((v) => {
               const selected = selectedVibes.includes(v);
               return (
-                <motion.button
+                <button
                   key={v}
                   type="button"
                   onClick={() => toggleVibe(v)}
-                  whileTap={{ scale: 0.95 }}
+
                   aria-pressed={selected}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition",
@@ -212,14 +211,14 @@ export function FilterScreen() {
                 >
                   <span className="text-[0.85em] leading-none">{VIBE_EMOJI[v] ?? "✨"}</span>
                   {v}
-                </motion.button>
+                </button>
               );
             })}
           </div>
-        </motion.section>
+        </section>
 
         {/* Profession */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-3">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Who are you?</span>
             {professionFilter && (
@@ -230,11 +229,11 @@ export function FilterScreen() {
             {PROFESSIONS.map((p) => {
               const selected = professionFilter === p;
               return (
-                <motion.button
+                <button
                   key={p}
                   type="button"
                   onClick={() => setProfessionFilter(selected ? null : p)}
-                  whileTap={{ scale: 0.95 }}
+
                   aria-pressed={selected}
                   className={cn(
                     "rounded-full border px-4 py-2 text-sm transition",
@@ -244,15 +243,15 @@ export function FilterScreen() {
                   )}
                 >
                   {p}
-                </motion.button>
+                </button>
               );
             })}
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/50">We&apos;ll match you with parties hosted by your crowd.</p>
-        </motion.section>
+        </section>
 
         {/* Price range */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-4">
+        <section className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Price range</span>
             <span className="text-sm font-medium text-purple-300 tabular-nums">{priceLabel}</span>
@@ -261,20 +260,20 @@ export function FilterScreen() {
           <div className="flex justify-between text-[10px] uppercase tracking-[0.12em] text-muted-foreground/40">
             {PRICE_LABELS.map((l) => <span key={l}>{l}</span>)}
           </div>
-        </motion.section>
+        </section>
 
         {/* Date */}
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-3">
+        <section className="space-y-3">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">Date</span>
           <div className="flex flex-wrap gap-2">
             {DATE_FILTERS.map((d) => {
               const selected = dateFilter === d.id;
               return (
-                <motion.button
+                <button
                   key={d.id}
                   type="button"
                   onClick={() => setDateFilter(selected ? null : d.id)}
-                  whileTap={{ scale: 0.95 }}
+
                   aria-pressed={selected}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition",
@@ -285,11 +284,11 @@ export function FilterScreen() {
                 >
                   <span>{d.emoji}</span>
                   {d.label}
-                </motion.button>
+                </button>
               );
             })}
           </div>
-        </motion.section>
+        </section>
       </div>
 
       {/* Sticky bottom CTA */}
@@ -297,20 +296,20 @@ export function FilterScreen() {
         <div className="rounded-2xl border border-white/[0.06] bg-background/80 backdrop-blur-2xl p-3 shadow-[0_-6px_30px_-10px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2">
             {hasActiveFilters && (
-              <motion.button
+              <button
                 onClick={clearAll}
-                whileTap={{ scale: 0.95 }}
+
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-muted-foreground transition hover:text-white"
                 aria-label="Clear all filters"
               >
                 <RotateCcw className="h-4 w-4" />
-              </motion.button>
+              </button>
             )}
-            <motion.button
+            <button
               type="button"
               onClick={applyAndGo}
               disabled={isLoading}
-              whileTap={{ scale: 0.98 }}
+
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-purple-500 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(83,74,183,0.5)] transition hover:bg-purple-400 disabled:opacity-70"
             >
               {isLoading ? (
@@ -324,7 +323,7 @@ export function FilterScreen() {
                   Show {matchCount} matching parties
                 </>
               )}
-            </motion.button>
+            </button>
           </div>
           {hasActiveFilters && (
             <button onClick={clearAll} className="mt-2 w-full text-center text-[10px] text-muted-foreground/50 hover:text-muted-foreground">

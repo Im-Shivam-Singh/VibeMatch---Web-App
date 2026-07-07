@@ -4,6 +4,11 @@ import { Party as PartyModel, PartyMedia as PartyMediaModel } from "@/lib/db/mod
 
 // ── /api/parties/[id]/media ───────────────────────────────────────────
 // Host manage-party endpoints for the live event gallery + group-chat toggle.
+//
+// Upload policy: all media uploads (images and videos) are limited to 5 MB
+// on the client side. Since this API stores URLs rather than raw file bytes,
+// the size limit is enforced client-side before the upload request is made.
+// The /api/upload endpoint handles the actual file upload with size checks.
 
 // POST — add a media item (image/video URL) to the party's gallery.
 // Body: { url, type: "image"|"video", caption? }

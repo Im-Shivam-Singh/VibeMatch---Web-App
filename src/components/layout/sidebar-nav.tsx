@@ -9,7 +9,6 @@ import {
   Bookmark,
   PartyPopper,
   LayoutDashboard,
-  Settings,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -69,12 +68,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: User,
     activeFor: ["profile", "edit-profile", "admin"],
   },
-  {
-    screen: "home",
-    label: "Settings",
-    icon: Settings,
-    activeFor: [],
-  },
 ];
 
 // ── Main SidebarNav ────────────────────────────────────────────────────────
@@ -125,15 +118,12 @@ export function SidebarNav() {
       <nav className="mt-4 flex flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
         {NAV_ITEMS.map((item) => {
           const active = item.activeFor.includes(screen);
-          // Settings is a special case — it just goes to home for now
-          const targetScreen =
-            item.label === "Settings" ? "home" : item.screen;
           return (
             <SidebarButton
               key={item.label}
               item={item}
               active={active}
-              onClick={() => setScreen(targetScreen)}
+              onClick={() => setScreen(item.screen)}
             />
           );
         })}
